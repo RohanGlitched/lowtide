@@ -22,8 +22,7 @@
   background: linear-gradient(180deg, #202328 0%, #111316 100%);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.1),
-    0 50px 70px -40px rgba(22, 24, 27, 0.6),
-    0 14px 26px -16px rgba(22, 24, 27, 0.5);
+    0 26px 34px -24px rgba(22, 24, 27, 0.5);
 }
 .device::after {
   /* fabric speaker body, its lower edge just showing */

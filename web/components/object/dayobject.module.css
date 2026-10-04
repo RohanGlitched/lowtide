@@ -16,6 +16,7 @@
 }
 .canvas canvas {
   display: block;
+  contain: strict;
   width: 100% !important;
   height: 100% !important;
 }
@@ -42,6 +43,8 @@
   font-weight: 600;
   white-space: pre;
   pointer-events: none;
+  transition: opacity 120ms ease;
+  will-change: transform;
 }
 .fallback {
   position: absolute;

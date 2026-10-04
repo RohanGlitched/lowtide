@@ -57,7 +57,7 @@ function finsOf(slots: ObjectSlot[], now: number) {
 export default function DayObject({ slots, now, timeZone, unit, highlight, label, className }: DayObjectProps) {
   const host = useRef<HTMLDivElement>(null);
   const api = useRef<{ update: (p: DayObjectProps) => void } | null>(null);
-  const [tip, setTip] = useState<{ x: number; y: number; text: string } | null>(null);
+  const tipRef = useRef<HTMLSpanElement>(null);
   const [failed, setFailed] = useState(false);
   const labels = useRef<(HTMLSpanElement | null)[]>([]);
 
@@ -72,12 +72,17 @@ export default function DayObject({ slots, now, timeZone, unit, highlight, label
       return;
     }
     const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    const coarse = matchMedia("(pointer: coarse)").matches;
+    // Sharp enough on retina, a third of the pixels of DPR 2.
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.NeutralToneMapping;
     renderer.toneMappingExposure = 1.0;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    // The light and the object never move relative to each other (only the camera orbits), so the shadow
+    // map is redrawn only while the fins change height.
+    renderer.shadowMap.autoUpdate = false;
     el.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
@@ -96,7 +101,7 @@ export default function DayObject({ slots, now, timeZone, unit, highlight, label
     controls.dampingFactor = 0.08;
     controls.minPolarAngle = 0.55;
     controls.maxPolarAngle = 1.2;
-    controls.autoRotate = !reduce;
+    controls.autoRotate = !reduce && !coarse;
     controls.autoRotateSpeed = 0.35;
     controls.update();
 
@@ -104,7 +109,7 @@ export default function DayObject({ slots, now, timeZone, unit, highlight, label
     const key = new THREE.DirectionalLight("#ffffff", 2.2);
     key.position.set(-5, 10, 6);
     key.castShadow = true;
-    key.shadow.mapSize.set(2048, 2048);
+    key.shadow.mapSize.set(1024, 1024);
     key.shadow.camera.left = -6;
     key.shadow.camera.right = 6;
     key.shadow.camera.top = 6;
@@ -125,13 +130,14 @@ export default function DayObject({ slots, now, timeZone, unit, highlight, label
     scene.add(floor);
 
     // Materials.
-    const aluminium = new THREE.MeshPhysicalMaterial({ color: "#b9c0c9", metalness: 1, roughness: 0.22, clearcoat: 0.3, clearcoatRoughness: 0.2 });
-    const brushed = new THREE.MeshPhysicalMaterial({ color: "#bfc5cd", metalness: 1, roughness: 0.42 });
+    // Standard materials where clearcoat adds nothing visible; physical only for the lacquered cobalt.
+    const aluminium = new THREE.MeshStandardMaterial({ color: "#b9c0c9", metalness: 1, roughness: 0.22 });
+    const brushed = new THREE.MeshStandardMaterial({ color: "#bfc5cd", metalness: 1, roughness: 0.42 });
     const cobalt = new THREE.MeshPhysicalMaterial({ color: COBALT, metalness: 0.25, roughness: 0.32, clearcoat: 1, clearcoatRoughness: 0.08 });
-    const graphite = new THREE.MeshPhysicalMaterial({ color: "#2a2d33", metalness: 0.7, roughness: 0.36, clearcoat: 0.5 });
-    const ghost = new THREE.MeshPhysicalMaterial({ color: "#c9ced6", metalness: 0.2, roughness: 0.6, transparent: true, opacity: 0.35 });
+    const graphite = new THREE.MeshStandardMaterial({ color: "#2a2d33", metalness: 0.7, roughness: 0.3 });
+    const ghost = new THREE.MeshStandardMaterial({ color: "#c9ced6", metalness: 0.2, roughness: 0.6, transparent: true, opacity: 0.35 });
     const engraving = new THREE.MeshStandardMaterial({ color: "#3a3f47", metalness: 0.4, roughness: 0.6 });
-    const polished = new THREE.MeshPhysicalMaterial({ color: "#f2f4f7", metalness: 1, roughness: 0.08 });
+    const polished = new THREE.MeshStandardMaterial({ color: "#f2f4f7", metalness: 1, roughness: 0.08 });
 
     // The base: a bevelled puck.
     const profile = [
@@ -223,12 +229,21 @@ export default function DayObject({ slots, now, timeZone, unit, highlight, label
       const nowA = ((minuteOfDay(p.now, p.timeZone) % 1440) / 1440) * Math.PI * 2;
       pin.position.set(Math.sin(nowA) * (BASE_R - 0.32), 0, -Math.cos(nowA) * (BASE_R - 0.32));
       animStart = performance.now();
+      renderer.shadowMap.needsUpdate = true;
+      needsFrame = true;
     };
     api.current = { update };
 
+    // Size is cached here so the frame loop never reads layout.
+    let W = 1;
+    let H = 1;
+    let needsFrame = true;
     const resize = () => {
       const w = el.clientWidth;
       const h = el.clientHeight;
+      W = w;
+      H = h;
+      needsFrame = true;
       renderer.setSize(w, h, false);
       camera.aspect = w / Math.max(1, h);
       // Keep the whole object in frame on narrow, tall boxes.
@@ -241,33 +256,42 @@ export default function DayObject({ slots, now, timeZone, unit, highlight, label
     const ro = new ResizeObserver(resize);
     ro.observe(el);
 
-    // Hover: which fin is under the pointer.
+    // Hover: which fin is under the pointer. Raycast at most once a frame, and write the tooltip
+    // straight to the DOM (no React render per mouse move).
     const ray = new THREE.Raycaster();
     const ndc = new THREE.Vector2();
     let hoverIdx = -1;
-    const onMove = (e: PointerEvent) => {
-      const box = renderer.domElement.getBoundingClientRect();
-      ndc.set(((e.clientX - box.left) / box.width) * 2 - 1, -((e.clientY - box.top) / box.height) * 2 + 1);
+    let pending: { x: number; y: number } | null = null;
+    const hideTip = () => {
+      const t = tipRef.current;
+      if (t) t.style.opacity = "0";
+    };
+    const pick = () => {
+      if (!pending || !props) return;
+      const { x, y } = pending;
+      pending = null;
+      ndc.set((x / W) * 2 - 1, -(y / H) * 2 + 1);
       ray.setFromCamera(ndc, camera);
       const hit = ray.intersectObjects(fins, false)[0];
-      const idx = hit ? fins.indexOf(hit.object as THREE.Mesh) : -1;
-      if (idx !== hoverIdx) {
-        hoverIdx = idx;
-        if (idx < 0 || !props) setTip(null);
-      }
-      if (idx >= 0 && props) {
-        const f = finData[idx];
-        const u = props.unit === "ct" ? " ct" : props.unit;
-        setTip({
-          x: e.clientX - box.left,
-          y: e.clientY - box.top,
-          text: `${hhmm(f.start, props.timeZone)}–${hhmm(f.start + 1800_000, props.timeZone)}  ${f.price == null ? "not published yet" : `${f.price.toFixed(1)}${u}/kWh`}`,
-        });
-      }
+      hoverIdx = hit ? fins.indexOf(hit.object as THREE.Mesh) : -1;
+      const t = tipRef.current;
+      if (!t) return;
+      if (hoverIdx < 0) return hideTip();
+      const f = finData[hoverIdx];
+      const u = props.unit === "ct" ? " ct" : props.unit;
+      t.textContent = `${hhmm(f.start, props.timeZone)}–${hhmm(f.start + 1800_000, props.timeZone)}  ${f.price == null ? "not published yet" : `${f.price.toFixed(1)}${u}/kWh`}`;
+      t.style.transform = `translate(${x + 14}px, ${y - 34}px)`;
+      t.style.opacity = "1";
+    };
+    const onMove = (e: PointerEvent) => {
+      if (e.pointerType === "touch") return;
+      const box = renderer.domElement.getBoundingClientRect();
+      pending = { x: e.clientX - box.left, y: e.clientY - box.top };
     };
     const onLeave = () => {
+      pending = null;
       hoverIdx = -1;
-      setTip(null);
+      hideTip();
     };
     renderer.domElement.addEventListener("pointermove", onMove);
     renderer.domElement.addEventListener("pointerleave", onLeave);
@@ -279,38 +303,88 @@ export default function DayObject({ slots, now, timeZone, unit, highlight, label
     });
 
     let visible = true;
-    const io = new IntersectionObserver(([entry]) => (visible = entry.isIntersecting));
+    let seen = false;
+    const io = new IntersectionObserver(([entry]) => {
+      visible = entry.isIntersecting;
+      needsFrame = true;
+      // The fins rise the first time the object is actually seen, not while it waited off screen.
+      if (visible && !seen) {
+        seen = true;
+        if (!reduce && performance.now() - animStart > 400) {
+          for (const st of finState) st.from = 0.001;
+          animStart = performance.now();
+        }
+      }
+    });
     io.observe(el);
 
+    // Frames are drawn on demand: every frame while the fins move or someone is turning the object,
+    // every other frame for the slow idle turn, and not at all when nothing changes or it's off screen.
+    let interacting = false;
+    controls.addEventListener("start", () => (interacting = true));
+    controls.addEventListener("end", () => (interacting = false));
+    controls.addEventListener("change", () => (needsFrame = true));
+    let frameNo = 0;
+    let warmed = false;
     let raf = 0;
     const tmp = new THREE.Vector3();
+    const toCam = new THREE.Vector3();
+    const dir = new THREE.Vector3();
     const tick = (t: number) => {
       raf = requestAnimationFrame(tick);
-      if (!visible || document.hidden) return;
+      // One warm-up frame even off screen: buffer uploads and the shadow pass happen now, not on scroll.
+      if ((!visible || document.hidden) && warmed) return;
+      frameNo++;
       const e = (t - animStart) / 1000;
-      for (let i = 0; i < FINS; i++) {
-        const st = finState[i];
-        const k = Math.max(0, Math.min(1, (e - st.delay) / 0.7));
-        const ease = 1 - Math.pow(1 - k, 3);
-        fins[i].scale.y = Math.max(0.001, st.from + (st.target - st.from) * ease);
+      const animating = e < 0.9 + 0.75;
+      if (animating) {
+        for (let i = 0; i < FINS; i++) {
+          const st = finState[i];
+          const k = Math.max(0, Math.min(1, (e - st.delay) / 0.7));
+          const ease = 1 - Math.pow(1 - k, 3);
+          fins[i].scale.y = Math.max(0.001, st.from + (st.target - st.from) * ease);
+        }
+        renderer.shadowMap.needsUpdate = true;
+        needsFrame = true;
       }
+      const idleTurn = controls.autoRotate && !interacting && !animating;
+      if (idleTurn && frameNo % 2) return;
       controls.update();
+      pick();
+      if (!needsFrame && !idleTurn) return;
+      needsFrame = false;
       renderer.render(scene, camera);
-      const w = el.clientWidth;
-      const h = el.clientHeight;
-      const toCam = camera.position.clone().setY(0).normalize();
+      warmed = true;
+      const w = W;
+      const h = H;
+      toCam.copy(camera.position).setY(0).normalize();
       labelPos.forEach((p, i) => {
         const n = labels.current[i];
         if (!n) return;
         // Labels on the far side would sit behind the fins: hide them.
-        n.style.opacity = p.clone().normalize().dot(toCam) < -0.35 ? "0" : "1";
+        n.style.opacity = dir.copy(p).normalize().dot(toCam) < -0.35 ? "0" : "1";
         tmp.copy(p).project(camera);
         n.style.transform = `translate(${((tmp.x + 1) / 2) * w}px, ${((1 - tmp.y) / 2) * h}px) translate(-50%, -50%)`;
       });
     };
-    raf = requestAnimationFrame(tick);
+    // Tiny meshes out of sight carry every fin material, so all their shaders compile up front.
+    for (const m of [graphite, ghost, cobalt, aluminium]) {
+      const w = new THREE.Mesh(finGeo, m);
+      w.position.set(0, -50, 0);
+      w.scale.setScalar(0.001);
+      scene.add(w);
+    }
+    // Compile shaders off the main thread where the browser allows it, then start drawing.
+    let disposed = false;
+    renderer
+      .compileAsync(scene, camera)
+      .catch(() => {})
+      .finally(() => {
+        if (!disposed) raf = requestAnimationFrame(tick);
+      });
 
     return () => {
+      disposed = true;
       cancelAnimationFrame(raf);
       ro.disconnect();
       io.disconnect();
@@ -342,11 +416,7 @@ export default function DayObject({ slots, now, timeZone, unit, highlight, label
             {h}
           </span>
         ))}
-      {tip && (
-        <span className={s.tip} style={{ transform: `translate(${tip.x + 14}px, ${tip.y - 34}px)` }}>
-          {tip.text}
-        </span>
-      )}
+      <span ref={tipRef} className={s.tip} style={{ opacity: 0 }} aria-hidden />
       {failed && <p className={s.fallback}>This browser can&apos;t draw 3D. The prices are in the table below.</p>}
     </div>
   );

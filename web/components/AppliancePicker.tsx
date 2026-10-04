@@ -5,6 +5,7 @@ import type { SceneData } from "@/lib/live";
 import { money } from "@/lib/format";
 import { hhmm } from "@/views/clock";
 import s from "./picker.module.css";
+import WhenNear from "./WhenNear";
 
 const DayObject = dynamic(() => import("./object/DayObject"), { ssr: false, loading: () => <div style={{ height: "100%" }} /> });
 
@@ -71,6 +72,7 @@ export default function AppliancePicker({ scene }: { scene: SceneData }) {
       </div>
       <div className={s.body}>
         <div className={s.clock}>
+          <WhenNear>
           <DayObject
             slots={scene.slots}
             now={scene.now}
@@ -79,6 +81,7 @@ export default function AppliancePicker({ scene }: { scene: SceneData }) {
             highlight={highlight}
             label={`The next 24 hours in ${scene.region}; the ${load.name.toLowerCase()}'s cheapest stretch is cut in cobalt, starting ${plan.best ? hhmm(plan.best.start, tz) : "—"}.`}
           />
+          </WhenNear>
         </div>
         <dl className={s.facts}>
           <div>

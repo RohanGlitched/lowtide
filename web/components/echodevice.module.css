@@ -28,8 +28,7 @@
   background: linear-gradient(180deg, #202328 0%, #111316 100%);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.1),
-    0 40px 60px -30px rgba(22, 24, 27, 0.55),
-    0 12px 22px -14px rgba(22, 24, 27, 0.5);
+    0 24px 32px -22px rgba(22, 24, 27, 0.5);
 }
 .camera {
   position: absolute;
@@ -55,8 +54,8 @@
   bottom: 1%;
   height: 9%;
   border-radius: 50%;
-  background: radial-gradient(50% 50% at 50% 50%, rgba(22, 24, 27, 0.32), transparent 70%);
-  filter: blur(6px);
+  /* A soft gradient instead of a blur filter: same look, far cheaper to paint. */
+  background: radial-gradient(50% 50% at 50% 50%, rgba(22, 24, 27, 0.26), rgba(22, 24, 27, 0.08) 55%, transparent 72%);
 }
 .spill {
   display: none;
