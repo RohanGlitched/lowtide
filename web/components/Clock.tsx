@@ -2,7 +2,7 @@
 import { useEffect, useRef } from "react";
 import { drawClock, type ClockData, type ClockTheme } from "@/views/clock";
 
-/** The tide clock, sized to its container (square). */
+/** The flat dial (the day from above), sized to its container (square). */
 export default function Clock({
   data,
   animate = true,

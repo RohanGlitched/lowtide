@@ -15,7 +15,7 @@ export default function Connect() {
       <h1>Add Lowtide to your assistant</h1>
       <p className={s.lede}>
         Lowtide is a remote MCP server (Streamable HTTP, spec 2025-11-25 and 2026-07-28). Any client that supports remote
-        MCP servers can use it, and clients that support MCP Apps draw the tide chart in the conversation.
+        MCP servers can use it, and clients that support MCP Apps show the day's prices on a dial, right in the conversation.
       </p>
 
       <section className={s.block}>

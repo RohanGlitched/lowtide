@@ -74,7 +74,9 @@ export default function DayObject({ slots, now, timeZone, unit, highlight, label
     const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
     const coarse = matchMedia("(pointer: coarse)").matches;
     // Sharp enough on retina, a third of the pixels of DPR 2.
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+    // (Recordings at CSS zoom set window.__lowtidePixelRatio so the canvas matches the output size.)
+    const forced = (window as Window & { __lowtidePixelRatio?: number }).__lowtidePixelRatio;
+    renderer.setPixelRatio(forced ?? Math.min(window.devicePixelRatio, 1.5));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.NeutralToneMapping;
     renderer.toneMappingExposure = 1.0;
