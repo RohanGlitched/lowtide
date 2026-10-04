@@ -1,0 +1,35 @@
+name: CI
+# Third-party actions are pinned to commit SHAs.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  web:
+    name: MCP server and site
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - name: Build the MCP App view
+        run: npm run views
+      - name: Type check
+        run: npx tsc --noEmit
+      - name: Unit tests (planner, clocks, places, phrase router)
+        run: npm test
+      - name: Production build
+        run: npx next build
+      - name: Every tool over Streamable HTTP against the live server
+        run: node scripts/mcp-smoke.mjs https://lowtide-energy.vercel.app

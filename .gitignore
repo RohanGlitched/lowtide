@@ -9,3 +9,4 @@ next-env.d.ts
 shots/
 keys/
 web/lib/generated/
+docs/raw/

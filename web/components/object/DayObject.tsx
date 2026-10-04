@@ -94,7 +94,7 @@ export default function DayObject({ slots, now, timeZone, unit, highlight, label
     camera.position.set(0, 7.4, 10.2);
 
     const controls = new OrbitControls(camera, renderer.domElement);
-    controls.target.set(0, 0.55, 0);
+    controls.target.set(0, 0.05, 0);
     controls.enableZoom = false;
     controls.enablePan = false;
     controls.enableDamping = true;

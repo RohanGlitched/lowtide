@@ -9,14 +9,14 @@ import WhenNear from "./WhenNear";
 
 const DayObject = dynamic(() => import("./object/DayObject"), { ssr: false, loading: () => <div style={{ height: "100%" }} /> });
 
-type Load = { id: string; name: string; kwh: number; minutes: number; icon: React.ReactNode };
+type Load = { id: string; name: string; kwh: number; minutes: number; perWeek: number; icon: React.ReactNode };
 
 const LOADS: Load[] = [
-  { id: "dishwasher", name: "Dishwasher", kwh: 0.9, minutes: 180, icon: <DishIcon /> },
-  { id: "washing", name: "Washing", kwh: 0.8, minutes: 150, icon: <WashIcon /> },
-  { id: "dryer", name: "Tumble dryer", kwh: 2.5, minutes: 120, icon: <DryIcon /> },
-  { id: "ev", name: "Car", kwh: 22, minutes: 180, icon: <CarIcon /> },
-  { id: "water", name: "Hot water", kwh: 6, minutes: 120, icon: <WaterIcon /> },
+  { id: "dishwasher", name: "Dishwasher", kwh: 0.9, minutes: 180, perWeek: 7, icon: <DishIcon /> },
+  { id: "washing", name: "Washing", kwh: 0.8, minutes: 150, perWeek: 4, icon: <WashIcon /> },
+  { id: "dryer", name: "Tumble dryer", kwh: 2.5, minutes: 120, perWeek: 3, icon: <DryIcon /> },
+  { id: "ev", name: "Car", kwh: 22, minutes: 180, perWeek: 2, icon: <CarIcon /> },
+  { id: "water", name: "Hot water", kwh: 6, minutes: 120, perWeek: 7, icon: <WaterIcon /> },
 ];
 
 /** Cost of running `kwh` evenly over [start, start + minutes), or null where prices aren't published. */
@@ -97,14 +97,14 @@ export default function AppliancePicker({ scene }: { scene: SceneData }) {
             <dd className={s.cheap}>{plan.best ? money(plan.best.c, scene) : "—"}</dd>
           </div>
           <div>
-            <dt>A year of days like today</dt>
-            <dd>{plan.best && plan.nowC != null ? money(Math.max(0, plan.nowC - plan.best.c) * 365, scene) : "—"}</dd>
+            <dt>Saved in a year, {load.perWeek === 7 ? "daily" : `${load.perWeek}× a week`}</dt>
+            <dd>{plan.best && plan.nowC != null ? money(Math.max(0, plan.nowC - plan.best.c) * load.perWeek * 52, scene) : "—"}</dd>
           </div>
         </dl>
       </div>
       <p className={s.note}>
         {load.kwh} kWh over {Math.floor(load.minutes / 60)} h{load.minutes % 60 ? ` ${load.minutes % 60}` : ""}, priced with the live {scene.tariff} rates for {scene.region}. The
-        year figure assumes every day is like today, so read it as a rough guide.
+        yearly saving assumes every day's prices look like today's, so read it as a rough guide.
       </p>
     </div>
   );

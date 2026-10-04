@@ -86,10 +86,10 @@
   position: absolute;
   inset: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
   align-items: center;
-  gap: 4%;
-  padding: 4% 6% 4% 5%;
+  gap: 3%;
+  padding: 2% 5% 2% 2%;
   color: #f6f7f9;
 }
 .screenClock {

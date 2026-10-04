@@ -159,7 +159,8 @@ html:has(#root.fit) body {
 #root.fit .sub {
   font-size: clamp(14px, min(3.4vh, 2.4vw), 24px);
 }
-#root.fit .source {
+#root.fit .source,
+#root.fit .mix {
   display: none;
 }
 @media (max-aspect-ratio: 1/1) {
