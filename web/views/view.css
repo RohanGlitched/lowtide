@@ -1,0 +1,346 @@
+:root {
+  --chart: #f3f7f8;
+  --ink: #13222d;
+  --ink-2: #4b5d69;
+  --rule: #c9d6dc;
+  --shoal: #cfe5ec;
+  --deep: #2c6b89;
+  --magenta: #b0186f;
+  --sand: #e6d9b8;
+  --night: rgba(44, 107, 137, 0.06);
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --chart: #0b1822;
+    --ink: #c9d8df;
+    --ink-2: #8aa1ad;
+    --rule: #22394a;
+    --shoal: #1d4256;
+    --deep: #5fa9c9;
+    --magenta: #e0559e;
+    --sand: #4a4332;
+    --night: rgba(95, 169, 201, 0.05);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --chart: #0b1822;
+  --ink: #c9d8df;
+  --ink-2: #8aa1ad;
+  --rule: #22394a;
+  --shoal: #1d4256;
+  --deep: #5fa9c9;
+  --magenta: #e0559e;
+  --sand: #4a4332;
+  --night: rgba(95, 169, 201, 0.05);
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  margin: 0;
+  background: var(--chart);
+  color: var(--ink);
+  font-family: "Barlow Semi Condensed", "Arial Narrow", "Roboto Condensed", system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+}
+#root {
+  padding: clamp(14px, 3.2vw, 36px) clamp(14px, 3.4vw, 40px) clamp(12px, 2.6vw, 28px);
+}
+
+header {
+  max-width: 34em;
+}
+.headline {
+  margin: 0;
+  font-weight: 600;
+  font-size: clamp(26px, 5.4vw, 60px);
+  line-height: 1.02;
+  letter-spacing: -0.01em;
+}
+.sub {
+  margin: 0.4em 0 0;
+  font-size: clamp(16px, 2.3vw, 26px);
+  line-height: 1.25;
+  color: var(--ink-2);
+}
+
+.chart {
+  margin: clamp(10px, 2vw, 22px) calc(-1 * clamp(14px, 3.4vw, 40px)) 0;
+  padding: 0;
+}
+.chart svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+.tide text {
+  font-family: inherit;
+  font-size: 13px;
+  fill: var(--ink-2);
+}
+.night {
+  fill: var(--night);
+}
+.water {
+  stroke: none;
+}
+.surface {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 1.6;
+  stroke-linejoin: round;
+}
+.datum {
+  stroke: var(--ink-2);
+  stroke-dasharray: 2 4;
+}
+.carbon {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 1.4;
+  stroke-dasharray: 1 4;
+  stroke-linecap: round;
+  opacity: 0.7;
+}
+.sounding {
+  font-family: "Newsreader", Georgia, serif !important;
+  font-style: italic;
+  font-size: 14px !important;
+  fill: var(--ink) !important;
+  opacity: 0.8;
+}
+.tick {
+  stroke: var(--ink);
+  stroke-width: 1;
+}
+.mark {
+  font-size: 14px !important;
+  font-weight: 600;
+  fill: var(--ink) !important;
+  paint-order: stroke;
+  stroke: var(--chart);
+  stroke-width: 4px;
+}
+.mark.LW {
+  fill: var(--deep) !important;
+}
+.now {
+  stroke: var(--magenta);
+  stroke-width: 2;
+}
+.now-label {
+  fill: var(--magenta) !important;
+  font-weight: 600;
+}
+.axis text {
+  font-size: 12px;
+}
+.axis .axis-day {
+  font-weight: 700;
+  fill: var(--ink) !important;
+}
+.floor {
+  stroke: var(--rule);
+}
+
+.berth .bracket {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 1.5;
+}
+.berth .berth-fill {
+  fill: var(--ink);
+  opacity: 0.05;
+}
+.berth .berth-label {
+  font-size: 13px !important;
+  font-weight: 600;
+  fill: var(--ink) !important;
+}
+.berth.best .bracket {
+  stroke: var(--magenta);
+  stroke-width: 2.5;
+}
+.berth.best .berth-fill {
+  fill: var(--magenta);
+  opacity: 0.1;
+}
+.berth.best .berth-label {
+  fill: var(--magenta) !important;
+}
+.berth.now .bracket,
+.berth.alt .bracket {
+  stroke-dasharray: 3 3;
+  stroke: var(--ink-2);
+}
+.berth.now .berth-fill,
+.berth.alt .berth-fill {
+  opacity: 0;
+}
+.berth.now .berth-label,
+.berth.alt .berth-label {
+  fill: var(--ink-2) !important;
+  font-weight: 500;
+}
+
+figcaption {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+  padding: 6px clamp(14px, 3.4vw, 40px) 0;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.key::before {
+  content: "";
+  display: inline-block;
+  width: 18px;
+  height: 0;
+  margin-right: 6px;
+  vertical-align: middle;
+  border-top: 2px solid var(--ink);
+}
+.key-water::before {
+  height: 8px;
+  border: 0;
+  border-top: 1.6px solid var(--ink);
+  background: var(--shoal);
+}
+.key-carbon::before {
+  border-top: 2px dotted var(--ink);
+}
+.key-now::before {
+  width: 2px;
+  height: 12px;
+  border: 0;
+  background: var(--magenta);
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0;
+  margin: clamp(12px, 2vw, 22px) 0 0;
+  border-top: 1px solid var(--rule);
+}
+.facts div {
+  padding: 10px 14px 10px 0;
+  border-bottom: 1px solid var(--rule);
+  min-width: 0;
+}
+.facts dt {
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.facts dd {
+  margin: 2px 0 0;
+  font-size: clamp(17px, 2.2vw, 24px);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+footer {
+  margin-top: 14px;
+  display: grid;
+  gap: 8px;
+}
+.mixbar {
+  display: flex;
+  height: 8px;
+  border-radius: 1px;
+  overflow: hidden;
+  max-width: 420px;
+}
+.fuel {
+  display: block;
+  min-width: 2px;
+}
+.fuel-wind { background: #5fa9c9; }
+.fuel-solar { background: #d9b44a; }
+.fuel-nuclear { background: #8c7bb5; }
+.fuel-gas { background: #9a8f7a; }
+.fuel-imports { background: #b9c3c8; }
+.fuel-biomass { background: #7fa06b; }
+.fuel-hydro { background: #2c6b89; }
+.fuel-coal { background: #4a4a4a; }
+.fuel-other { background: #d0d0d0; }
+.mixtext,
+.source {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--ink-2);
+  max-width: 60em;
+}
+.mixtext {
+  margin-top: 6px;
+}
+.loading,
+.error {
+  margin: 0;
+  font-size: 20px;
+  color: var(--ink-2);
+}
+.error {
+  color: var(--magenta);
+}
+
+/* Device screen (fullscreen display mode): everything fits, the chart takes the remaining height. */
+html:has(#root.fit),
+html:has(#root.fit) body {
+  height: 100%;
+  overflow: hidden;
+}
+#root.fit {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: clamp(10px, 2vh, 20px);
+}
+#root.fit .chart {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+#root.fit .plot {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+#root.fit .headline {
+  font-size: clamp(24px, min(8vh, 6vw), 64px);
+}
+#root.fit .sub {
+  font-size: clamp(15px, min(3.6vh, 3vw), 28px);
+}
+@media (max-width: 520px) {
+  #root.fit .facts div:nth-child(n + 3) {
+    display: none;
+  }
+  #root.fit .mix {
+    display: none;
+  }
+}
+#root.fit .facts {
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  grid-auto-flow: column;
+}
+#root.fit .facts div:nth-child(n + 5) {
+  display: none;
+}
+#root.fit .facts dd {
+  font-size: clamp(15px, 3vh, 24px);
+}
+#root.fit footer {
+  margin-top: 8px;
+}
+#root.fit .source {
+  display: none;
+}

@@ -1,0 +1,37 @@
+.field {
+  display: grid;
+  gap: 6px;
+  max-width: 760px;
+}
+.label {
+  font-size: 15px;
+  color: var(--ink-2);
+}
+.row {
+  display: flex;
+  min-width: 0;
+  border: 1px solid var(--ink);
+  border-radius: 4px;
+  background: var(--paper);
+}
+.value {
+  flex: 1;
+  min-width: 0;
+  padding: 12px 14px;
+  font-family: inherit;
+  font-size: 18px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.row button {
+  flex: none;
+  min-width: 88px;
+  border: 0;
+  border-left: 1px solid var(--ink);
+  background: var(--ink);
+  color: var(--chart);
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}

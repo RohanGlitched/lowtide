@@ -1,0 +1,350 @@
+.wrap {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 40px;
+  align-items: start;
+}
+@media (max-width: 1060px) {
+  .wrap {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 28px;
+  }
+}
+
+/* ---------- the device ---------- */
+.stage {
+  min-width: 0;
+}
+.device {
+  position: relative;
+  padding: clamp(10px, 2.2%, 26px);
+  padding-top: clamp(16px, 3%, 34px);
+  border-radius: clamp(14px, 2.4vw, 30px);
+  background: linear-gradient(180deg, #2a3035 0%, #1b1f23 100%);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.08) inset,
+    0 30px 60px -30px rgba(19, 34, 45, 0.55),
+    0 12px 24px -16px rgba(19, 34, 45, 0.4);
+}
+.camera {
+  position: absolute;
+  top: clamp(6px, 1.2%, 14px);
+  left: 50%;
+  width: 7px;
+  height: 7px;
+  margin-left: -3.5px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #4d5a63, #0d1013 70%);
+}
+.screen {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  border-radius: 6px;
+  background: var(--chart);
+}
+@media (max-width: 640px) {
+  .screen {
+    aspect-ratio: 3 / 4;
+  }
+  .caption {
+    font-size: 15px;
+    padding: 10px 12px;
+  }
+}
+.view {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+}
+.boot {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  font-size: 22px;
+  color: var(--ink-2);
+}
+.caption {
+  position: absolute;
+  left: 4%;
+  right: 4%;
+  bottom: 7%;
+  margin: 0;
+  padding: 12px 18px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--ink) 88%, transparent);
+  color: var(--chart);
+  font-size: clamp(16px, 2.2vw, 26px);
+  line-height: 1.25;
+  animation: rise 220ms ease-out;
+}
+.caption[data-who="you"] {
+  font-style: italic;
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+/* Alexa's listening bar along the bottom edge of the screen. */
+.lightbar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 6px;
+  opacity: 0;
+  background: linear-gradient(90deg, #1d4bff, #00caff 30%, #00caff 70%, #1d4bff);
+  background-size: 200% 100%;
+  transition: opacity 200ms;
+}
+.device[data-phase="listening"] .lightbar {
+  opacity: 1;
+  animation: sweep 1.6s linear infinite;
+}
+.device[data-phase="thinking"] .lightbar {
+  opacity: 1;
+  animation: pulse 0.9s ease-in-out infinite alternate;
+}
+.device[data-phase="speaking"] .lightbar {
+  opacity: 0.85;
+  background: #00caff;
+}
+@keyframes sweep {
+  to {
+    background-position: -200% 0;
+  }
+}
+@keyframes pulse {
+  from {
+    opacity: 0.35;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lightbar,
+  .caption {
+    animation: none !important;
+  }
+}
+
+/* ---------- controls ---------- */
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 12px;
+  align-items: center;
+  margin-top: 18px;
+}
+.talk {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 0 22px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--chart);
+  font: inherit;
+  font-size: 18px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.talk[data-active="true"] {
+  background: var(--magenta);
+}
+.talk:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.typed {
+  display: flex;
+  flex: 1 1 260px;
+  min-width: 0;
+  gap: 8px;
+}
+.typed input {
+  flex: 1;
+  min-width: 0;
+  min-height: 46px;
+  padding: 0 14px;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+  font-size: 17px;
+}
+.typed button,
+.mute {
+  min-height: 46px;
+  padding: 0 16px;
+  border: 1px solid var(--ink);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.typed button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.mute {
+  border-color: var(--rule);
+  font-weight: 500;
+}
+.error {
+  margin: 12px 0 0;
+  color: var(--magenta);
+  font-size: 16px;
+}
+
+/* ---------- side panel ---------- */
+.side {
+  display: grid;
+  gap: 26px;
+  min-width: 0;
+}
+.block h2 {
+  margin: 0 0 10px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.suggest {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--rule);
+}
+.suggest li {
+  border-bottom: 1px solid var(--rule);
+}
+.suggest button {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: 17px;
+  text-align: left;
+  cursor: pointer;
+}
+.suggest button::before {
+  content: "“";
+  color: var(--deep);
+  margin-right: 2px;
+}
+.suggest button::after {
+  content: "”";
+  color: var(--deep);
+}
+.suggest button:hover:not(:disabled) {
+  color: var(--deep);
+}
+.suggest button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.log {
+  display: grid;
+  gap: 8px;
+  max-height: 300px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+  font-size: 15px;
+  line-height: 1.35;
+}
+.log li[data-who="you"] {
+  font-style: italic;
+  color: var(--ink-2);
+}
+.log li[data-who="you"]::before {
+  content: "You: ";
+  font-style: normal;
+}
+.log li[data-who="alexa"]::before {
+  content: "Alexa: ";
+  font-weight: 700;
+}
+.log li[data-who="tool"] code {
+  display: inline-block;
+  padding: 2px 6px;
+  border-left: 2px solid var(--deep);
+  background: color-mix(in srgb, var(--shoal) 55%, transparent);
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.log li[data-who="note"] {
+  color: var(--magenta);
+  font-size: 14px;
+}
+.end {
+  height: 0;
+}
+.engine {
+  margin: 10px 0 0;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.home {
+  margin: 0 0 6px;
+  font-size: 16px;
+}
+.muted {
+  margin: 0 0 8px;
+  font-size: 14px;
+  color: var(--ink-2);
+  line-height: 1.4;
+}
+.link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--deep);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.mcp {
+  margin: 12px 0 0;
+  font-size: 14px;
+  color: var(--ink-2);
+}
+.mcp code {
+  display: block;
+  margin: 4px 0;
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}

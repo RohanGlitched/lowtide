@@ -1,0 +1,11 @@
+node_modules
+.next
+.data
+.env*
+!.env.example
+.vercel
+*.tsbuildinfo
+next-env.d.ts
+shots/
+keys/
+web/lib/generated/

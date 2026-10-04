@@ -1,0 +1,83 @@
+.main {
+  padding-top: clamp(28px, 5vw, 64px);
+}
+.main h1 {
+  margin: 0;
+  font-size: clamp(40px, 6vw, 80px);
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.015em;
+}
+.lede {
+  max-width: 40em;
+  margin: 14px 0 36px;
+  font-size: clamp(18px, 1.8vw, 21px);
+  color: var(--ink-2);
+}
+.down {
+  color: var(--magenta);
+}
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 2px solid var(--ink);
+}
+.row {
+  display: grid;
+  grid-template-columns: minmax(0, 2.2fr) minmax(0, 4fr) minmax(0, 4fr);
+  gap: 12px 28px;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--rule);
+}
+.name h2 {
+  margin: 0;
+  font-size: 21px;
+  font-weight: 600;
+}
+.name p {
+  margin: 0;
+  font-size: 14px;
+  color: var(--ink-2);
+}
+.marks {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+.marks dt {
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.marks dd {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+.marks dd.lw {
+  color: var(--deep);
+}
+.mini {
+  min-width: 0;
+}
+.mini :global(.tideHost) {
+  width: 100%;
+}
+.mini :global(.tide .mark),
+.mini :global(.tide .sounding) {
+  display: none;
+}
+.foot {
+  margin-top: 20px;
+  font-size: 15px;
+  color: var(--ink-2);
+  max-width: 50em;
+}
+@media (max-width: 900px) {
+  .row {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 16px 0;
+  }
+}

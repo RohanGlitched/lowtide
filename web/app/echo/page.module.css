@@ -1,0 +1,19 @@
+.main {
+  padding-top: clamp(24px, 4vw, 48px);
+}
+.intro {
+  max-width: 44em;
+  margin-bottom: clamp(20px, 3vw, 36px);
+}
+.intro h1 {
+  margin: 0;
+  font-size: clamp(32px, 4.6vw, 54px);
+  font-weight: 600;
+  line-height: 1.02;
+  letter-spacing: -0.01em;
+}
+.intro p {
+  margin: 12px 0 0;
+  font-size: clamp(17px, 1.6vw, 20px);
+  color: var(--ink-2);
+}

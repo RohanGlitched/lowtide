@@ -1,0 +1,359 @@
+/* ---------- hero: the headline, then the live tide across the full width ---------- */
+.hero {
+  padding-top: clamp(36px, 7vw, 96px);
+}
+.title {
+  margin: 0;
+  max-width: 11em;
+  font-size: clamp(54px, 10.5vw, 148px);
+  font-weight: 600;
+  line-height: 0.9;
+  letter-spacing: -0.025em;
+}
+.lede {
+  max-width: 34em;
+  margin: clamp(18px, 2.4vw, 30px) 0 0;
+  font-size: clamp(19px, 1.9vw, 24px);
+  line-height: 1.35;
+  color: var(--ink-2);
+}
+.ctas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 28px;
+}
+.primary,
+.secondary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 50px;
+  padding: 0 24px;
+  border-radius: 999px;
+  font-size: 18px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.primary {
+  background: var(--ink);
+  color: var(--chart);
+}
+.primary:hover {
+  background: var(--deep);
+}
+.secondary {
+  border: 1.5px solid var(--ink);
+}
+.secondary:hover {
+  border-color: var(--deep);
+  color: var(--deep);
+}
+.heroChart {
+  margin: clamp(28px, 4vw, 56px) 0 0;
+}
+.heroChart :global(.tideHost) {
+  width: 100%;
+}
+.strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+  margin: 0;
+  border-bottom: 1px solid var(--rule);
+}
+.strip div {
+  padding: 14px 16px 16px 0;
+  min-width: 0;
+}
+.strip dt {
+  font-size: 15px;
+  color: var(--ink-2);
+}
+.strip dd {
+  margin: 2px 0 0;
+  font-size: clamp(20px, 2.2vw, 30px);
+  font-weight: 600;
+}
+.strip dd.small {
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--ink-2);
+}
+@media (max-width: 760px) {
+  .strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.down {
+  margin-top: 40px;
+  color: var(--magenta);
+}
+
+/* ---------- sections ---------- */
+.section {
+  margin-top: clamp(72px, 10vw, 140px);
+}
+.section h2 {
+  margin: 0;
+  font-size: clamp(30px, 4vw, 50px);
+  font-weight: 600;
+  line-height: 1.02;
+  letter-spacing: -0.01em;
+}
+.sectionHead {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+  gap: 16px 48px;
+  align-items: end;
+  margin-bottom: 32px;
+}
+.sectionHead p {
+  margin: 0;
+  font-size: 19px;
+  color: var(--ink-2);
+  max-width: 36em;
+}
+@media (max-width: 860px) {
+  .sectionHead {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.note {
+  margin: 14px 0 0;
+  font-size: 16px;
+  color: var(--ink-2);
+  max-width: 34em;
+}
+
+/* ---------- the conversation, set like a play script ---------- */
+.talk {
+  display: grid;
+  grid-template-columns: minmax(0, 4fr) minmax(0, 7fr);
+  gap: 24px 56px;
+  align-items: start;
+}
+@media (max-width: 860px) {
+  .talk {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.script {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--rule);
+}
+.script li {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 12px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--rule);
+  font-size: clamp(19px, 1.9vw, 25px);
+  line-height: 1.3;
+}
+.script li::before {
+  font-size: 15px;
+  font-weight: 700;
+  padding-top: 0.3em;
+}
+.script li[data-who="you"] {
+  color: var(--ink-2);
+  font-style: italic;
+}
+.script li[data-who="you"]::before {
+  content: "You";
+  font-style: normal;
+}
+.script li[data-who="alexa"]::before {
+  content: "Alexa";
+  color: var(--deep);
+}
+
+/* ---------- spread table ---------- */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 18px;
+}
+.table th,
+.table td {
+  padding: 14px 16px 14px 0;
+  border-bottom: 1px solid var(--rule);
+  text-align: left;
+  vertical-align: baseline;
+}
+.table thead th {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink-2);
+  border-bottom-color: var(--ink);
+}
+.table tbody th {
+  font-weight: 600;
+}
+.table td:nth-child(2) {
+  color: var(--ink-2);
+  font-size: 16px;
+}
+.diff {
+  font-weight: 700;
+  color: var(--deep);
+}
+@media (max-width: 760px) {
+  .table thead {
+    display: none;
+  }
+  .table tr {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--rule);
+  }
+  .table th,
+  .table td {
+    border: 0;
+    padding: 2px 8px 2px 0;
+  }
+  .table tbody th,
+  .table td:nth-child(2) {
+    grid-column: 1 / -1;
+  }
+  .table td:nth-child(3)::before {
+    content: "Low water ";
+    color: var(--ink-2);
+  }
+  .table td:nth-child(4)::before {
+    content: "High water ";
+    color: var(--ink-2);
+  }
+  .table td:nth-child(5) {
+    grid-column: 1 / -1;
+  }
+  .table td:nth-child(5)::before {
+    content: "Difference ";
+    color: var(--ink-2);
+    font-weight: 500;
+  }
+}
+
+/* ---------- how it works ---------- */
+.flow {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+  border-top: 2px solid var(--ink);
+}
+.flow li {
+  position: relative;
+  padding: 22px 24px 8px 0;
+  counter-increment: step;
+}
+.flow li::before {
+  content: counter(step);
+  position: absolute;
+  top: -15px;
+  left: 0;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--chart);
+  border: 2px solid var(--ink);
+  font-size: 14px;
+  font-weight: 700;
+}
+.flow h3 {
+  margin: 10px 0 6px;
+  font-size: 22px;
+  font-weight: 600;
+}
+.flow p {
+  margin: 0;
+  font-size: 17px;
+  color: var(--ink-2);
+}
+.flow code,
+.tools code {
+  font-family: inherit;
+  font-weight: 600;
+  color: var(--ink);
+  background: color-mix(in srgb, var(--shoal) 60%, transparent);
+  padding: 0 4px;
+}
+@media (max-width: 860px) {
+  .flow {
+    grid-template-columns: minmax(0, 1fr);
+    border-top: 0;
+    border-left: 2px solid var(--ink);
+    margin-left: 14px;
+  }
+  .flow li {
+    padding: 0 0 22px 28px;
+  }
+  .flow li::before {
+    top: 0;
+    left: -15px;
+  }
+  .flow h3 {
+    margin-top: 2px;
+  }
+}
+.tools {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 48px;
+  margin: 48px 0 0;
+}
+.tools div {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--rule);
+}
+.tools dd {
+  margin: 0;
+  font-size: 16px;
+  color: var(--ink-2);
+}
+@media (max-width: 860px) {
+  .tools {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .tools div {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2px;
+  }
+}
+
+/* ---------- questions ---------- */
+.faq dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 56px;
+  margin: 28px 0 0;
+}
+.faq div {
+  padding: 18px 0;
+  border-top: 1px solid var(--rule);
+}
+.faq dt {
+  font-size: 21px;
+  font-weight: 600;
+}
+.faq dd {
+  margin: 6px 0 0;
+  font-size: 17px;
+  color: var(--ink-2);
+}
+@media (max-width: 760px) {
+  .faq dl {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
