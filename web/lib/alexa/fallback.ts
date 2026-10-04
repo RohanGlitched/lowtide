@@ -48,6 +48,8 @@ function route(u: string, history: Message[]): { name: string; input: Record<str
   if (/\b(cancel|don'?t run|forget)\b/.test(u) && appliance) return { name: "cancel_run", input: { appliance: appliance.name } };
   if (/\b(sav(ed|ing|ings)|how much have i)\b/.test(u)) return { name: "get_savings", input: {} };
   if (/\b(planned|scheduled|what'?s (on|coming)|my runs|reminders?)\b/.test(u)) return { name: "list_runs", input: {} };
+  // "Is now a good time to use the dryer?" asks about now, not for a plan.
+  if (/\b(is (it|now)|now) (a )?(good|bad|cheap|ok(ay)?) time\b|\bright now\b|\bat the moment\b/.test(u)) return { name: "check_now", input: {} };
   if (appliance) {
     const input: Record<string, unknown> = { appliance: appliance.name };
     if (time) input.finish_by = time;

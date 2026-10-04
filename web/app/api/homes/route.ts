@@ -1,5 +1,5 @@
 import { getTide } from "@/lib/grid";
-import { createHome, updateHome } from "@/lib/store";
+import { createHome } from "@/lib/store";
 import { seedHistory } from "@/lib/seed";
 
 export const runtime = "nodejs";
@@ -10,23 +10,32 @@ export const maxDuration = 30;
  * weeks of sample runs priced with the real published rates (Britain only), so the savings tools have
  * something to show on a first visit.
  */
+const recent = new Map<string, number[]>();
+const HOUR = 3600_000;
+
+/** At most 20 new households per visitor per hour (per server instance). */
+function allowed(ip: string): boolean {
+  const now = Date.now();
+  const list = (recent.get(ip) ?? []).filter((t) => now - t < HOUR);
+  if (list.length >= 20) return false;
+  list.push(now);
+  recent.set(ip, list);
+  if (recent.size > 5000) recent.clear();
+  return true;
+}
+
 export async function POST(req: Request) {
+  const ip = (req.headers.get("x-forwarded-for") ?? "local").split(",")[0].trim();
+  if (!allowed(ip)) return Response.json({ error: "That's a lot of households. Try again in an hour." }, { status: 429 });
   const body = (await req.json().catch(() => ({}))) as { place?: string; name?: string; demo?: boolean };
   const place = String(body.place ?? "").trim().slice(0, 40);
   if (place.length < 2) return Response.json({ error: "Enter a UK postcode, a northern Illinois town, or Germany." }, { status: 400 });
   try {
     const tide = await getTide(place);
-    let state = await createHome(place, tide.region.country, body.name?.slice(0, 40));
-    let demo = false;
-    if (body.demo && tide.region.country === "GB") {
-      const runs = await seedHistory(place).catch(() => []);
-      if (runs.length) {
-        state = await updateHome(state.home.id, (s) => {
-          s.runs = runs;
-        });
-        demo = true;
-      }
-    }
+    // A demo household is written once, with its history, so its first read is never stale.
+    const runs = body.demo && tide.region.country === "GB" ? await seedHistory(place).catch(() => []) : [];
+    const state = await createHome(place, tide.region.country, body.name?.slice(0, 40), runs);
+    const demo = runs.length > 0;
     const origin = new URL(req.url).origin;
     return Response.json({
       id: state.home.id,

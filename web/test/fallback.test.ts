@@ -15,6 +15,8 @@ test("routes everyday phrasings to Lowtide tools", () => {
     ["charge the car by 7 a.m., greenest please", "plan_appliance", { appliance: "car", finish_by: "7 a.m.", goal: "greenest" }],
     ["put the washing on after 10pm", "plan_appliance", { appliance: "washing machine", start_after: "10pm" }],
     ["is now a good time to use power", "check_now"],
+    ["is now a good time to use the tumble dryer", "check_now"],
+    ["is it a good time to run the dishwasher right now", "check_now"],
     ["when is electricity cheapest tonight", "get_tide"],
     ["what have I got planned", "list_runs"],
     ["how much have I saved", "get_savings"],
