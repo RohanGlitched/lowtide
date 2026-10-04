@@ -1,83 +1,95 @@
 .main {
-  padding-top: clamp(28px, 5vw, 64px);
+  padding-top: clamp(28px, 5vw, 72px);
 }
-.main h1 {
+.head {
+  display: grid;
+  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  gap: 18px 64px;
+  align-items: end;
+  margin-bottom: 56px;
+}
+.head h1 {
   margin: 0;
-  font-size: clamp(40px, 6vw, 80px);
-  font-weight: 600;
-  line-height: 1;
-  letter-spacing: -0.015em;
+  font-size: clamp(44px, 5.6vw, 86px);
+  text-wrap: balance;
 }
-.lede {
-  max-width: 40em;
-  margin: 14px 0 36px;
-  font-size: clamp(18px, 1.8vw, 21px);
-  color: var(--ink-2);
+.head p {
+  margin: 0;
+  font-size: 17px;
+  color: var(--steel);
 }
 .down {
-  color: var(--magenta);
+  color: var(--cobalt);
 }
-.list {
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 48px 32px;
   margin: 0;
   padding: 0;
   list-style: none;
-  border-top: 2px solid var(--ink);
 }
-.row {
-  display: grid;
-  grid-template-columns: minmax(0, 2.2fr) minmax(0, 4fr) minmax(0, 4fr);
-  gap: 12px 28px;
-  align-items: center;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--rule);
+.item {
+  min-width: 0;
 }
-.name h2 {
-  margin: 0;
-  font-size: 21px;
-  font-weight: 600;
+.dial {
+  padding: 18px;
+  border-radius: 50%;
+  background: var(--paper);
+  box-shadow: inset 0 0 0 1px var(--rule), 0 24px 40px -30px rgba(22, 24, 27, 0.35);
 }
-.name p {
-  margin: 0;
+.item h2 {
+  margin: 18px 0 0;
+  font-family: var(--font-display), sans-serif;
+  font-size: 24px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+.tariff {
+  margin: 2px 0 0;
   font-size: 14px;
-  color: var(--ink-2);
+  color: var(--steel);
 }
 .marks {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: 1fr auto;
   gap: 8px;
-  margin: 0;
+  margin: 12px 0 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--rule);
 }
 .marks dt {
   font-size: 13px;
-  color: var(--ink-2);
+  color: var(--steel);
 }
 .marks dd {
   margin: 0;
-  font-size: 18px;
+  font-size: 15px;
   font-weight: 600;
 }
-.marks dd.lw {
-  color: var(--deep);
-}
-.mini {
-  min-width: 0;
-}
-.mini :global(.tideHost) {
-  width: 100%;
-}
-.mini :global(.tide .mark),
-.mini :global(.tide .sounding) {
-  display: none;
-}
 .foot {
-  margin-top: 20px;
+  margin-top: 48px;
   font-size: 15px;
-  color: var(--ink-2);
-  max-width: 50em;
+  color: var(--steel);
+  max-width: 54em;
 }
 @media (max-width: 900px) {
-  .row {
+  .head {
     grid-template-columns: minmax(0, 1fr);
-    padding: 16px 0;
+  }
+}
+@media (max-width: 560px) {
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 32px 16px;
+  }
+  .dial {
+    padding: 10px;
+  }
+  .item h2 {
+    font-size: 19px;
+  }
+  .marks {
+    grid-template-columns: minmax(0, 1fr);
   }
 }

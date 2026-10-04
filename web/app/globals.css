@@ -1,45 +1,15 @@
 :root {
-  --chart: #f3f7f8;
-  --paper: #fbfdfd;
-  --ink: #13222d;
-  --ink-2: #4b5d69;
-  --rule: #c9d6dc;
-  --shoal: #cfe5ec;
-  --deep: #2c6b89;
-  --magenta: #b0186f;
-  --sand: #e6d9b8;
-  --night: rgba(44, 107, 137, 0.06);
-  --gutter: clamp(16px, 4vw, 56px);
-  --max: 1240px;
+  --studio: #e9ebee;
+  --paper: #f6f7f9;
+  --graphite: #16181b;
+  --steel: #5d636b;
+  --alu: #c9ced6;
+  --rule: #d5d9de;
+  --cobalt: #2340ff;
+  --cobalt-ink: #1a2fd1;
+  --gutter: clamp(18px, 4vw, 64px);
+  --max: 1320px;
   color-scheme: light;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --chart: #0b1822;
-    --paper: #102230;
-    --ink: #c9d8df;
-    --ink-2: #8aa1ad;
-    --rule: #22394a;
-    --shoal: #1d4256;
-    --deep: #5fa9c9;
-    --magenta: #e0559e;
-    --sand: #4a4332;
-    --night: rgba(95, 169, 201, 0.05);
-    color-scheme: dark;
-  }
-}
-:root[data-theme="dark"] {
-  --chart: #0b1822;
-  --paper: #102230;
-  --ink: #c9d8df;
-  --ink-2: #8aa1ad;
-  --rule: #22394a;
-  --shoal: #1d4256;
-  --deep: #5fa9c9;
-  --magenta: #e0559e;
-  --sand: #4a4332;
-  --night: rgba(95, 169, 201, 0.05);
-  color-scheme: dark;
 }
 
 * {
@@ -47,14 +17,16 @@
 }
 html {
   -webkit-text-size-adjust: 100%;
+  background: var(--studio);
 }
 body {
   margin: 0;
-  background: var(--chart);
-  color: var(--ink);
-  font-family: var(--font-barlow), "Arial Narrow", system-ui, sans-serif;
+  min-height: 100vh;
+  background: var(--studio);
+  color: var(--graphite);
+  font-family: var(--font-text), system-ui, sans-serif;
   font-size: 18px;
-  line-height: 1.45;
+  line-height: 1.5;
   font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
 }
@@ -62,11 +34,11 @@ a {
   color: inherit;
 }
 :focus-visible {
-  outline: 2px solid var(--magenta);
+  outline: 2px solid var(--cobalt);
   outline-offset: 3px;
 }
 ::selection {
-  background: var(--shoal);
+  background: rgba(35, 64, 255, 0.18);
 }
 .shell {
   width: 100%;
@@ -74,84 +46,71 @@ a {
   margin: 0 auto;
   padding: 0 var(--gutter);
 }
+.display {
+  font-family: var(--font-display), sans-serif;
+  font-weight: 500;
+  letter-spacing: -0.035em;
+  line-height: 0.98;
+}
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
 
-/* The tidal curve shared with the MCP view (views/chart.ts). */
-.tide text {
-  font-family: inherit;
-  font-size: 13px;
-  fill: var(--ink-2);
-}
-.tide .night {
-  fill: var(--night);
-}
-.tide .surface {
-  fill: none;
-  stroke: var(--ink);
-  stroke-width: 1.6;
-  stroke-linejoin: round;
-}
-.tide .datum {
-  stroke: var(--ink-2);
-  stroke-dasharray: 2 4;
-}
-.tide .carbon {
-  fill: none;
-  stroke: var(--ink);
-  stroke-width: 1.4;
-  stroke-dasharray: 1 4;
-  stroke-linecap: round;
-  opacity: 0.7;
-}
-.tide .sounding {
-  font-family: var(--font-newsreader), Georgia, serif;
-  font-style: italic;
-  font-size: 14px;
-  fill: var(--ink);
-  opacity: 0.8;
-}
-.tide .tick {
-  stroke: var(--ink);
-}
-.tide .mark {
-  font-size: 14px;
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 54px;
+  padding: 0 26px;
+  border: 0;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 17px;
   font-weight: 600;
-  fill: var(--ink);
-  paint-order: stroke;
-  stroke: var(--chart);
-  stroke-width: 4px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 160ms ease, color 160ms ease;
 }
-.tide .mark.LW {
-  fill: var(--deep);
+.btn-primary {
+  background: var(--cobalt);
+  color: #fff;
 }
-.tide .now {
-  stroke: var(--magenta);
-  stroke-width: 2;
+.btn-primary:hover {
+  background: var(--cobalt-ink);
 }
-.tide .now-label {
-  fill: var(--magenta);
+.btn-quiet {
+  background: transparent;
+  color: var(--graphite);
+  box-shadow: inset 0 0 0 1.5px var(--graphite);
+}
+.btn-quiet:hover {
+  background: var(--graphite);
+  color: #fff;
+}
+@media (prefers-reduced-motion: reduce) {
+  .btn {
+    transition: none;
+  }
+}
+
+/* Flat dial text (views/clock.ts) */
+.lt-clock {
+  display: block;
+  overflow: visible;
+}
+.lt-hour,
+.lt-cap {
+  font-family: var(--font-text), sans-serif;
   font-weight: 600;
 }
-.tide .axis text {
-  font-size: 12px;
-}
-.tide .axis .axis-day {
-  font-weight: 700;
-  fill: var(--ink);
-}
-.tide .floor {
-  stroke: var(--rule);
-}
-.tide .berth .bracket {
-  fill: none;
-  stroke: var(--magenta);
-  stroke-width: 2.5;
-}
-.tide .berth .berth-fill {
-  fill: var(--magenta);
-  opacity: 0.1;
-}
-.tide .berth .berth-label {
-  font-size: 13px;
-  font-weight: 600;
-  fill: var(--magenta);
+.lt-time {
+  font-family: var(--font-display), sans-serif;
+  font-weight: 500;
+  letter-spacing: -0.03em;
 }

@@ -6,7 +6,7 @@ const OUT = path.resolve(process.argv[3] || "../shots");
 const only = process.argv.slice(4);
 
 (async () => {
-  const b = await chromium.launch();
+  const b = await chromium.launch({ args: ["--enable-gpu", "--ignore-gpu-blocklist", "--use-angle=d3d11"] });
   for (const [name, vp] of [["desk", { width: 1440, height: 900 }], ["phone", { width: 390, height: 844 }]]) {
     for (const scheme of ["light", "dark"]) {
       if (scheme === "dark" && name === "phone") continue;
@@ -30,7 +30,7 @@ const only = process.argv.slice(4);
       }
       for (const page of ["", "connect", "tables"]) {
         if (only.length && !only.includes(page || "home")) continue;
-        const r = await p.goto(BASE + "/" + page, { waitUntil: "networkidle" }).catch(() => null);
+        const r = await p.goto(BASE + "/" + page, { waitUntil: "load" }).catch(() => null);
         if (!r || r.status() >= 400) continue;
         await p.waitForTimeout(2000);
         await p.screenshot({ path: path.join(OUT, `${page || "home"}-${name}-${scheme}.png`), fullPage: true });

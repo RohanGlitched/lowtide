@@ -3,17 +3,18 @@
 }
 .main h1 {
   margin: 0;
-  max-width: 14em;
-  font-size: clamp(36px, 5.6vw, 72px);
-  font-weight: 600;
-  line-height: 1;
-  letter-spacing: -0.015em;
+  max-width: 12em;
+  font-family: var(--font-display), sans-serif;
+  font-size: clamp(44px, 5.6vw, 84px);
+  font-weight: 500;
+  line-height: 0.98;
+  letter-spacing: -0.035em;
 }
 .lede {
   max-width: 38em;
   margin: 16px 0 0;
   font-size: clamp(18px, 1.8vw, 22px);
-  color: var(--ink-2);
+  color: var(--steel);
 }
 .block {
   margin-top: clamp(40px, 6vw, 72px);
@@ -21,18 +22,20 @@
 }
 .block h2 {
   margin: 0 0 8px;
-  font-size: clamp(24px, 2.6vw, 32px);
-  font-weight: 600;
+  font-family: var(--font-display), sans-serif;
+  font-size: clamp(26px, 2.8vw, 38px);
+  font-weight: 500;
+  letter-spacing: -0.025em;
 }
 .block > p {
   margin: 0 0 18px;
-  color: var(--ink-2);
+  color: var(--steel);
   max-width: 40em;
 }
 .block code {
   font-family: inherit;
   font-weight: 600;
-  background: color-mix(in srgb, var(--shoal) 60%, transparent);
+  background: var(--paper);
   padding: 0 4px;
 }
 .clients {
@@ -51,12 +54,12 @@
 }
 .clients dd {
   margin: 0;
-  color: var(--ink-2);
+  color: var(--steel);
 }
 .clients em {
   font-style: normal;
   font-weight: 600;
-  color: var(--ink);
+  color: var(--graphite);
 }
 @media (max-width: 640px) {
   .clients div {

@@ -42,7 +42,7 @@ const placeArg = z
   .describe("UK postcode (e.g. SW1A 2AA), 'Chicago' or another northern Illinois place, or 'Germany'. Optional once the household is set up.");
 
 export function registerLowtide(server: McpServer, ctx: Ctx) {
-  registerAppResource(server, "Lowtide tide chart", VIEW_URI, { mimeType: RESOURCE_MIME_TYPE, description: "Live tidal chart of electricity prices" }, async () => ({
+  registerAppResource(server, "Lowtide day dial", VIEW_URI, { mimeType: RESOURCE_MIME_TYPE, description: "The next 24 hours of electricity prices on a dial" }, async () => ({
     contents: [
       {
         uri: VIEW_URI,
@@ -59,9 +59,9 @@ export function registerLowtide(server: McpServer, ctx: Ctx) {
     server,
     "get_tide",
     {
-      title: "Electricity tide table",
+      title: "Electricity prices, next 24 hours",
       description:
-        "The next day of electricity prices (and grid carbon where published) for the household, with low water (cheapest hour) and high water (dearest hour). Use for 'when is electricity cheap tonight?'.",
+        "The next day of electricity prices (and grid carbon where published) for the household, with the cheapest and dearest hours. Use for 'when is electricity cheap tonight?'.",
       inputSchema: z.object({ place: placeArg }),
       annotations: { readOnlyHint: true, openWorldHint: true },
       _meta: ui,
@@ -72,16 +72,14 @@ export function registerLowtide(server: McpServer, ctx: Ctx) {
       const tz = tide.region.timeZone;
       const now = Date.now();
       const cur = currentSlot(tide.slots, now);
-      const headline = low
-        ? `Low water ${dayPart(low.start, now, tz)} at ${clock(low.start, tz)}`
-        : "Prices are flat for now";
+      const headline = low ? `Cheapest at ${clock(low.start, tz)} ${shortDay(low.start, now, tz)}` : "Prices are flat for now";
       const sub = low && high
         ? `${rate(low.avgPrice, tide.region)} then, against ${rate(high.avgPrice, tide.region)} at ${clock(high.start, tz)}${cur ? `. Now: ${rate(cur.price, tide.region)}` : ""}.`
         : "";
       const facts = [
         ...(cur ? [{ label: "Now", value: rate(cur.price, tide.region) }] : []),
-        ...(low ? [{ label: "Low water", value: `${clock(low.start, tz)} · ${rate(low.avgPrice, tide.region)}` }] : []),
-        ...(high ? [{ label: "High water", value: `${clock(high.start, tz)} · ${rate(high.avgPrice, tide.region)}` }] : []),
+        ...(low ? [{ label: "Cheapest hour", value: `${clock(low.start, tz)}, ${rate(low.avgPrice, tide.region)}` }] : []),
+        ...(high ? [{ label: "Dearest hour", value: `${clock(high.start, tz)}, ${rate(high.avgPrice, tide.region)}` }] : []),
         ...greenFact(tide),
       ];
       const view = viewOf("tide", tide, headline, sub, facts, [], now);
@@ -238,11 +236,11 @@ export function registerLowtide(server: McpServer, ctx: Ctx) {
         : "Nothing planned yet";
       const sub = upcoming.length
         ? upcoming.map((r) => `${r.label} ${clock(r.start, tz)}–${clock(r.end, tz)}`).join(", ")
-        : "Ask when to run the dishwasher and I'll find low water.";
+        : "Ask when to run the dishwasher and I'll find the cheapest time.";
       const berths = upcoming.map((r) => ({ start: r.start, end: r.end, label: r.label, state: "planned" as const }));
       const facts = upcoming.slice(0, 4).map((r) => ({
         label: `${cap(r.label)} ${clock(r.start, tz)}`,
-        value: `${money(r.cost, tide.region)}${r.costIfNow != null ? ` · saves ${money(r.costIfNow - r.cost, tide.region)}` : ""}`,
+        value: `${money(r.cost, tide.region)}${r.costIfNow != null ? `, saves ${money(r.costIfNow - r.cost, tide.region)}` : ""}`,
       }));
       const view = viewOf("runs", tide, headline, sub, facts, berths, now);
       const spoken = upcoming.length
@@ -296,7 +294,7 @@ export function registerLowtide(server: McpServer, ctx: Ctx) {
     "get_savings",
     {
       title: "Money and carbon saved",
-      description: "How much the household has saved by running appliances at low water instead of when they asked, this week and in total.",
+      description: "How much the household has saved by running appliances at the cheapest time instead of when they asked, this week and in total.",
       inputSchema: z.object({}),
       annotations: { readOnlyHint: true, openWorldHint: false },
       _meta: ui,
@@ -315,7 +313,7 @@ export function registerLowtide(server: McpServer, ctx: Ctx) {
         rs.reduce((a, r) => a + (r.carbonIfNow != null && r.carbon != null ? r.carbonIfNow - r.carbon : 0), 0);
       const headline = done.length ? `${money(sum(done), tide.region)} saved so far` : "No runs counted yet";
       const sub = done.length
-        ? `${done.length} ${done.length === 1 ? "run" : "runs"} moved to low water${co2(done) > 0 ? `, ${grams(co2(done))} less CO₂` : ""}.`
+        ? `${done.length} ${done.length === 1 ? "run" : "runs"} moved to cheaper hours${co2(done) > 0 ? `, ${grams(co2(done))} less CO₂` : ""}.`
         : lined.length
           ? `${money(sum(lined), tide.region)} more is lined up in ${lined.length} planned ${lined.length === 1 ? "run" : "runs"}.`
           : "Plan a run and I'll count what you save.";
@@ -400,7 +398,7 @@ function greenFact(tide: Tide) {
   const withC = tide.slots.filter((s) => s.carbon != null);
   if (!withC.length) return [];
   const g = withC.reduce((a, b) => (b.carbon! < a.carbon! ? b : a));
-  return [{ label: "Cleanest", value: `${clock(g.start, tide.region.timeZone)} · ${g.carbon} g/kWh` }];
+  return [{ label: "Cleanest", value: `${clock(g.start, tide.region.timeZone)}, ${g.carbon} g/kWh` }];
 }
 
 export function planResult(tide: Tide, app: Appliance, plan: Plan, now: number) {
@@ -412,7 +410,7 @@ export function planResult(tide: Tide, app: Appliance, plan: Plan, now: number) 
   const sub = `${duration(plan.minutes)}, done by ${clock(b.end, tz)}${vsNow}.`;
   const facts = [
     { label: "Start", value: `${clock(b.start, tz)} ${dayPart(b.start, now, tz)}` },
-    { label: "Cost", value: `${money(b.cost, tide.region)} · ${rate(b.avgPrice, tide.region)}` },
+    { label: "Cost", value: `${money(b.cost, tide.region)} (${rate(b.avgPrice, tide.region)})` },
     ...(plan.now ? [{ label: "If started now", value: money(plan.now.cost, tide.region) }] : []),
     ...(b.carbon != null && plan.now?.carbon != null ? [{ label: "CO₂", value: `${grams(b.carbon)} vs ${grams(plan.now.carbon)}` }] : []),
     { label: "Load", value: `${plan.kwh} kWh over ${duration(plan.minutes)}` },
@@ -479,4 +477,7 @@ function result(text: string, view: ViewData) {
 }
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+/** "tomorrow", "tonight", "today" for a headline. */
+const shortDay = (t: number, now: number, tz: string) =>
+  dayPart(t, now, tz).replace(/^tomorrow .*/, "tomorrow").replace(/^(early )?this morning$/, "this morning").replace(/^this (afternoon|evening)$/, "today");
 const unitWord = (r: Pick<Region, "currency">) => (r.currency === "GBP" ? "pence" : "cents");

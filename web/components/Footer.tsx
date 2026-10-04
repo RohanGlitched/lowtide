@@ -10,12 +10,12 @@ export default function Footer() {
           (Germany). Carbon: National Energy System Operator. Lowtide is independent and not affiliated with Amazon,
           Octopus Energy or ComEd.
         </p>
-        <p className={s.footLinks}>
+        <nav className={s.footLinks} aria-label="Footer">
           <Link href="/echo">Echo simulator</Link>
+          <Link href="/tables">Today&apos;s tides</Link>
           <Link href="/connect">MCP endpoint</Link>
-          <Link href="/tables">Tide tables</Link>
-          <a href="https://github.com/RohanGlitched/lowtide">Source on GitHub</a>
-        </p>
+          <a href="https://github.com/RohanGlitched/lowtide">Source</a>
+        </nav>
       </div>
     </footer>
   );

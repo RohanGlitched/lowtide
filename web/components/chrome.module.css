@@ -1,25 +1,28 @@
 .header {
-  border-bottom: 1px solid var(--rule);
+  position: relative;
+  z-index: 20;
 }
 .bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  min-height: 64px;
+  min-height: 76px;
 }
 .brand {
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  font-size: 22px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
+  font-family: var(--font-display), sans-serif;
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
   text-decoration: none;
 }
 .nav {
   display: flex;
-  gap: 4px 22px;
+  align-items: center;
+  gap: 4px 28px;
   flex-wrap: wrap;
   justify-content: flex-end;
   font-size: 16px;
@@ -28,15 +31,16 @@
 .nav a {
   text-decoration: none;
   padding: 10px 0;
+  color: var(--graphite);
 }
 .nav a:hover {
-  color: var(--deep);
+  color: var(--cobalt);
 }
-@media (max-width: 640px) {
+@media (max-width: 720px) {
   .bar {
     flex-wrap: wrap;
     padding-top: 10px;
-    padding-bottom: 4px;
+    min-height: 0;
   }
   .nav {
     width: 100%;
@@ -46,24 +50,37 @@
   }
 }
 .footer {
-  margin-top: 96px;
-  border-top: 1px solid var(--rule);
+  margin-top: 140px;
+  background: var(--graphite);
+  color: #c9ced6;
 }
 .foot {
-  padding-top: 28px;
-  padding-bottom: 40px;
-  font-size: 14px;
-  color: var(--ink-2);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 24px 48px;
+  padding-top: 44px;
+  padding-bottom: 52px;
+  font-size: 14.5px;
 }
 .foot p {
-  max-width: 62em;
-  margin: 0 0 12px;
+  max-width: 60em;
+  margin: 0;
 }
 .footLinks {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px 22px;
+  gap: 8px 24px;
+  align-content: start;
 }
 .footLinks a {
-  color: var(--ink);
+  color: #fff;
+  text-decoration: none;
+}
+.footLinks a:hover {
+  color: #aab6ff;
+}
+@media (max-width: 760px) {
+  .foot {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }

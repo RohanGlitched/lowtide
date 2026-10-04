@@ -1,178 +1,152 @@
 import Link from "next/link";
-import TideChart from "@/components/TideChart";
+import Hero from "@/components/Hero";
+import Clock from "@/components/Clock";
+import EchoDevice from "@/components/EchoDevice";
+import AppliancePicker from "@/components/AppliancePicker";
 import CopyField from "@/components/CopyField";
-import { homeData, DEMO_PLACE } from "@/lib/live";
+import { scenes } from "@/lib/live";
+import { getTide } from "@/lib/grid";
+import { planRun } from "@/lib/plan";
 import { planResult } from "@/lib/mcp/tools";
 import { APPLIANCES } from "@/lib/appliances";
 import { clock, dayPart, spokenTime } from "@/lib/grid/time";
-import { money, rate } from "@/lib/format";
+import { money } from "@/lib/format";
 import { SITE_URL } from "@/lib/site";
 import s from "./home.module.css";
 
 export const revalidate = 300;
 
 const TOOLS: [string, string][] = [
-  ["get_tide", "The next day of prices and grid carbon, with low and high water."],
-  ["check_now", "Whether this half hour is a cheap or dear time to use power, and when it drops."],
-  ["plan_appliance", "The cheapest or greenest start for an appliance, optionally finishing by a deadline."],
-  ["schedule_run", "Saves the plan for the household, with its saving, once the person agrees."],
+  ["plan_appliance", "The cheapest or greenest start for an appliance, optionally done by a deadline."],
+  ["schedule_run", "Saves the plan for the household once the person says yes."],
+  ["check_now", "Whether this half hour is a cheap or dear time, and when it drops."],
+  ["get_tide", "The next day of prices and grid carbon, with the cheapest and dearest hours."],
   ["list_runs", "What the household has planned."],
   ["cancel_run", "Cancels a planned run."],
-  ["get_savings", "Money and CO₂ saved by running at low water instead of when asked."],
-  ["set_home", "Sets the postcode or city, which picks the tariff region."],
+  ["get_savings", "Money and CO₂ saved by running at the cheap hours."],
+  ["set_home", "Sets the postcode or city, which picks the tariff."],
 ];
 
 export default async function Home() {
-  const d = await homeData();
-  const tide = d.london;
-  const tz = tide?.region.timeZone ?? "Europe/London";
-  const now = Date.now();
-  const dish = APPLIANCES[0];
-  const answer = tide && d.plan ? planResult(tide, dish, d.plan, now).content[0].text : null;
-  const remind = d.plan ? `Done. I'll remind you to run the dishwasher ${dayPart(d.plan.best.start, now, tz)} at ${spokenTime(d.plan.best.start, tz)}.`.replace(/\.\.$/, ".") : null;
-  const ratio = d.low && d.high && d.low.avgPrice > 0 ? d.high.avgPrice / d.low.avgPrice : null;
+  const places = await scenes();
+  const london = places[0]?.scene ?? null;
+
+  // What Alexa says right now in London, from the same tool Alexa calls.
+  let answer: string | null = null;
+  let remind: string | null = null;
+  let plan: ReturnType<typeof planRun> | null = null;
+  const tide = await getTide("SE1 7PB").catch(() => null);
+  if (tide) {
+    const now = Date.now();
+    const dish = APPLIANCES[0];
+    try {
+      plan = planRun(tide.slots, { kwh: dish.kwh, minutes: dish.minutes, now, finishBy: london?.runs.find((r) => r.id === "dishwasher")?.end });
+      answer = planResult(tide, dish, plan, now).content[0].text;
+      const tz = tide.region.timeZone;
+      remind = `Done. I'll remind you to run the dishwasher ${dayPart(plan.best.start, now, tz)} at ${spokenTime(plan.best.start, tz)}.`.replace(/\.\.$/, ".");
+    } catch {}
+  }
+  const echoData =
+    london && plan
+      ? {
+          slots: london.slots,
+          now: london.now,
+          unit: london.unit,
+          timeZone: london.timeZone,
+          berths: [{ start: plan.best.start, end: plan.best.end, label: "dishwasher", state: "best" as const }],
+          centre: { time: plan.best.start, above: "start at", below: "dishwasher" },
+        }
+      : null;
 
   return (
     <main>
-      <section className={s.hero}>
-        <div className="shell">
-          <h1 className={s.title}>Run it at low tide.</h1>
-          <p className={s.lede}>
-            Ask Alexa when to run the dishwasher. Lowtide reads tonight&apos;s half-hourly electricity prices and the
-            grid&apos;s carbon forecast, and picks the cheapest, cleanest hours to run it.
-          </p>
-          <div className={s.ctas}>
-            <Link href="/echo" className={s.primary}>
-              Try it on Echo
-            </Link>
-            <Link href="/connect" className={s.secondary}>
-              Add to Claude or ChatGPT
-            </Link>
-          </div>
-        </div>
-
-        {tide && d.chart ? (
-          <figure className={s.heroChart}>
-            <TideChart data={d.chart} height={360} label="Live electricity price in London over the next day" />
-            <figcaption className="shell">
-              <dl className={s.strip}>
-                <div>
-                  <dt>London · Octopus Agile</dt>
-                  <dd>{d.cur ? rate(d.cur.price, tide.region) : "—"} now</dd>
-                </div>
-                {d.low && (
-                  <div>
-                    <dt>Low water</dt>
-                    <dd>
-                      {clock(d.low.start, tz)} · {rate(d.low.avgPrice, tide.region)}
-                    </dd>
-                  </div>
-                )}
-                {d.high && (
-                  <div>
-                    <dt>High water</dt>
-                    <dd>
-                      {clock(d.high.start, tz)} · {rate(d.high.avgPrice, tide.region)}
-                    </dd>
-                  </div>
-                )}
-                <div>
-                  <dt>Published by</dt>
-                  <dd className={s.small}>Octopus Energy and NESO, read {clock(tide.fetchedAt, tz)}</dd>
-                </div>
-              </dl>
-            </figcaption>
-          </figure>
-        ) : (
-          <div className="shell">
-            <p className={s.down}>The live price feed didn&apos;t answer just now. Refresh in a minute.</p>
-          </div>
-        )}
-      </section>
-
-      {answer && (
-        <section className={`shell ${s.section} ${s.talk}`}>
-          <div>
-            <h2>What Alexa says, right now</h2>
-            <p className={s.note}>
-              Not a script. This exchange was produced a few minutes ago by the same MCP tools Alexa calls, from London&apos;s
-              published prices for tonight.
-            </p>
-          </div>
-          <ol className={s.script}>
-            <li data-who="you">Alexa, when should I run the dishwasher?</li>
-            <li data-who="alexa">{answer}</li>
-            <li data-who="you">Yes please.</li>
-            <li data-who="alexa">{remind}</li>
-          </ol>
+      {places.length > 0 ? (
+        <Hero places={places} />
+      ) : (
+        <section className={`shell ${s.down}`}>
+          <h1 className="display">Run it when power is cheapest.</h1>
+          <p>The live price feeds didn&apos;t answer just now. Refresh in a minute.</p>
         </section>
       )}
 
-      {tide && d.spread && (
-        <section className={`shell ${s.section}`}>
-          <div className={s.sectionHead}>
-            <h2>Same load, same day, different price</h2>
-            <p>
-              {ratio
-                ? `Today in London the dearest hour costs ${ratio.toFixed(1)} times the cheapest. Here is what that means for the things you can move.`
-                : "Here is what today's tide means for the things you can move."}
-            </p>
+      {answer && echoData && tide && plan && (
+        <section className={`shell ${s.section} ${s.ask}`} aria-labelledby="ask-title">
+          <div className={s.askDevice}>
+            <EchoDevice>
+              <div className={s.screen}>
+                <div className={s.screenClock}>
+                  <Clock data={echoData} theme="dark" label="Tonight's prices on the Echo Show with the dishwasher's start marked" />
+                </div>
+                <div className={s.screenText}>
+                  <p className={s.screenHead}>Run the dishwasher at {clock(plan.best.start, tide.region.timeZone)}</p>
+                  <p className={s.screenSub}>
+                    {money(plan.best.cost, tide.region)}
+                    {plan.now ? ` instead of ${money(plan.now.cost, tide.region)} now` : ""}
+                  </p>
+                </div>
+              </div>
+            </EchoDevice>
           </div>
-          <table className={s.table}>
-            <thead>
-              <tr>
-                <th scope="col">Appliance</th>
-                <th scope="col">Typical run</th>
-                <th scope="col">At low water</th>
-                <th scope="col">At high water</th>
-                <th scope="col">Difference</th>
-              </tr>
-            </thead>
-            <tbody>
-              {d.spread.map(({ appliance: a, low, high }) => (
-                <tr key={a.id}>
-                  <th scope="row">{a.name.charAt(0).toUpperCase() + a.name.slice(1)}</th>
-                  <td>
-                    {a.kwh} kWh, {a.note}
-                  </td>
-                  <td>{low ? `${money(low.cost, tide.region)} at ${clock(low.start, tz)}` : "—"}</td>
-                  <td>{high ? `${money(high.cost, tide.region)} at ${clock(high.start, tz)}` : "—"}</td>
-                  <td className={s.diff}>{low && high ? money(high.cost - low.cost, tide.region) : "—"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className={s.askText}>
+            <h2 id="ask-title" className="display">
+              Ask, and it answers twice.
+            </h2>
+            <p className={s.sub}>
+              Out loud, in one sentence. And on the Echo Show&apos;s screen, as tonight&apos;s prices with the run marked on the rim.
+            </p>
+            <ol className={s.script}>
+              <li data-who="you">Alexa, when should I run the dishwasher?</li>
+              <li data-who="alexa">{answer}</li>
+              <li data-who="you">Yes please.</li>
+              <li data-who="alexa">{remind}</li>
+            </ol>
+            <p className={s.fine}>Produced minutes ago by the live tools, for London. Not a script.</p>
+          </div>
         </section>
       )}
 
-      <section className={`shell ${s.section} ${s.how}`}>
-        <div className={s.sectionHead}>
-          <h2>How it works</h2>
-          <p>
-            Lowtide is an MCP server, the open standard Alexa+ uses to connect to services. Alexa&apos;s model picks a
-            Lowtide tool, Lowtide reads the live feeds, and the answer comes back twice: a sentence to speak and a chart
-            (an MCP App) for the Echo Show screen.
+      {london && (
+        <section className={`shell ${s.section}`} aria-labelledby="pick-title">
+          <div className={s.head}>
+            <h2 id="pick-title" className="display">
+              Choose what to move.
+            </h2>
+            <p className={s.sub}>
+              Every load costs a different amount each half hour. Pick one and the object re-cuts itself: cobalt marks when it
+              should run.
+            </p>
+          </div>
+          <AppliancePicker scene={london} />
+        </section>
+      )}
+
+      <section className={`shell ${s.section}`} aria-labelledby="how-title">
+        <div className={s.head}>
+          <h2 id="how-title" className="display">
+            From the kitchen to the grid in a second.
+          </h2>
+          <p className={s.sub}>
+            Lowtide is an MCP server, the open standard Alexa+ uses to work with services. Four steps, every number read live.
           </p>
         </div>
-        <ol className={s.flow}>
+        <ol className={s.steps}>
           <li>
             <h3>You ask</h3>
             <p>&ldquo;Alexa, when should I run the dishwasher? It needs to be done by seven.&rdquo;</p>
           </li>
           <li>
-            <h3>Alexa+ calls a tool</h3>
+            <h3>Alexa+ calls Lowtide</h3>
             <p>
-              <code>plan_appliance</code> with <code>appliance: dishwasher</code>, <code>finish_by: 07:00</code>, over
-              Streamable HTTP.
+              <code>plan_appliance</code> with <code>finish_by: 07:00</code>, over Streamable HTTP.
             </p>
           </li>
           <li>
-            <h3>Lowtide reads the tide</h3>
-            <p>Half-hourly Agile prices and the regional carbon forecast for your postcode, then tries every start that finishes in time.</p>
+            <h3>Lowtide prices every start</h3>
+            <p>From the half-hourly tariff and carbon forecast for your postcode, keeping only starts that finish in time.</p>
           </li>
           <li>
-            <h3>Two answers come back</h3>
-            <p>A sentence for Alexa to say, and the tide chart with the run marked, drawn on the Echo Show.</p>
+            <h3>The Echo answers</h3>
+            <p>It says the time and the saving, and shows the day with the run marked (an MCP App).</p>
           </li>
         </ol>
         <dl className={s.tools}>
@@ -187,53 +161,50 @@ export default async function Home() {
         </dl>
       </section>
 
-      <section className={`shell ${s.section} ${s.connect}`}>
-        <div className={s.sectionHead}>
-          <h2>Use it from any MCP client</h2>
-          <p>
-            Alexa+ integrations are in preview for brands, so the Echo here is simulated. The server is real: add it to
-            Claude, ChatGPT or any client that speaks Streamable HTTP, and the same chart renders in the conversation.
+      <section className={`shell ${s.section}`} aria-labelledby="connect-title">
+        <div className={s.head}>
+          <h2 id="connect-title" className="display">
+            Works in any assistant that speaks MCP.
+          </h2>
+          <p className={s.sub}>
+            Alexa+ integrations are in preview for brands, so the Echo on this site is simulated. The server is real: add it to
+            Claude, ChatGPT or VS Code and the same view renders in the conversation.
           </p>
         </div>
-        <CopyField value={`${SITE_URL}/api/mcp`} label="Guest endpoint (prices and plans, no saved runs)" />
-        <p className={s.note}>
-          For saved runs and savings, <Link href="/connect">make a household link</Link>. It is free and only needs a postcode or city.
+        <CopyField value={`${SITE_URL}/api/mcp`} label="Guest endpoint. Prices and plans; add a postcode or city to your question." />
+        <p className={s.fine}>
+          For saved runs and savings, <Link href="/connect">make a household link</Link>. Free, no account, just a postcode or city.
         </p>
       </section>
 
-      <section className={`shell ${s.section} ${s.faq}`}>
-        <h2>Questions</h2>
-        <dl>
-          <div>
-            <dt>Where does it work?</dt>
-            <dd>
-              Anywhere in Britain on Octopus Agile (by postcode, all 14 regions), northern Illinois on ComEd Hourly Pricing,
-              and Germany on dynamic spot tariffs. On a flat tariff, ask for the greenest time instead: the carbon forecast
-              still moves through the day.
-            </dd>
-          </div>
-          <div>
-            <dt>Does it switch my appliances on?</dt>
-            <dd>
-              Not yet. Today it plans and reminds. Most dishwashers and washing machines already have a delay-start
-              button; Matter smart plugs and appliance APIs are next on the roadmap.
-            </dd>
-          </div>
-          <div>
-            <dt>What does it know about me?</dt>
-            <dd>
-              The postcode or city you give it and the runs you schedule. No account, no name, no meter data. A household
-              is a random link; delete the link and the household is gone.
-            </dd>
-          </div>
-          <div>
-            <dt>Are these real prices?</dt>
-            <dd>
-              Yes. Every chart and number on this site is read from the published feeds within the last few minutes
-              ({DEMO_PLACE} is a London postcode on the South Bank).
-            </dd>
-          </div>
-        </dl>
+      <section className={`shell ${s.section}`} aria-labelledby="faq-title">
+        <h2 id="faq-title" className={`display ${s.faqTitle}`}>
+          Questions
+        </h2>
+        <div className={s.faq}>
+          <details>
+            <summary>Where does it work?</summary>
+            <p>
+              Britain on Octopus Agile (every postcode, all 14 regions), northern Illinois on ComEd Hourly Pricing, and Germany on
+              dynamic spot tariffs. On a flat tariff, ask for the greenest time: the carbon forecast still moves through the night.
+            </p>
+          </details>
+          <details>
+            <summary>Does it switch the dishwasher on?</summary>
+            <p>
+              Not yet. It plans and reminds; most dishwashers and washing machines already have a delay-start button. Matter smart
+              plugs and appliance APIs are next.
+            </p>
+          </details>
+          <details>
+            <summary>What does it know about me?</summary>
+            <p>The postcode or city you give it and the runs you schedule. No account, no name, no meter data. A household is a random link.</p>
+          </details>
+          <details>
+            <summary>Are these real prices?</summary>
+            <p>Yes. Every number and every object on this site is cut from the published feeds within the last few minutes.</p>
+          </details>
+        </div>
       </section>
     </main>
   );

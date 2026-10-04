@@ -70,7 +70,8 @@ export default function Echo() {
   const tz = ZONES[guessCountry(home?.region ?? "")];
   const say = (l: Line) => setLog((xs) => [...xs.slice(-60), l]);
 
-  const theme = () => (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+  // The Echo's screen is a dark instrument, whatever the page around it.
+  const theme = () => "dark" as const;
 
   const show = useCallback(async (name: string, input: Record<string, unknown>, result: CallToolResult) => {
     if (!conn.current || !screen.current) return;

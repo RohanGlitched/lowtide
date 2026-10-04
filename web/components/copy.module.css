@@ -1,37 +1,42 @@
 .field {
   display: grid;
-  gap: 6px;
-  max-width: 760px;
+  gap: 8px;
+  max-width: 860px;
 }
 .label {
   font-size: 15px;
-  color: var(--ink-2);
+  color: var(--steel);
 }
 .row {
   display: flex;
   min-width: 0;
-  border: 1px solid var(--ink);
-  border-radius: 4px;
+  border-radius: 999px;
   background: var(--paper);
+  box-shadow: inset 0 0 0 1.5px var(--graphite);
+  overflow: hidden;
 }
 .value {
   flex: 1;
   min-width: 0;
-  padding: 12px 14px;
+  padding: 16px 22px;
   font-family: inherit;
-  font-size: 18px;
+  font-size: clamp(15px, 1.5vw, 19px);
   font-weight: 600;
   overflow-wrap: anywhere;
 }
 .row button {
   flex: none;
-  min-width: 88px;
+  min-width: 104px;
+  margin: 5px;
   border: 0;
-  border-left: 1px solid var(--ink);
-  background: var(--ink);
-  color: var(--chart);
+  border-radius: 999px;
+  background: var(--cobalt);
+  color: #fff;
   font: inherit;
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
+}
+.row button:hover {
+  background: var(--cobalt-ink);
 }

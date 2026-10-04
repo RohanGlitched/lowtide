@@ -25,11 +25,11 @@ const html = `<!doctype html>
 <title>Lowtide</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@1,6..72,400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Funnel+Display:wght@400;500&family=Funnel+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>${css}</style>
 </head>
 <body>
-<main id="root"><p class="loading">Reading the tide tables…</p></main>
+<main id="root"><p class="loading">Reading tonight's prices…</p></main>
 <script>${js}</script>
 </body>
 </html>`;

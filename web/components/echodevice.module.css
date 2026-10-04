@@ -1,0 +1,63 @@
+.stage {
+  position: relative;
+  padding-bottom: 9%;
+  min-width: 0;
+}
+.device {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+}
+/* The fabric speaker body behind the screen, its lower edge just showing */
+.body {
+  position: absolute;
+  left: 6%;
+  right: 6%;
+  bottom: -6.5%;
+  height: 42%;
+  border-radius: 0 0 30px 30px / 0 0 60px 60px;
+  background:
+    repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.05) 0 1.5px, transparent 1.5px 3px),
+    repeating-linear-gradient(-45deg, rgba(0, 0, 0, 0.12) 0 1.5px, transparent 1.5px 3px),
+    linear-gradient(180deg, #3b3f47, #23262c);
+}
+.bezel {
+  position: relative;
+  padding: 3%;
+  border-radius: clamp(14px, 2vw, 24px);
+  background: linear-gradient(180deg, #202328 0%, #111316 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 40px 60px -30px rgba(22, 24, 27, 0.55),
+    0 12px 22px -14px rgba(22, 24, 27, 0.5);
+}
+.camera {
+  position: absolute;
+  top: 1.2%;
+  right: 6%;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #4a515c, #050608 70%);
+}
+.screen {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  border-radius: 6px;
+  background: #16181b;
+}
+/* Contact shadow on the studio floor */
+.counter {
+  position: absolute;
+  left: 4%;
+  right: 4%;
+  bottom: 1%;
+  height: 9%;
+  border-radius: 50%;
+  background: radial-gradient(50% 50% at 50% 50%, rgba(22, 24, 27, 0.32), transparent 70%);
+  filter: blur(6px);
+}
+.spill {
+  display: none;
+}

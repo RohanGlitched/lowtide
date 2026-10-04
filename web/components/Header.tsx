@@ -11,22 +11,38 @@ export default function Header() {
         </Link>
         <nav className={s.nav} aria-label="Main">
           <Link href="/echo">Try it on Echo</Link>
+          <Link href="/tables">Today&apos;s tides</Link>
           <Link href="/connect">Add to Claude or ChatGPT</Link>
-          <Link href="/tables">Tide tables</Link>
         </nav>
       </div>
     </header>
   );
 }
 
-/** A tidal curve dipping to low water, with the "now" mark at the trough. */
-export function Mark({ size = 28 }: { size?: number }) {
+/** The object seen from above: a ring of fins, the cheapest few in cobalt. */
+export function Mark({ size = 26 }: { size?: number }) {
+  const fins = Array.from({ length: 24 }, (_, i) => {
+    const a = (i / 24) * Math.PI * 2;
+    const k = (Math.cos(a - 2.4) + 1) / 2;
+    const r0 = 6.2;
+    const r1 = 8.6 + k * 5.4;
+    return (
+      <line
+        key={i}
+        x1={16 + r0 * Math.sin(a)}
+        y1={16 - r0 * Math.cos(a)}
+        x2={16 + r1 * Math.sin(a)}
+        y2={16 - r1 * Math.cos(a)}
+        stroke={k < 0.22 ? "#2340ff" : "#16181b"}
+        strokeWidth="1.9"
+        strokeLinecap="round"
+      />
+    );
+  });
   return (
     <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden>
-      <rect x="1" y="1" width="30" height="30" rx="3" fill="var(--ink)" />
-      <path d="M3 12 C 8 12, 9 22, 16 22 S 24 12, 29 12 L 29 29 L 3 29 Z" fill="var(--shoal)" />
-      <path d="M3 12 C 8 12, 9 22, 16 22 S 24 12, 29 12" fill="none" stroke="var(--chart)" strokeWidth="1.6" />
-      <line x1="16" y1="5" x2="16" y2="29" stroke="var(--magenta)" strokeWidth="2" />
+      {fins}
+      <circle cx="16" cy="16" r="2.4" fill="#16181b" />
     </svg>
   );
 }

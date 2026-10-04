@@ -7,7 +7,7 @@
   display: block;
   margin-bottom: 6px;
   font-size: 15px;
-  color: var(--ink-2);
+  color: var(--steel);
 }
 .row {
   display: flex;
@@ -18,11 +18,12 @@
   flex: 1 1 220px;
   min-width: 0;
   min-height: 50px;
-  padding: 0 14px;
-  border: 1px solid var(--ink);
-  border-radius: 4px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 1.5px var(--graphite);
   background: var(--paper);
-  color: var(--ink);
+  color: var(--graphite);
   font: inherit;
   font-size: 18px;
 }
@@ -31,8 +32,8 @@
   padding: 0 22px;
   border: 0;
   border-radius: 999px;
-  background: var(--ink);
-  color: var(--chart);
+  background: var(--cobalt);
+  color: #fff;
   font: inherit;
   font-size: 17px;
   font-weight: 600;
@@ -44,7 +45,7 @@
 }
 .error {
   margin: 8px 0 0;
-  color: var(--magenta);
+  color: var(--cobalt);
 }
 .made p {
   margin: 0 0 10px;
