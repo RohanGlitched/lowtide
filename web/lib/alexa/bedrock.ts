@@ -47,14 +47,15 @@ export async function bedrockTurn(messages: Message[], tools: ToolSpec[], system
     body: JSON.stringify({
       system: [{ text: system }],
       messages,
-      toolConfig: { tools: tools.map((t) => ({ toolSpec: { name: t.name, description: t.description, inputSchema: { json: t.inputSchema } } })) },
+      // Bedrock rejects an empty tool list, so only send toolConfig when there are tools.
+      ...(tools.length ? { toolConfig: { tools: tools.map((t) => ({ toolSpec: { name: t.name, description: t.description, inputSchema: { json: t.inputSchema } } })) } } : {}),
       inferenceConfig: { maxTokens: 400, temperature: 0.3 },
     }),
     signal: AbortSignal.timeout(20_000),
   });
   const body = (await res.json().catch(() => ({}))) as ConverseOutput;
   if (!res.ok || !body.output?.message) {
-    throw new Error(`Bedrock ${res.status}: ${body.message ?? "no message"}`);
+    throw new Error(`Bedrock ${res.status}: ${body.message ?? JSON.stringify(body).slice(0, 300)}`);
   }
   return {
     message: body.output.message,
