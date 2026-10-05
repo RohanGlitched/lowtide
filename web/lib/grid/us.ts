@@ -13,7 +13,10 @@ export function parseComed(text: string): { start: number; price: number }[] {
     const [y, mo, d, h] = [1, 2, 3, 4].map((i) => Number(m[i]));
     out.push({ start: zonedToUtc(y, mo, d, h, 0, TZ), price: Number(m[7]) });
   }
-  return out.sort((a, b) => a.start - b.start);
+  out.sort((a, b) => a.start - b.start);
+  // On the autumn clock change the feed lists 1 a.m. twice; the second one is the next real hour.
+  for (let i = 1; i < out.length; i++) if (out[i].start <= out[i - 1].start) out[i].start = out[i - 1].start + HOUR;
+  return out;
 }
 
 export async function usTide(place: string): Promise<Tide> {

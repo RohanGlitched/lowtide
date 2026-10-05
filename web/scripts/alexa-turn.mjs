@@ -11,7 +11,7 @@ for (const u of said) {
   messages.push({ role: "user", content: [{ text: u }] });
   for (let step = 0; step < 5; step++) {
     const t0 = Date.now();
-    const r = await fetch(`${base}/api/alexa`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ messages, tools: specs, timeZone: "Europe/London", place: "SE1 7PB" }) }).then((x) => x.json());
+    const r = await fetch(`${base}/api/alexa`, { method: "POST", headers: { "content-type": "application/json", origin: new URL(base).origin }, body: JSON.stringify({ messages, tools: specs, timeZone: "Europe/London", place: "SE1 7PB" }) }).then((x) => x.json());
     messages.push(r.message);
     console.log(`[${r.engine} ${Date.now() - t0}ms]${r.note ? " NOTE " + r.note : ""}`);
     if (r.stop !== "tool_use") { console.log("you:", u, "\nalexa:", r.message.content.map((b) => b.text).join(" ")); break; }

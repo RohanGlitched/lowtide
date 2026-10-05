@@ -28,6 +28,7 @@ for (const [name, args] of calls) {
   const text = r.content.map((c) => c.text).join(" | ");
   if (name === "plan_appliance" && !planStart) planStart = text.match(/start "([^"]+)"/)?.[1];
   console.log(`\n${name}${r.isError ? " ERROR" : ""}: ${text}`);
+  if (r.isError) process.exitCode = 1;
   if (r.structuredContent) console.log(`  view: ${r.structuredContent.kind} · ${r.structuredContent.headline} · ${r.structuredContent.sub} · ${r.structuredContent.slots.length} slots · berths ${r.structuredContent.berths.length}`);
 }
 await client.close();

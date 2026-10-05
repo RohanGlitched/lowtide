@@ -52,7 +52,9 @@ export default function Echo() {
   const conn = useRef<Connection | null>(null);
   const messages = useRef<Message[]>([]);
   const stopListening = useRef<(() => void) | null>(null);
-  const logEnd = useRef<HTMLLIElement>(null);
+  const logBox = useRef<HTMLOListElement>(null);
+  const captionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const noted = useRef<string | null>(null);
 
   const [phase, setPhase] = useState<Phase>("connecting");
   const [home, setHome] = useState<Household | null>(null);
@@ -61,7 +63,7 @@ export default function Echo() {
   const [typed, setTyped] = useState("");
   const [muted, setMuted] = useState(false);
   const [mic, setMic] = useState(false);
-  const [engine, setEngine] = useState<string>("");
+  const [engine, setEngine] = useState<{ engine: string; model?: string }>({ engine: "" });
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [placeInput, setPlaceInput] = useState("");
@@ -117,8 +119,14 @@ export default function Echo() {
         if (!c) return setup(place, true);
         conn.current = c;
         messages.current = [];
+        noted.current = null;
         setHome(h);
         const tide = await callTool(c, "get_tide", {});
+        // A saved household whose record is gone connects fine but fails on first use: start a new one.
+        if (tide.isError && !fresh && /doesn't match a household/i.test(tide.content.map((x) => ("text" in x ? x.text : "")).join(" "))) {
+          localStorage.removeItem(HOME_KEY);
+          return setup(place, true);
+        }
         await show("get_tide", {}, tide);
         setPhase("idle");
       } catch (e) {
@@ -133,7 +141,7 @@ export default function Echo() {
     setMic(canListen());
     fetch("/api/alexa")
       .then((r) => r.json())
-      .then((j) => setEngine(j.engine))
+      .then((j) => setEngine({ engine: j.engine, model: j.model }))
       .catch(() => {});
     setup(DEFAULT_PLACE, false);
     const mq = matchMedia("(prefers-color-scheme: dark)");
@@ -146,8 +154,10 @@ export default function Echo() {
     };
   }, [setup]);
 
+  // Scroll the conversation box, never the page: the Echo must stay on screen while it answers.
   useEffect(() => {
-    logEnd.current?.scrollIntoView({ block: "nearest" });
+    const box = logBox.current;
+    if (box) box.scrollTop = box.scrollHeight;
   }, [log]);
 
   const ask = useCallback(
@@ -160,10 +170,13 @@ export default function Echo() {
       say({ who: "you", text });
       setCaption({ who: "you", text });
       setPhase("thinking");
+      if (captionTimer.current) clearTimeout(captionTimer.current);
       // Keep the last ~30 messages, starting at a plain user turn (Bedrock wants that).
+      const before = messages.current;
       let history: Message[] = [...messages.current, { role: "user" as const, content: [{ text }] }].slice(-30);
       while (history.length > 1 && !(history[0].role === "user" && history[0].content.some((b) => "text" in b))) history = history.slice(1);
       messages.current = history;
+      let finished = false;
       try {
         for (let step = 0; step < 6; step++) {
           const r = await fetch("/api/alexa", {
@@ -173,8 +186,12 @@ export default function Echo() {
           });
           const turn = (await r.json()) as TurnResponse & { error?: string };
           if (!r.ok) throw new Error(turn.error ?? "Alexa didn't answer.");
-          if (turn.note) say({ who: "note", text: turn.note });
-          setEngine(turn.engine);
+          // Say once per conversation why the simple router is answering, not on every step.
+          if (turn.note && noted.current !== turn.note) {
+            noted.current = turn.note;
+            say({ who: "note", text: turn.note });
+          }
+          setEngine({ engine: turn.engine, model: turn.model });
           messages.current = [...messages.current, turn.message];
           if (turn.stop === "tool_use") {
             const results: Message["content"] = [];
@@ -198,14 +215,23 @@ export default function Echo() {
           say({ who: "alexa", text: reply, engine: turn.engine });
           setCaption({ who: "alexa", text: reply });
           setPhase("speaking");
+          finished = true;
           await speak(reply, "en-GB", muted);
           break;
         }
+        if (!finished) {
+          // Six steps without an answer: close the turn cleanly so the next one isn't rejected.
+          messages.current = [...messages.current, { role: "assistant", content: [{ text: "I couldn't finish that one. Try asking again." }] }];
+          say({ who: "alexa", text: "I couldn't finish that one. Try asking again." });
+        }
       } catch (e) {
+        // A failed turn leaves no half-finished tool call behind.
+        messages.current = before;
         setError(e instanceof Error ? e.message : String(e));
+        setCaption(null);
       } finally {
         setPhase("idle");
-        setTimeout(() => setCaption((cur) => (cur?.who === "alexa" ? null : cur)), 6000);
+        captionTimer.current = setTimeout(() => setCaption((cur) => (cur?.who === "alexa" ? null : cur)), 7000);
       }
     },
     [home?.place, muted, show, tz],
@@ -261,11 +287,9 @@ export default function Echo() {
           <div className={s.screen}>
             <div ref={screen} className={s.view} />
             {phase === "connecting" && <p className={s.boot}>Connecting to Lowtide…</p>}
-            {caption && (caption.text || phase === "listening") && (
-              <p className={s.caption} data-who={caption.who} aria-live="polite">
-                {caption.who === "you" ? (caption.text ? `“${caption.text}”` : "Listening…") : caption.text}
-              </p>
-            )}
+            <p className={s.caption} data-who={caption?.who ?? "alexa"} aria-live="polite" hidden={!(caption && (caption.text || phase === "listening"))}>
+              {caption ? (caption.who === "you" ? (caption.text ? `“${caption.text}”` : "Listening…") : caption.text) : ""}
+            </p>
             <span className={s.lightbar} aria-hidden />
           </div>
         </div>
@@ -299,8 +323,8 @@ export default function Echo() {
               Say it
             </button>
           </form>
-          <button type="button" className={s.mute} onClick={() => setMuted((m) => !m)} aria-pressed={muted}>
-            {muted ? "Voice off" : "Voice on"}
+          <button type="button" className={s.mute} onClick={() => setMuted((m) => !m)} aria-pressed={muted} title={muted ? "Alexa is muted; press to hear replies" : "Press to mute Alexa's voice"}>
+            {muted ? "Unmute" : "Mute"}
           </button>
         </div>
         {error && (
@@ -329,21 +353,20 @@ export default function Echo() {
           {log.length === 0 ? (
             <p className={s.muted}>Your requests, Alexa&apos;s replies and each Lowtide tool call appear here.</p>
           ) : (
-            <ol className={s.log}>
+            <ol className={s.log} ref={logBox} role="log" aria-label="Conversation">
               {log.map((l, i) => (
                 <li key={i} data-who={l.who}>
                   {l.who === "tool" ? <code>{l.text}</code> : l.text}
                 </li>
               ))}
-              <li ref={logEnd} aria-hidden className={s.end} />
             </ol>
           )}
           <p className={s.engine}>
-            {engine === "bedrock"
-              ? "Understanding: Claude Haiku 4.5 on Amazon Bedrock"
-              : engine === "fallback"
-                ? "Understanding: Lowtide's built-in phrase router"
-                : " "}
+            {engine.engine === "bedrock"
+              ? `Understanding: ${engine.model ?? "a model"} on Amazon Bedrock`
+              : engine.engine === "fallback"
+                ? "Understanding: Lowtide's built-in phrase router (the Bedrock model isn't reachable right now)"
+                : " "}
           </p>
         </div>
 
@@ -352,7 +375,8 @@ export default function Echo() {
           {home ? (
             <>
               <p className={s.home}>
-                <strong>{home.place}</strong> · {home.region} · {home.tariff}
+                <strong>{home.place}</strong>
+                {home.region.toLowerCase() !== home.place.toLowerCase() ? ` · ${home.region}` : ""} · {home.tariff}
               </p>
               {home.demo && <p className={s.muted}>Demo household: two weeks of sample runs, priced with the real published rates for those nights.</p>}
               {editing ? (

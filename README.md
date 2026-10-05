@@ -32,14 +32,14 @@ The question is always the same, and it's asked in the kitchen with your hands f
 <img src="docs/screens/echo-scheduled.png" alt="Simulated Echo Show: Alexa schedules the dishwasher for 01:00 and shows the day's prices on a dial" width="100%">
 
 > **You:** Alexa, when should I run the dishwasher? It needs to be done by seven.
-> **Alexa:** Run it at one in the morning and you'll save 17 pence compared to now. Would you like me to set a reminder?
+> **Alexa:** Run it at one in the morning and you'll save 17 pence compared to now. Shall I save that?
 > **You:** Yes please.
-> **Alexa:** All set, I'll remind you at one in the morning.
+> **Alexa:** Saved. Run the dishwasher tonight at one a.m.
 
 That exchange is real: Claude Haiku 4.5 on Amazon Bedrock, calling Lowtide's MCP tools, with London's live Agile prices. The answer comes back twice: **a sentence to speak**, and **an MCP App view for the Echo Show screen**, the next 24 hours on a dial with the run marked on the rim.
 
 - **Plans any shiftable load** (dishwasher, washing machine, tumble dryer, EV, immersion heater, home battery), with a deadline ("done by seven"), an earliest start ("not before ten"), and a goal: cheapest, greenest, or both.
-- **Remembers the household:** saved runs, reminders and money saved, behind a private household link (no account, no name).
+- **Remembers the household:** saved runs and money saved, behind a private household link (no account; a name is optional and never required).
 - **Real prices everywhere:** Octopus Agile for every British postcode (all 14 regions), ComEd day-ahead hourly prices for northern Illinois, EPEX day-ahead for Germany, and the National Energy System Operator's regional carbon forecast.
 
 ## The day, machined
@@ -51,7 +51,7 @@ The website turns each day into an object: a studio-lit ring of 48 aluminium fin
 ## Try it in one minute
 
 1. Open **[lowtide-energy.vercel.app/echo](https://lowtide-energy.vercel.app/echo)**. A demo household in London is set up for you, with two weeks of past runs priced at the real rates of those nights.
-2. Press **Talk to Alexa** (or type). Try: *"When should I run the dishwasher?"*, then *"Yes please"*, then *"How much have I saved?"*
+2. Press **Talk to Alexa** (or type). Try: *"When should I run the dishwasher?"*, then *"Yes please"*, then *"How much have I saved?"* The engine line under the conversation says what is understanding you: Claude on Amazon Bedrock, or Lowtide's own phrase router when Bedrock isn't reachable.
 3. Watch the right-hand column: every MCP tool call Alexa makes is listed as it happens.
 4. Want it in your own assistant? **[Make a household link](https://lowtide-energy.vercel.app/connect)** and add it to Claude (Settings → Connectors → Add custom connector) or ChatGPT (developer mode → Create).
 5. Or open it in **[Countertop](https://countertop-mcp.vercel.app/?server=https://lowtide-energy.vercel.app/api/mcp)**, the open-source voice and screen test bench for MCP servers that came out of this project ([source](https://github.com/RohanGlitched/countertop)).
@@ -112,10 +112,10 @@ flowchart TB
 
 | Tool | What it does | Shows a view |
 |---|---|---|
-| `plan_appliance` | Cheapest or greenest start for a load, with an optional deadline and earliest start; compares with starting now | ✓ |
-| `schedule_run` | Saves the run once the person agrees, with its saving | ✓ |
-| `check_now` | Whether this half hour is cheap or dear, and when it drops | ✓ |
-| `get_tide` | The next 24 hours of prices and carbon, with the cheapest and dearest hours | ✓ |
+| `plan_appliance` | Cheapest or greenest start for a load, with an optional deadline and earliest start; compares with starting now. "Done by seven" asked at half past six means tomorrow morning | ✓ |
+| `schedule_run` | Saves the run once the person agrees, with its saving (it keeps the plan; it doesn't switch anything on) | ✓ |
+| `check_now` | Whether this half hour is cheap or dear, and when it drops; name an appliance and it prices that load now against its best later start | ✓ |
+| `get_tide` | The next 24 hours of prices and carbon, with the cheapest and dearest hours; `after: "18:00"` answers "tonight" | ✓ |
 | `list_runs` / `cancel_run` | The household's planned runs | ✓ |
 | `get_savings` | Money and CO₂ saved by running at the cheap hours | ✓ |
 | `set_home` | Postcode or city, which picks the tariff region | |
@@ -126,8 +126,9 @@ Every tool returns a **voice-ready sentence** first (times said the way people s
 
 - **The answer leads.** "Run the dishwasher at 01:00" is the headline on screen and the first words spoken.
 - **Readable across a kitchen.** The view has a fullscreen layout for device screens (sized from the screen, nothing scrolls) and an inline one for chat hosts.
-- **Never stuck.** If Bedrock is unavailable or the daily budget is spent, the simulator falls back to a deterministic phrase router that calls the same tools, and the tools' own sentences are spoken.
-- **Bounded cost.** 40 model calls per visitor per 10 minutes, 1,500 per day, counted across instances.
+- **Never stuck.** If Bedrock is unavailable or the daily budget is spent, the simulator falls back to a deterministic phrase router that calls the same tools, and the tools' own sentences are spoken. The page says which one is answering, from a real probe, not from whether a key is set.
+- **A chain of models.** The server asks for Claude Haiku 4.5 first; if the account can't call it (model access, an organisation policy, a region rule), it tries Claude 3.5 Haiku and then Amazon Nova Lite, and remembers what worked.
+- **Bounded cost.** The model route answers only its own pages, checks every message shape, and caps calls at 40 per visitor per 10 minutes and 250 per visitor per day (per server instance), plus 1,500 a day in all (a count shared through Blob storage, synced every 20 calls and on every call once 80% is spent).
 
 ## Engineering notes
 
@@ -135,7 +136,7 @@ Every tool returns a **voice-ready sentence** first (times said the way people s
 - **MCP Apps:** the `ui://lowtide/tide-chart.html` resource is one self-contained HTML file (esbuild), using `@modelcontextprotocol/ext-apps`. The Echo simulator hosts it in an opaque-origin sandboxed iframe through `AppBridge`, the same protocol Claude and ChatGPT use.
 - **Prices:** Agile rates by region letter (postcode → grid supply point), NESO regional carbon by region id, ComEd's day-ahead feed parsed from Chicago wall-clock time, aWATTar EUR/MWh → ct/kWh. Feeds are cached two minutes and fail one at a time.
 - **Planner:** every half-hour start that finishes in time is priced by spreading the load evenly over the slots it covers (partial slots included); "balanced" normalises cost and carbon distance from each optimum. Negative prices count as a credit.
-- **Storage:** one private Vercel Blob document per household, read uncached and written with `ifMatch` ETags. Blob ETags can lag right after an overwrite, so demo households are written once and updates retry with backoff.
+- **Storage:** one private Vercel Blob document per household, read uncached and written with `ifMatch` ETags on every attempt. Blob ETags can lag right after an overwrite, so demo households are written once and updates re-read and retry with backoff; a write that still conflicts says "try again" rather than overwriting.
 - **Performance:** the 3D object renders on demand (static shadow map, 30 fps idle turn, paused off screen), compiles shaders asynchronously, and mounts in idle time.
 
 ## Proof
@@ -143,10 +144,11 @@ Every tool returns a **voice-ready sentence** first (times said the way people s
 | Claim | Where it's checked |
 |---|---|
 | The planner picks the cheapest and greenest windows, respects deadlines, handles partial slots and negative prices | [`web/test/plan.test.ts`](web/test/plan.test.ts) |
-| Times survive DST and time zones; "7am", "7:30 p.m.", "noon" and ISO all parse | [`web/test/time.test.ts`](web/test/time.test.ts) |
+| Times survive DST and time zones (the London and Chicago clock changes, ComEd's repeated hour); "7am", "7:30 p.m.", "noon" and ISO all parse | [`web/test/time.test.ts`](web/test/time.test.ts), [`web/test/edges.test.ts`](web/test/edges.test.ts) |
+| Edge cases hold: deadlines rolled to the next morning, refusals never schedule, past starts refused, negative prices, partial slots, abuse limits on the household and model routes | [`web/test/edges.test.ts`](web/test/edges.test.ts), 50 tests, including the real tool handlers and routes in-process |
 | Postcodes and cities resolve to the right tariff; money reads naturally | [`web/test/time.test.ts`](web/test/time.test.ts) |
 | The fallback router maps everyday phrasings, and "yes" schedules the plan just offered | [`web/test/fallback.test.ts`](web/test/fallback.test.ts) |
-| Every tool works over Streamable HTTP against the live deployment | [`web/scripts/mcp-smoke.mjs`](web/scripts/mcp-smoke.mjs), run in CI |
+| Every tool works over Streamable HTTP against the live deployment (a tool error fails the build) | [`web/scripts/mcp-smoke.mjs`](web/scripts/mcp-smoke.mjs), run in CI |
 | A full Bedrock conversation (plan → schedule → savings) works in production | [`web/scripts/alexa-turn.mjs`](web/scripts/alexa-turn.mjs) |
 | The Echo flow works on desktop and phone with no console errors | [`web/scripts/e2e.cjs`](web/scripts/e2e.cjs) |
 
@@ -156,7 +158,7 @@ Every tool returns a **voice-ready sentence** first (times said the way people s
 cd web
 npm install
 npm run dev          # builds the MCP App view, then starts Next.js
-npm test             # 20 unit tests
+npm test             # 70 tests: planner, clocks, places, the phrase router, the tool handlers, the routes
 node scripts/mcp-smoke.mjs http://localhost:3000
 ```
 

@@ -62,6 +62,9 @@ export function planRun(
   const earliest = Math.max(opts.earliest ?? now, slots[0].start, now);
   const latestEnd = Math.min(opts.finishBy ?? horizonEnd, horizonEnd);
   const dur = opts.minutes * 60_000;
+  if (opts.earliest && opts.finishBy && opts.earliest + dur > opts.finishBy) {
+    throw new Error("That window closes before the run could finish. Give me a later deadline or an earlier start.");
+  }
   if (earliest + dur > latestEnd) {
     if (opts.finishBy && opts.finishBy < earliest + dur) {
       throw new Error("There isn't enough time to finish by then, even starting now.");
@@ -78,8 +81,9 @@ export function planRun(
   if (!runs.length) throw new Error("The published prices have a gap, so I can't price that run yet.");
 
   const byCost = [...runs].sort((a, b) => a.cost - b.cost || a.start - b.start);
+  // A window with a gap in the carbon forecast can't compete on carbon, but the others still can.
   const withCarbon = runs.filter((r) => r.carbon !== null);
-  const byCarbon = withCarbon.length === runs.length ? [...runs].sort((a, b) => a.carbon! - b.carbon! || a.start - b.start) : [];
+  const byCarbon = [...withCarbon].sort((a, b) => a.carbon! - b.carbon! || a.start - b.start);
   const cheapest = byCost[0];
   const greenest = byCarbon[0] ?? null;
 
@@ -88,9 +92,9 @@ export function planRun(
   if (goal === "balanced" && greenest) {
     // Normalised distance from each optimum; ties go to the earlier start.
     const span = (xs: number[]) => Math.max(1e-9, Math.max(...xs) - Math.min(...xs));
-    const cSpan = span(runs.map((r) => r.cost));
-    const gSpan = span(runs.map((r) => r.carbon!));
-    best = [...runs].sort(
+    const cSpan = span(withCarbon.map((r) => r.cost));
+    const gSpan = span(withCarbon.map((r) => r.carbon!));
+    best = [...withCarbon].sort(
       (a, b) =>
         (a.cost - cheapest.cost) / cSpan + (a.carbon! - greenest.carbon!) / gSpan -
           ((b.cost - cheapest.cost) / cSpan + (b.carbon! - greenest.carbon!) / gSpan) || a.start - b.start,

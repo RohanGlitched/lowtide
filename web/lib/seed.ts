@@ -11,8 +11,8 @@ const DAY = 86400_000;
 
 /** Wall-clock time `daysAgo` days back, at hh:mm London time. */
 function at(daysAgo: number, hh: number, mm: number, now: number): number {
-  const local = new Date(now - daysAgo * DAY + offsetMs(now - daysAgo * DAY, TZ));
-  return zonedToUtc(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate(), hh, mm, TZ);
+  const local = new Date(now + offsetMs(now, TZ));
+  return zonedToUtc(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate() - daysAgo, hh, mm, TZ);
 }
 
 /**

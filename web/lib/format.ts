@@ -2,8 +2,9 @@ import type { Region } from "./grid/types";
 
 /** An amount in minor units (p, ¢, ct) as a person says it: "11p", "£1.24", "8¢", "$2.10", "9 ct", "€1.05". */
 export function money(minor: number, region: Pick<Region, "currency">): string {
-  const neg = minor < 0;
-  const v = Math.abs(minor);
+  // Round first, so 99.6p reads £1.00 and a hair below zero isn't "−0p".
+  const v = Math.abs(minor) >= 10 ? Math.round(Math.abs(minor)) : Math.round(Math.abs(minor) * 10) / 10;
+  const neg = minor < 0 && v > 0;
   let s: string;
   if (region.currency === "GBP") s = v < 100 ? `${fmt(v)}p` : `£${(v / 100).toFixed(2)}`;
   else if (region.currency === "USD") s = v < 100 ? `${fmt(v)}¢` : `$${(v / 100).toFixed(2)}`;
@@ -35,15 +36,17 @@ export function rate(minorPerKwh: number, region: Pick<Region, "unit">): string 
 
 /** "3 h", "2 h 30", "45 min". */
 export function duration(minutes: number): string {
-  const h = Math.floor(minutes / 60);
-  const m = Math.round(minutes % 60);
+  const total = Math.round(minutes);
+  const h = Math.floor(total / 60);
+  const m = total % 60;
   if (!h) return `${m} min`;
   return m ? `${h} h ${String(m).padStart(2, "0")}` : `${h} h`;
 }
 
 /** Grams to "320 g" or "1.4 kg". */
 export function grams(g: number): string {
-  return g >= 1000 ? `${(g / 1000).toFixed(1)} kg` : `${Math.round(g)} g`;
+  const r = Math.round(g);
+  return r >= 1000 ? `${(r / 1000).toFixed(1)} kg` : `${r} g`;
 }
 
 function fmt(v: number): string {

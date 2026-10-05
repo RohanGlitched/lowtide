@@ -63,7 +63,7 @@
   font-weight: 600;
   cursor: pointer;
 }
-.switch button[aria-selected="true"] {
+.switch button[aria-pressed="true"] {
   background: var(--graphite);
   color: #fff;
 }

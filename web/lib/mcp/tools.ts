@@ -16,7 +16,7 @@ export const VIEW_URI = "ui://lowtide/tide-chart.html";
 export const SERVER_INSTRUCTIONS = `Lowtide tells a household when electricity is cheapest and cleanest, and when to run shiftable appliances (dishwasher, washing machine, tumble dryer, EV charger, immersion heater, home battery).
 Prices are live: Octopus Agile half-hourly rates across Britain (by postcode), ComEd hourly pricing in northern Illinois, and the German day-ahead spot price. Britain also has a regional carbon forecast.
 Answer like a voice assistant: lead with the time and the saving in one short sentence, then stop. Read times the way people say them ("one thirty a.m."). Never read out raw tables.
-Use plan_appliance for "when should I run...", then schedule_run only when the person agrees. Use get_tide for general "when is power cheap" questions and check_now for "is now a good time".`;
+Use plan_appliance for "when should I run...", then schedule_run only when the person agrees (it saves the run; it does not switch anything on). Use get_tide for general "when is power cheap" questions (pass after: "18:00" for "tonight") and check_now for "is now a good time", with the appliance if they named one.`;
 
 /** What the view draws. Kept compact: it travels in every tool result. */
 export interface ViewData {
@@ -62,15 +62,21 @@ export function registerLowtide(server: McpServer, ctx: Ctx) {
       title: "Electricity prices, next 24 hours",
       description:
         "The next day of electricity prices (and grid carbon where published) for the household, with the cheapest and dearest hours. Use for 'when is electricity cheap tonight?'.",
-      inputSchema: z.object({ place: placeArg }),
+      inputSchema: z.object({
+        place: placeArg,
+        after: z.string().max(30).optional().describe("Only look from this local clock time on, e.g. '18:00' when they ask about tonight"),
+      }),
       annotations: { readOnlyHint: true, openWorldHint: true },
       _meta: ui,
     },
-    async ({ place }) => {
+    async ({ place, after }) => {
       const { tide } = await tideFor(ctx, place);
-      const { low, high } = tideMarks(tide.slots, 60);
       const tz = tide.region.timeZone;
       const now = Date.now();
+      const from = after ? nextClockTimeOrThrow(after, tz, now) : null;
+      // "Tonight" starts at the asked hour, or now if that hour has already begun.
+      const window = from && from - now < 20 * 3600_000 ? tide.slots.filter((s) => s.end > from) : tide.slots;
+      const { low, high } = tideMarks(window.length >= 2 ? window : tide.slots, 60);
       const cur = currentSlot(tide.slots, now);
       const headline = low ? `Cheapest at ${clock(low.start, tz)} ${shortDay(low.start, now, tz)}` : "Prices are flat for now";
       const sub = low && high
@@ -84,7 +90,7 @@ export function registerLowtide(server: McpServer, ctx: Ctx) {
       ];
       const view = viewOf("tide", tide, headline, sub, facts, [], now);
       const spoken = low && high
-        ? `Electricity in ${tide.region.name} is cheapest ${dayPart(low.start, now, tz)} around ${spokenTime(low.start, tz)}, at ${low.avgPrice.toFixed(1)} ${unitWord(tide.region)} a kilowatt hour, and dearest around ${spokenTime(high.start, tz)} at ${high.avgPrice.toFixed(1)}.${cur ? ` Right now it's ${cur.price.toFixed(1)}.` : ""}`
+        ? `Electricity in ${spokenPlace(tide.region)} is cheapest ${dayPart(low.start, now, tz)} around ${spokenTime(low.start, tz)}, at ${spokenRate(low.avgPrice, tide.region)} a unit, and dearest around ${spokenTime(high.start, tz)} at ${spokenRate(high.avgPrice, tide.region)}.${cur ? ` Right now it's ${spokenRate(cur.price, tide.region)}.` : ""}`
         : "Prices are flat at the moment.";
       return result(spoken, view);
     },
@@ -96,16 +102,20 @@ export function registerLowtide(server: McpServer, ctx: Ctx) {
     {
       title: "Is now a good time to use power?",
       description: "Whether right now is a cheap or expensive (and clean or dirty) time to use electricity, compared with the rest of the published day, and how long until it gets cheaper.",
-      inputSchema: z.object({ place: placeArg }),
+      inputSchema: z.object({
+        place: placeArg,
+        appliance: z.string().min(2).max(40).optional().describe("What they want to switch on now, e.g. tumble dryer, so the answer compares its cost now with the cheapest later start"),
+      }),
       annotations: { readOnlyHint: true, openWorldHint: true },
       _meta: ui,
     },
-    async ({ place }) => {
-      const { tide } = await tideFor(ctx, place);
+    async ({ place, appliance }) => {
+      const { tide, state } = await tideFor(ctx, place);
       const now = Date.now();
       const tz = tide.region.timeZone;
       const cur = currentSlot(tide.slots, now);
       if (!cur) throw new Error("There's no published price for this half hour yet.");
+      const app = appliance ? findAppliance(appliance) : null;
       const prices = tide.slots.map((s) => s.price).sort((a, b) => a - b);
       const rank = prices.findIndex((p) => p >= cur.price) / Math.max(1, prices.length - 1);
       const verdict = rank <= 0.25 ? "a good time" : rank <= 0.6 ? "an average time" : "an expensive time";
@@ -118,8 +128,38 @@ export function registerLowtide(server: McpServer, ctx: Ctx) {
         ...(cur.carbon != null ? [{ label: "Grid carbon", value: `${cur.carbon} g/kWh` }] : []),
         ...(cheaper ? [{ label: "Next cheap stretch", value: clock(cheaper.start, tz) }] : []),
       ];
+      if (app) {
+        // The question was about one load: price it now and at its best later start.
+        const { kwh, minutes } = loadFor(app, state);
+        const nowRun = costRun(tide.slots, now, minutes, kwh);
+        let best: ReturnType<typeof costRun> = null;
+        try {
+          best = planRun(tide.slots, { kwh, minutes, now, earliest: now + 30 * 60_000 }).best;
+        } catch {}
+        if (nowRun) {
+          const better = best && best.cost < nowRun.cost - 1 ? best : null;
+          const headlineApp = better ? `${cap(app.action)} at ${clock(better.start, tz)} instead` : `${cap(app.action)} now`;
+          const subApp = better
+            ? `${money(nowRun.cost, tide.region)} now, ${money(better.cost, tide.region)} at ${clock(better.start, tz)}. ${rate(cur.price, tide.region)} this half hour.`
+            : `${money(nowRun.cost, tide.region)} now, and it doesn't get much cheaper later. ${rate(cur.price, tide.region)} this half hour.`;
+          const factsApp = [
+            { label: `${cap(app.name)} now`, value: money(nowRun.cost, tide.region) },
+            ...(better ? [{ label: `At ${clock(better.start, tz)}`, value: money(better.cost, tide.region) }] : []),
+            { label: "Price now", value: rate(cur.price, tide.region) },
+            ...(cur.carbon != null ? [{ label: "Grid carbon", value: `${cur.carbon} g/kWh` }] : []),
+          ];
+          const berthsApp: ViewData["berths"] = better ? [{ start: better.start, end: better.end, label: app.name, state: "best" }] : [];
+          const viewApp = viewOf("now", tide, headlineApp, subApp, factsApp, berthsApp, now);
+          const spokenApp = better
+            ? `Now is ${verdict} to ${app.action}: about ${moneySpoken(nowRun.cost, tide.region)}. Wait until ${spokenTime(better.start, tz)} and it's ${moneySpoken(better.cost, tide.region)}, ${moneySpoken(nowRun.cost - better.cost, tide.region)} less.`
+            : `Now is ${verdict} to ${app.action}: about ${moneySpoken(nowRun.cost, tide.region)}, and it doesn't get much cheaper later.`;
+          const r = result(spokenApp, viewApp);
+          if (better) r.content.push({ type: "text" as const, text: `For schedule_run, pass start "${new Date(better.start).toISOString()}". Don't read this line aloud.` });
+          return r;
+        }
+      }
       const view = viewOf("now", tide, headline, sub, facts, [], now);
-      const spoken = `Now is ${verdict} to use power: ${cur.price.toFixed(1)} ${unitWord(tide.region)} a kilowatt hour.${cheaper ? ` It drops to ${cheaper.price.toFixed(1)} at ${spokenTime(cheaper.start, tz)}.` : ""}`;
+      const spoken = `Now is ${verdict} to use power: ${spokenRate(cur.price, tide.region)} a unit.${cheaper ? ` It drops to ${spokenRate(cheaper.price, tide.region)} at ${spokenTime(cheaper.start, tz)}.` : ""}`;
       return result(spoken, view);
     },
   );
@@ -151,8 +191,12 @@ export function registerLowtide(server: McpServer, ctx: Ctx) {
       const now = Date.now();
       const app = applianceOrThrow(args.appliance);
       const { kwh, minutes } = loadFor(app, state, args.kwh, args.minutes);
-      const finishBy = args.finish_by ? nextClockTimeOrThrow(args.finish_by, tz, now) : undefined;
-      const earliest = args.start_after ? nextClockTimeOrThrow(args.start_after, tz, now) : undefined;
+      let finishBy = args.finish_by ? nextClockTimeOrThrow(args.finish_by, tz, now) : undefined;
+      let earliest = args.start_after ? nextClockTimeOrThrow(args.start_after, tz, now) : undefined;
+      // "Done by seven", asked at half past six, means tomorrow morning, not in thirty minutes.
+      if (finishBy && !/^\d{4}-/.test(args.finish_by!) && finishBy - now < minutes * 60_000) finishBy += 86_400_000;
+      // "After ten, done by seven", asked after ten at night: the window has already opened.
+      if (earliest && finishBy && earliest >= finishBy) earliest = Math.max(now, earliest - 86_400_000);
       const plan = planRun(tide.slots, { kwh, minutes, goal: (args.goal as Goal) ?? "cheapest", finishBy, earliest, now });
       return planResult(tide, app, plan, now);
     },
@@ -182,6 +226,7 @@ export function registerLowtide(server: McpServer, ctx: Ctx) {
       const app = applianceOrThrow(args.appliance);
       const { kwh, minutes } = loadFor(app, state, args.kwh, args.minutes);
       const start = nextClockTimeOrThrow(args.start, tz, now);
+      if (start < now - 5 * 60_000) throw new Error("That start time has already passed. Ask me to plan it again.");
       const run = costRun(tide.slots, start, minutes, kwh);
       if (!run) throw new Error("Prices aren't published for that whole stretch yet, so I can't save it.");
       const ifNow = costRun(tide.slots, now, minutes, kwh);
@@ -204,10 +249,10 @@ export function registerLowtide(server: McpServer, ctx: Ctx) {
       });
       const upcoming = next.runs.filter((r) => r.status === "planned" && r.end > now).sort((a, b) => a.start - b.start);
       const headline = `${cap(app.name)} at ${clock(run.start, tz)}`;
-      const sub = `Saved. I'll remind you ${dayPart(run.start, now, tz)} at ${clock(run.start, tz)}${saved.costIfNow != null ? `, saving ${money(saved.costIfNow - saved.cost, tide.region)} on starting now` : ""}.`;
+      const sub = `Saved for ${clock(run.start, tz)} ${dayPart(run.start, now, tz)}${saved.costIfNow != null ? `, saving ${money(saved.costIfNow - saved.cost, tide.region)} on starting now` : ""}. Set the delay start, or ask me what's planned.`;
       const berths = upcoming.map((r) => ({ start: r.start, end: r.end, label: r.label, state: r.id === saved.id ? ("best" as const) : ("planned" as const) }));
       const view = viewOf("scheduled", tide, headline, sub, runFacts(tide, saved), berths, now);
-      const spoken = `Done. I'll remind you to ${app.action} ${dayPart(run.start, now, tz)} at ${spokenTime(run.start, tz)}.${saved.costIfNow != null && saved.costIfNow - saved.cost >= 1 ? ` That saves ${moneySpoken(saved.costIfNow - saved.cost, tide.region)}.` : ""}`;
+      const spoken = `Saved. ${cap(app.action)} ${dayPart(run.start, now, tz)} at ${spokenTime(run.start, tz)}.${saved.costIfNow != null && saved.costIfNow - saved.cost >= 1 ? ` That saves ${moneySpoken(saved.costIfNow - saved.cost, tide.region)}.` : ""}`;
       return result(spoken, view);
     },
   );
@@ -481,3 +526,7 @@ const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 const shortDay = (t: number, now: number, tz: string) =>
   dayPart(t, now, tz).replace(/^tomorrow .*/, "tomorrow").replace(/^(early )?this morning$/, "this morning").replace(/^this (afternoon|evening)$/, "today");
 const unitWord = (r: Pick<Region, "currency">) => (r.currency === "GBP" ? "pence" : "cents");
+/** A unit price as a person says it: whole numbers from ten up, one decimal below, always with the unit. */
+const spokenRate = (p: number, r: Pick<Region, "currency">) => `${Math.abs(p) >= 10 ? Math.round(p) : Number(p.toFixed(1))} ${unitWord(r)}`;
+/** The region's name without anything in brackets, for speech. */
+const spokenPlace = (r: Pick<Region, "name">) => r.name.replace(/\s*\(.*?\)/g, "");

@@ -43,6 +43,8 @@ export default function Hero({ places }: { places: { key: string; label: string;
   const allSix = sc.runs.reduce((a, r) => a + r.costAtSix, 0);
   // "tomorrow afternoon" reads long in a headline: keep the day, drop the part of it.
   const when = low ? dayPart(low.start, sc.now, tz).replace(/^tomorrow .*/, "tomorrow").replace(/^early this morning$/, "tonight").replace(/^this (afternoon|evening|morning)$/, "today") : "";
+  const dishWhen = dish ? dayPart(dish.start, sc.now, tz).replace(/^tomorrow .*/, "tomorrow") : "";
+  const baseline = sc.eveningIsNow ? "now" : "at 6 p.m.";
 
   return (
     <section className={s.hero} aria-labelledby="hero-title">
@@ -82,9 +84,9 @@ export default function Hero({ places }: { places: { key: string; label: string;
       </div>
 
       <div className={`shell ${s.below}`}>
-        <div className={s.switch} role="tablist" aria-label="Choose a place">
+        <div className={s.switch} role="group" aria-label="Choose a place">
           {places.map((p) => (
-            <button key={p.key} role="tab" type="button" aria-selected={p.key === key} onClick={() => setKey(p.key)}>
+            <button key={p.key} type="button" aria-pressed={p.key === key} onClick={() => setKey(p.key)}>
               {p.label}
             </button>
           ))}
@@ -105,14 +107,14 @@ export default function Hero({ places }: { places: { key: string; label: string;
             <span>{high ? `${high.p.toFixed(1)}${u}/kWh` : ""}</span>
           </div>
           <div>
-            <dt>Dishwasher tonight</dt>
+            <dt>Dishwasher {dishWhen}</dt>
             <dd>{dish ? hhmm(dish.start, tz) : "—"}</dd>
-            <span>{dish ? `${money(dish.cost, sc)} instead of ${money(dish.costAtSix, sc)} at 6 p.m.` : ""}</span>
+            <span>{dish ? (dish.costAtSix > dish.cost ? `${money(dish.cost, sc)} instead of ${money(dish.costAtSix, sc)} ${baseline}` : `${money(dish.cost, sc)}, as cheap as it gets`) : ""}</span>
           </div>
           <div>
-            <dt>The whole house tonight</dt>
+            <dt>Everything, next 24 hours</dt>
             <dd>{sc.runs.length ? money(all, sc) : "—"}</dd>
-            <span>{sc.runs.length ? `${money(allSix, sc)} if it all ran at 6 p.m.` : ""}</span>
+            <span>{sc.runs.length ? `${money(allSix, sc)} if it all ran ${baseline}` : ""}</span>
           </div>
         </dl>
       </div>

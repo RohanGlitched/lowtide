@@ -32,7 +32,8 @@
   color: var(--steel);
   max-width: 40em;
 }
-.block code {
+.block p code,
+.block dd code {
   font-family: inherit;
   font-weight: 600;
   background: var(--paper);

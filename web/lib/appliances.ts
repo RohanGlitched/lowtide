@@ -25,7 +25,7 @@ const ALIASES: [RegExp, string][] = [
   [/tumble|\bdry(er|ing)?\b|drier/, "tumble-dryer"],
   [/dish/, "dishwasher"],
   [/wash(ing)?( machine)?|laundry|washer/, "washing-machine"],
-  [/\bev\b|car|vehicle|tesla|charg/, "ev"],
+  [/\bev\b|\bcars?\b|\bvehicle\b|\btesla\b|\bcharg(e|er|ing)\b/, "ev"],
   [/immersion|hot water|water heater|boiler/, "hot-water"],
   [/battery|powerwall/, "battery"],
 ];

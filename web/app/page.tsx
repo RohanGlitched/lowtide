@@ -43,7 +43,7 @@ export default async function Home() {
       plan = planRun(tide.slots, { kwh: dish.kwh, minutes: dish.minutes, now, finishBy: london?.runs.find((r) => r.id === "dishwasher")?.end });
       answer = planResult(tide, dish, plan, now).content[0].text;
       const tz = tide.region.timeZone;
-      remind = `Done. I'll remind you to run the dishwasher ${dayPart(plan.best.start, now, tz)} at ${spokenTime(plan.best.start, tz)}.`.replace(/\.\.$/, ".");
+      remind = `Saved. Run the dishwasher ${dayPart(plan.best.start, now, tz)} at ${spokenTime(plan.best.start, tz)}.`.replace(/\.\.$/, ".");
     } catch {}
   }
   const echoData =
@@ -97,7 +97,7 @@ export default async function Home() {
             <ol className={s.script}>
               <li data-who="you">Alexa, when should I run the dishwasher?</li>
               <li data-who="alexa">{answer}</li>
-              <li data-who="you">Yes please.</li>
+              <li data-who="you">Yes, save it.</li>
               <li data-who="alexa">{remind}</li>
             </ol>
             <p className={s.fine}>Produced minutes ago by the live tools, for London. Not a script.</p>
@@ -192,8 +192,8 @@ export default async function Home() {
           <details>
             <summary>Does it switch the dishwasher on?</summary>
             <p>
-              Not yet. It plans and reminds; most dishwashers and washing machines already have a delay-start button. Matter smart
-              plugs and appliance APIs are next.
+              Not yet. It plans the run and keeps it in the household&apos;s list; most dishwashers and washing machines already have a
+              delay-start button. Matter smart plugs and appliance APIs are next.
             </p>
           </details>
           <details>

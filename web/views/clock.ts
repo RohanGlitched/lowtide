@@ -70,10 +70,11 @@ export function drawClock(
   const cx = S / 2;
   const cy = S / 2;
   const labels = opts.labels !== false && !opts.minimal;
-  const R = S * (labels ? 0.36 : 0.47);
+  const R = S * (labels ? 0.345 : 0.47);
   const r0 = S * (opts.minimal ? 0.26 : 0.27);
   const tz = d.timeZone;
   const now = d.now;
+  const nowMin = minuteOfDay(now, tz);
   const first = Math.floor(now / 1800_000) * 1800_000;
   const horizon = first + 24 * 3600_000;
   const slots = d.slots.filter((s) => s.e > first && s.s < horizon);
@@ -99,8 +100,10 @@ export function drawClock(
     const [x0, y0] = pt(cx, cy, R + S * 0.018, a);
     const [x1, y1] = pt(cx, cy, R + S * (major ? 0.045 : 0.03), a);
     el("line", { x1: x0, y1: y0, x2: x1, y2: y1, stroke: major ? T.muted : T.ring, "stroke-width": major ? 1.5 : 1 }, ticks);
-    if (labels && major) {
-      const [lx, ly] = pt(cx, cy, R + S * 0.095, a);
+    // No label where the now hand points: the hand's dot says the time instead.
+    const nearNow = Math.min(Math.abs(nowMin - h * 60), 1440 - Math.abs(nowMin - h * 60)) < 28;
+    if (labels && major && !nearNow) {
+      const [lx, ly] = pt(cx, cy, R + S * 0.088, a);
       const t = el("text", { x: lx, y: ly, "text-anchor": "middle", "dominant-baseline": "central", fill: T.muted, class: "lt-hour", "font-size": Math.max(10, S * 0.03) }, ticks);
       t.textContent = `${String(h).padStart(2, "0")}:00`;
     }

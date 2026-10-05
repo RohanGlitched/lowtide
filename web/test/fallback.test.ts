@@ -52,7 +52,7 @@ test("'yes' schedules the plan that was just offered", () => {
   assert.deepEqual(call?.input, { appliance: "dishwasher", start: "2026-10-05T00:00:00.000Z" });
 });
 
-test("speaks only the first line of a tool result, and offers a reminder after a plan", () => {
+test("speaks only the first line of a tool result, and offers to save after a plan", () => {
   const turn = fallbackTurn([
     user("dishwasher"),
     { role: "assistant", content: [{ toolUse: { toolUseId: "b", name: "plan_appliance", input: { appliance: "dishwasher" } } }] },
@@ -60,7 +60,7 @@ test("speaks only the first line of a tool result, and offers a reminder after a
   ]);
   assert.equal(turn.stop, "end_turn");
   const b = turn.message.content[0];
-  assert.ok("text" in b && b.text === "Run it at 1 a.m. Want me to set a reminder?");
+  assert.ok("text" in b && b.text === "Run it at 1 a.m. Shall I save it?");
 });
 
 test("unknown requests get a helpful sentence, not an error", () => {

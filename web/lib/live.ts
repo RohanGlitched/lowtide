@@ -75,6 +75,8 @@ export interface SceneData {
   unit: Tide["region"]["unit"];
   currency: Tide["region"]["currency"];
   now: number;
+  /** True when "six in the evening" has already passed and the comparison is with starting now. */
+  eveningIsNow: boolean;
   slots: { s: number; e: number; p: number; c: number | null }[];
   runs: SceneRun[];
 }
@@ -121,6 +123,7 @@ export function sceneOf(tide: Tide): SceneData {
     unit: tide.region.unit,
     currency: tide.region.currency,
     now,
+    eveningIsNow: evening === now,
     slots: tide.slots.filter((s) => s.end > now - 3600_000 && s.start < horizon + 3600_000).map((s) => ({ s: s.start, e: s.end, p: s.price, c: s.carbon })),
     runs,
   };

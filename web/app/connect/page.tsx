@@ -14,8 +14,8 @@ export default function Connect() {
     <main className={`shell ${s.main}`}>
       <h1>Add Lowtide to your assistant</h1>
       <p className={s.lede}>
-        Lowtide is a remote MCP server (Streamable HTTP, spec 2025-11-25 and 2026-07-28). Any client that supports remote
-        MCP servers can use it, and clients that support MCP Apps show the day's prices on a dial, right in the conversation.
+        Lowtide is a remote MCP server, so any assistant that can add one can use it: Claude, ChatGPT, VS Code and others.
+        Assistants that support MCP Apps also show the day&apos;s prices on a dial, right in the conversation.
       </p>
 
       <section className={s.block}>
@@ -72,8 +72,9 @@ export default function Connect() {
       <section className={s.block}>
         <h2>For agents: the Lowtide skill</h2>
         <p>
-          The repository also ships an Agent Skill (<code>skills/lowtide/SKILL.md</code>) that teaches any skills-aware agent
-          when to reach for these tools and how to phrase the answer for voice.
+          The repository also ships an Agent Skill (
+          <a href="https://github.com/RohanGlitched/lowtide/blob/main/skills/lowtide/SKILL.md">skills/lowtide/SKILL.md</a>) that
+          teaches any skills-aware agent when to reach for these tools and how to phrase the answer for voice.
         </p>
       </section>
     </main>

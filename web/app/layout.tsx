@@ -23,7 +23,8 @@ export const metadata: Metadata = {
   title: { default: "Lowtide: the cheapest hour of the night, for Alexa", template: "%s · Lowtide" },
   description:
     "Ask Alexa when to run the dishwasher. Lowtide reads every half-hourly electricity price and the grid's carbon forecast and picks the cheapest, cleanest time. An MCP server for Alexa+.",
-  openGraph: { type: "website", siteName: "Lowtide" },
+  openGraph: { type: "website", siteName: "Lowtide", images: [{ url: "/og.png", width: 1000, height: 620, alt: "Lowtide: the day's electricity prices as a machined ring of 48 fins" }] },
+  twitter: { card: "summary_large_image", images: ["/og.png"] },
 };
 
 export const viewport: Viewport = { themeColor: "#e9ebee" };

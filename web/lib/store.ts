@@ -89,24 +89,24 @@ export async function createHome(place: string, country: Country, name?: string,
 }
 
 /**
- * Read-modify-write guarded by the blob's ETag. Blob ETags can lag for a moment right after an overwrite,
- * so a mismatch is retried with a short backoff; the last attempt writes unconditionally (a household's
- * document has one writer at a time in practice, and losing the race is better than losing the run).
+ * Read-modify-write guarded by the blob's ETag on every attempt. Blob ETags can lag for a moment right
+ * after an overwrite, so a mismatch is re-read and retried with a short backoff; if it still mismatches
+ * the caller hears "try again" rather than silently overwriting someone else's save.
  */
 export async function updateHome(id: string, change: (s: HomeState) => HomeState | void): Promise<HomeState> {
-  const ATTEMPTS = 4;
+  const ATTEMPTS = 5;
   for (let attempt = 0; attempt < ATTEMPTS; attempt++) {
     const cur = await read(id);
     if (!cur) throw new Error("This Lowtide link doesn't match a household. Get a new one on the Lowtide website.");
     const draft = structuredClone(cur.state);
     const next = change(draft) ?? draft;
     try {
-      await write(id, next, attempt < ATTEMPTS - 1 ? cur.etag : undefined);
+      await write(id, next, cur.etag);
       return next;
     } catch (e) {
-      if (!/etag|precondition/i.test(String(e)) || attempt === ATTEMPTS - 1) throw e;
-      await new Promise((r) => setTimeout(r, 250 * (attempt + 1)));
+      if (!/etag|precondition/i.test(String(e))) throw e;
+      await new Promise((r) => setTimeout(r, 300 * (attempt + 1)));
     }
   }
-  throw new Error("Couldn't save, try again.");
+  throw new Error("Couldn't save just now. Try again in a moment.");
 }

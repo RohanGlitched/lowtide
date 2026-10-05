@@ -7,6 +7,9 @@ import { offsetMs, zonedToUtc } from "./grid/time";
 export function nextClockTime(input: string, timeZone: string, now = Date.now()): number | null {
   const s = input.trim().toLowerCase();
   if (/^\d{4}-\d{2}-\d{2}t/.test(s)) {
+    // No zone on the end means the household's clock, not the server's.
+    const m = s.match(/^(\d{4})-(\d{2})-(\d{2})t(\d{2}):(\d{2})(?::(\d{2})(?:\.\d+)?)?$/);
+    if (m) return zonedToUtc(Number(m[1]), Number(m[2]) - 1, Number(m[3]), Number(m[4]), Number(m[5]), timeZone);
     const t = Date.parse(input);
     return Number.isFinite(t) ? t : null;
   }
@@ -24,12 +27,9 @@ export function nextClockTime(input: string, timeZone: string, now = Date.now())
     if (ap === "am" && h === 12) h = 0;
     if (h > 23 || m > 59) return null;
   }
-  // Today's date in the zone, then roll forward a day if that moment has passed.
+  // Today's date in the zone, then the next calendar day if that moment has passed (a calendar day, not 24 hours: clock changes).
   const local = new Date(now + offsetMs(now, timeZone));
   let t = zonedToUtc(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate(), h, m, timeZone);
-  if (t <= now) {
-    const tomorrow = new Date(now + 86400_000 + offsetMs(now + 86400_000, timeZone));
-    t = zonedToUtc(tomorrow.getUTCFullYear(), tomorrow.getUTCMonth(), tomorrow.getUTCDate(), h, m, timeZone);
-  }
+  if (t <= now) t = zonedToUtc(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate() + 1, h, m, timeZone);
   return t;
 }
