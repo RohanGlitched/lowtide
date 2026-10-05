@@ -58,9 +58,10 @@ interface ConverseOutput {
   Message?: string;
 }
 
-/** A refusal that is about this model rather than this request: try the next one. */
+/** A refusal that is about this model rather than this request (policy, access, retired, unknown): try the next one. */
 const notAllowed = (status: number, text: string) =>
-  (status === 403 || status === 400 || status === 404) && /not authorized|AccessDenied|explicit deny|model access|not supported|isn't supported|don't have access|ResourceNotFound|inference profile/i.test(text);
+  status === 404 ||
+  ((status === 403 || status === 400) && /not authorized|AccessDenied|explicit deny|model access|not supported|isn't supported|don't have access|ResourceNotFound|inference profile|end of its life|invocation of model id|on-demand throughput/i.test(text));
 
 async function converse(model: string, body: Record<string, unknown>) {
   const res = await fetch(`https://bedrock-runtime.${REGION}.amazonaws.com/model/${encodeURIComponent(model)}/converse`, {
