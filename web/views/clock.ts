@@ -103,8 +103,10 @@ export function drawClock(
     // No label where the now hand points: the hand's dot says the time instead.
     const nearNow = Math.min(Math.abs(nowMin - h * 60), 1440 - Math.abs(nowMin - h * 60)) < 28;
     if (labels && major && !nearNow) {
-      const [lx, ly] = pt(cx, cy, R + S * 0.088, a);
-      const t = el("text", { x: lx, y: ly, "text-anchor": "middle", "dominant-baseline": "central", fill: T.muted, class: "lt-hour", "font-size": Math.max(10, S * 0.03) }, ticks);
+      // Labels sit clear of the ticks whatever the size: the font has a floor, so the radius grows with it.
+      const fs = Math.max(10, S * 0.03);
+      const [lx, ly] = pt(cx, cy, Math.min(S / 2 - fs * 1.7, R + S * 0.05 + fs * 1.7), a);
+      const t = el("text", { x: lx, y: ly, "text-anchor": "middle", "dominant-baseline": "central", fill: T.muted, class: "lt-hour", "font-size": fs }, ticks);
       t.textContent = `${String(h).padStart(2, "0")}:00`;
     }
   }
