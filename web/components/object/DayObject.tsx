@@ -419,7 +419,7 @@ export default function DayObject({ slots, now, timeZone, unit, highlight, label
           </span>
         ))}
       <span ref={tipRef} className={s.tip} style={{ opacity: 0 }} aria-hidden />
-      {failed && <p className={s.fallback}>This browser can&apos;t draw 3D. The prices are in the table below.</p>}
+      {failed && <p className={s.fallback}>This browser can&apos;t draw 3D. The numbers under the ring are the same prices.</p>}
     </div>
   );
 }

@@ -16,7 +16,7 @@ export function resolveCountry(place: string, country?: Country): Country {
   if (/\b(germany|deutschland|berlin|munich|münchen|hamburg|köln|cologne|frankfurt)\b/.test(p)) return "DE";
   if (/\b(illinois|chicago|evanston|naperville|aurora|rockford|joliet|il)\b/.test(p) || /^60[0-9]{3}$/.test(p) || /^61[0-9]{3}$/.test(p)) return "US";
   throw new Error(
-    `Lowtide covers Britain (any postcode), northern Illinois (ComEd) and Germany. I couldn't place "${place}".`,
+    `I couldn't place "${place}". Lowtide covers Britain (any postcode), northern Illinois (ComEd) and Germany.`,
   );
 }
 

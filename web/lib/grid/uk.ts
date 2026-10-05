@@ -44,7 +44,7 @@ export async function regionLetter(postcode: string): Promise<string> {
     const g = r?.results?.[0]?.group_id;
     if (g) return g.replace("_", "");
   }
-  throw new Error(`Couldn't find the electricity region for ${pc.outward}. Try the full postcode.`);
+  throw new Error(`${pc.outward} isn't a postcode Octopus recognises. Check it, or try a neighbour's.`);
 }
 
 let agileCode: { code: string; at: number } | null = null;

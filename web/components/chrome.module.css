@@ -36,17 +36,24 @@
 .nav a:hover {
   color: var(--cobalt);
 }
+.short {
+  display: none;
+}
 @media (max-width: 720px) {
   .bar {
-    flex-wrap: wrap;
-    padding-top: 10px;
-    min-height: 0;
+    min-height: 64px;
+    gap: 12px;
   }
   .nav {
-    width: 100%;
-    justify-content: flex-start;
-    gap: 0 18px;
+    flex-wrap: nowrap;
+    gap: 0 16px;
     font-size: 15px;
+  }
+  .long {
+    display: none;
+  }
+  .short {
+    display: inline;
   }
 }
 .footer {

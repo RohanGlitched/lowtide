@@ -65,6 +65,7 @@ export default function Echo() {
   const [mic, setMic] = useState(false);
   const [engine, setEngine] = useState<{ engine: string; model?: string }>({ engine: "" });
   const [error, setError] = useState<string | null>(null);
+  const [setupError, setSetupError] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [placeInput, setPlaceInput] = useState("");
   const [copied, setCopied] = useState(false);
@@ -90,6 +91,7 @@ export default function Echo() {
     async (place: string, fresh: boolean) => {
       setPhase("connecting");
       setError(null);
+      setSetupError(null);
       try {
         let h: Household | null = null;
         if (!fresh) {
@@ -130,7 +132,8 @@ export default function Echo() {
         await show("get_tide", {}, tide);
         setPhase("idle");
       } catch (e) {
-        setError(e instanceof Error ? e.message : String(e));
+        setSetupError(e instanceof Error ? e.message : String(e));
+        setEditing(true);
         setPhase("idle");
       }
     },
@@ -400,6 +403,11 @@ export default function Echo() {
                 <button type="button" className={s.link} onClick={() => setEditing(true)}>
                   Change location
                 </button>
+              )}
+              {setupError && (
+                <p className={s.error} role="alert">
+                  {setupError}
+                </p>
               )}
               <p className={s.mcp}>
                 This household&apos;s MCP endpoint:

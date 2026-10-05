@@ -38,7 +38,7 @@ export async function deTide(place: string): Promise<Tide> {
     timeZone: "Europe/Berlin",
     currency: "EUR",
     unit: "ct",
-    tariff: "dynamic spot tariff",
+    tariff: "EPEX day-ahead",
     priceNote: "Day-ahead spot price before taxes and grid fees, which dynamic tariffs add as a fixed amount.",
     carbonSource: carbonAt.size ? "Fraunhofer ISE Energy-Charts forecast" : null,
   };

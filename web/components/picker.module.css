@@ -2,15 +2,23 @@
   min-width: 0;
 }
 .loads {
-  display: inline-flex;
-  flex-wrap: wrap;
+  display: flex;
+  width: fit-content;
+  max-width: 100%;
   gap: 4px;
   padding: 4px;
   border-radius: 999px;
   background: var(--paper);
   box-shadow: inset 0 0 0 1px var(--rule);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.loads::-webkit-scrollbar {
+  display: none;
 }
 .load {
+  flex: none;
+  white-space: nowrap;
   display: inline-flex;
   align-items: center;
   gap: 8px;

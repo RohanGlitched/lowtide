@@ -43,13 +43,23 @@
   margin-top: 8px;
 }
 .switch {
-  display: inline-flex;
-  flex-wrap: wrap;
+  display: flex;
+  width: fit-content;
+  max-width: 100%;
   gap: 4px;
   padding: 4px;
   border-radius: 999px;
   background: var(--paper);
   box-shadow: inset 0 0 0 1px var(--rule);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.switch::-webkit-scrollbar {
+  display: none;
+}
+.switch button {
+  flex: none;
+  white-space: nowrap;
 }
 .switch button {
   min-height: 40px;

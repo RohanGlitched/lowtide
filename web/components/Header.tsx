@@ -10,9 +10,18 @@ export default function Header() {
           <span>Lowtide</span>
         </Link>
         <nav className={s.nav} aria-label="Main">
-          <Link href="/echo">Try it on Echo</Link>
-          <Link href="/tables">Today&apos;s tides</Link>
-          <Link href="/connect">Add to Claude or ChatGPT</Link>
+          <Link href="/echo">
+            <span className={s.long}>Try it on Echo</span>
+            <span className={s.short}>Echo</span>
+          </Link>
+          <Link href="/tables">
+            <span className={s.long}>Today&apos;s tides</span>
+            <span className={s.short}>Tides</span>
+          </Link>
+          <Link href="/connect">
+            <span className={s.long}>Add to Claude or ChatGPT</span>
+            <span className={s.short}>Connect</span>
+          </Link>
         </nav>
       </div>
     </header>

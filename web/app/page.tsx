@@ -123,7 +123,7 @@ export default async function Home() {
       <section className={`shell ${s.section}`} aria-labelledby="how-title">
         <div className={s.head}>
           <h2 id="how-title" className="display">
-            From the kitchen to the grid in a second.
+            From the kitchen to the grid in seconds.
           </h2>
           <p className={s.sub}>
             Lowtide is an MCP server, the open standard Alexa+ uses to work with services. Four steps, every number read live.
