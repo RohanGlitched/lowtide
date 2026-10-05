@@ -70,7 +70,8 @@ export function drawClock(
   const cx = S / 2;
   const cy = S / 2;
   const labels = opts.labels !== false && !opts.minimal;
-  const R = S * (labels ? 0.345 : 0.47);
+  // A small dial gives its labels more room: the font has a floor, the square doesn't.
+  const R = S * (labels ? (S < 320 ? 0.3 : 0.345) : 0.47);
   const r0 = S * (opts.minimal ? 0.26 : 0.27);
   const tz = d.timeZone;
   const now = d.now;
