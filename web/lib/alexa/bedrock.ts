@@ -4,13 +4,15 @@ import type { Message, ToolSpec, TurnResponse } from "./types";
 
 /**
  * Amazon Bedrock Converse API with a Bedrock API key (bearer token). The preferred model is Amazon Nova Micro,
- * the cheapest Bedrock model with tool use, through the US cross-region inference profile; if the account can't
+ * the cheapest Bedrock model with tool use, through the region's cross-region inference profile; if the account can't
  * call it (model access not enabled, an organisation policy, a region rule) the next model in the chain is tried
  * and remembered, so the demo keeps a real model for as long as any of them is allowed.
  */
-const REGION = process.env.BEDROCK_REGION || "us-east-1";
-const PREFERRED = process.env.BEDROCK_MODEL || "us.amazon.nova-micro-v1:0";
-const CHAIN = [...new Set([PREFERRED, "amazon.nova-micro-v1:0", "us.amazon.nova-lite-v1:0", "amazon.nova-lite-v1:0"])];
+const REGION = process.env.BEDROCK_REGION || "ap-southeast-2";
+// cross-region inference profiles are named by geography: apac., eu. or us.
+const GEO = REGION.startsWith("ap-") ? "apac" : REGION.startsWith("eu-") ? "eu" : "us";
+const PREFERRED = process.env.BEDROCK_MODEL || `${GEO}.amazon.nova-micro-v1:0`;
+const CHAIN = [...new Set([PREFERRED, `${GEO}.amazon.nova-lite-v1:0`, "amazon.nova-micro-v1:0", "amazon.nova-lite-v1:0"])];
 const LABELS: [RegExp, string][] = [
   [/claude-haiku-4-5/, "Claude Haiku 4.5"],
   [/claude-3-5-haiku/, "Claude 3.5 Haiku"],
