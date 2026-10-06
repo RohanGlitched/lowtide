@@ -408,11 +408,9 @@ test("router: 'yes' with nothing offered gets the help sentence, never schedule_
 
 test("router: 'yes' after two offers schedules the most recent one", () => {
   const history = [...offered("p1", "dishwasher", "2026-10-05T00:00:00.000Z"), ...offered("p2", "car", "2026-10-05T02:30:00.000Z")];
-  assert.deepEqual(route("yes please", history), {
-    toolUseId: route("yes please", history)!.toolUseId,
-    name: "schedule_run",
-    input: { appliance: "car", start: "2026-10-05T02:30:00.000Z" },
-  });
+  // compare one call's result with itself: the tool-use id comes from the clock
+  const r = route("yes please", history)!;
+  assert.deepEqual(r, { toolUseId: r.toolUseId, name: "schedule_run", input: { appliance: "car", start: "2026-10-05T02:30:00.000Z" } });
 });
 
 test(

@@ -54,7 +54,8 @@ async function read(id: string): Promise<{ state: HomeState; etag?: string } | n
   const r = await get(key(id), { access: "private", useCache: false }).catch(() => null);
   if (!r || !r.stream) return null;
   const text = await new Response(r.stream).text();
-  return { state: JSON.parse(text) as HomeState, etag: r.blob.etag };
+  // A compressed (larger) read comes back with a weak ETag, W/"…"; If-Match needs the strong form or it never matches.
+  return { state: JSON.parse(text) as HomeState, etag: r.blob.etag?.replace(/^W\//, "") };
 }
 
 async function write(id: string, state: HomeState, etag?: string): Promise<void> {
@@ -94,7 +95,7 @@ export async function createHome(place: string, country: Country, name?: string,
  * the caller hears "try again" rather than silently overwriting someone else's save.
  */
 export async function updateHome(id: string, change: (s: HomeState) => HomeState | void): Promise<HomeState> {
-  const ATTEMPTS = 8; // about 8 s of backoff in all: ETags have lagged for longer than 4 s right after a write
+  const ATTEMPTS = 5;
   for (let attempt = 0; attempt < ATTEMPTS; attempt++) {
     const cur = await read(id);
     if (!cur) throw new Error("This Lowtide link doesn't match a household. Get a new one on the Lowtide website.");
