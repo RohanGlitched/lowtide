@@ -94,7 +94,7 @@ export async function createHome(place: string, country: Country, name?: string,
  * the caller hears "try again" rather than silently overwriting someone else's save.
  */
 export async function updateHome(id: string, change: (s: HomeState) => HomeState | void): Promise<HomeState> {
-  const ATTEMPTS = 5;
+  const ATTEMPTS = 8; // about 8 s of backoff in all: ETags have lagged for longer than 4 s right after a write
   for (let attempt = 0; attempt < ATTEMPTS; attempt++) {
     const cur = await read(id);
     if (!cur) throw new Error("This Lowtide link doesn't match a household. Get a new one on the Lowtide website.");
