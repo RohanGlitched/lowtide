@@ -32,11 +32,11 @@ The question is always the same, and it's asked in the kitchen with your hands f
 <img src="docs/screens/echo-scheduled.png" alt="Simulated Echo Show: Alexa schedules the dishwasher for 01:00 and shows the day's prices on a dial" width="100%">
 
 > **You:** Alexa, when should I run the dishwasher? It needs to be done by seven.
-> **Alexa:** Run it at one in the morning and you'll save 17 pence compared to now. Shall I save that?
+> **Alexa:** The dishwasher should run tonight at 1 a.m. It costs about 23 pence, 7 pence less than starting now. Would you like to save it?
 > **You:** Yes please.
-> **Alexa:** Saved. Run the dishwasher tonight at one a.m.
+> **Alexa:** The dishwasher is scheduled to run tonight at 1 a.m. That saves 7 pence.
 
-That exchange is real: a model on Amazon Bedrock (now Amazon Nova Micro) calling Lowtide's MCP tools, with London's live Agile prices. The answer comes back twice: **a sentence to speak**, and **an MCP App view for the Echo Show screen**, the next 24 hours on a dial with the run marked on the rim.
+That exchange is real: Amazon Nova Micro on Amazon Bedrock, calling Lowtide's MCP tools, with London's live Agile prices. The answer comes back twice: **a sentence to speak**, and **an MCP App view for the Echo Show screen**, the next 24 hours on a dial with the run marked on the rim.
 
 - **Plans any shiftable load** (dishwasher, washing machine, tumble dryer, EV, immersion heater, home battery), with a deadline ("done by seven"), an earliest start ("not before ten"), and a goal: cheapest, greenest, or both.
 - **Remembers the household:** saved runs and money saved, behind a private household link (no account; a name is optional and never required).
