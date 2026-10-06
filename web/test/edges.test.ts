@@ -32,6 +32,8 @@ const TMP = mkdtempSync(path.join(tmpdir(), "lowtide-edges-"));
 process.chdir(TMP);
 delete process.env.BLOB_READ_WRITE_TOKEN;
 delete process.env.AWS_BEARER_TOKEN_BEDROCK;
+delete process.env.BEDROCK_ACCESS_KEY_ID;
+delete process.env.BEDROCK_SECRET_ACCESS_KEY;
 process.on("exit", () => {
   process.chdir(ORIGINAL_CWD); // Windows can't remove the current directory
   rmSync(TMP, { recursive: true, force: true });

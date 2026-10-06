@@ -473,7 +473,7 @@ export function planResult(tide: Tide, app: Appliance, plan: Plan, now: number) 
     spoken += ` The cleanest start would be ${spokenTime(plan.greenest.start, tz)}.`;
   }
   const r = result(spoken, view);
-  r.content.push({ type: "text" as const, text: `For schedule_run, pass start "${new Date(b.start).toISOString()}". Don't read this line aloud.` });
+  r.content.push({ type: "text" as const, text: `For schedule_run, pass start "${new Date(b.start).toISOString()}" and minutes ${plan.minutes}. Don't read this line aloud.` });
   return r;
 }
 
