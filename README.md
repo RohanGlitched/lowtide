@@ -11,7 +11,7 @@ and plans the dishwasher, the washing, the hot water and the car for the cheapes
 
 [![Live](https://img.shields.io/badge/live-lowtide--energy.vercel.app-2340ff)](https://lowtide-energy.vercel.app)
 [![MCP](https://img.shields.io/badge/MCP-Streamable%20HTTP%20%C2%B7%20MCP%20Apps-16181b)](https://lowtide-energy.vercel.app/connect)
-[![Amazon Bedrock](https://img.shields.io/badge/Amazon%20Bedrock-Claude%20Haiku%204.5-16181b)](https://lowtide-energy.vercel.app/echo)
+[![Amazon Bedrock](https://img.shields.io/badge/Amazon%20Bedrock-Amazon%20Nova%20Micro-16181b)](https://lowtide-energy.vercel.app/echo)
 [![CI](https://github.com/RohanGlitched/lowtide/actions/workflows/ci.yml/badge.svg)](https://github.com/RohanGlitched/lowtide/actions/workflows/ci.yml)
 [![MIT](https://img.shields.io/badge/license-MIT-5d636b)](LICENSE)
 
@@ -36,7 +36,7 @@ The question is always the same, and it's asked in the kitchen with your hands f
 > **You:** Yes please.
 > **Alexa:** Saved. Run the dishwasher tonight at one a.m.
 
-That exchange is real: Claude Haiku 4.5 on Amazon Bedrock, calling Lowtide's MCP tools, with London's live Agile prices. The answer comes back twice: **a sentence to speak**, and **an MCP App view for the Echo Show screen**, the next 24 hours on a dial with the run marked on the rim.
+That exchange is real: a model on Amazon Bedrock (now Amazon Nova Micro) calling Lowtide's MCP tools, with London's live Agile prices. The answer comes back twice: **a sentence to speak**, and **an MCP App view for the Echo Show screen**, the next 24 hours on a dial with the run marked on the rim.
 
 - **Plans any shiftable load** (dishwasher, washing machine, tumble dryer, EV, immersion heater, home battery), with a deadline ("done by seven"), an earliest start ("not before ten"), and a goal: cheapest, greenest, or both.
 - **Remembers the household:** saved runs and money saved, behind a private household link (no account; a name is optional and never required).
@@ -51,7 +51,7 @@ The website turns each day into an object: a studio-lit ring of 48 aluminium fin
 ## Try it in one minute
 
 1. Open **[lowtide-energy.vercel.app/echo](https://lowtide-energy.vercel.app/echo)**. A demo household in London is set up for you, with two weeks of past runs priced at the real rates of those nights.
-2. Press **Talk to Alexa** (or type). Try: *"When should I run the dishwasher?"*, then *"Yes please"*, then *"How much have I saved?"* The engine line under the conversation says what is understanding you: Claude on Amazon Bedrock, or Lowtide's own phrase router when Bedrock isn't reachable.
+2. Press **Talk to Alexa** (or type). Try: *"When should I run the dishwasher?"*, then *"Yes please"*, then *"How much have I saved?"* The engine line under the conversation says what is understanding you: Amazon Nova Micro on Amazon Bedrock, or Lowtide's own phrase router when Bedrock isn't reachable.
 3. Watch the right-hand column: every MCP tool call Alexa makes is listed as it happens.
 4. Want it in your own assistant? **[Make a household link](https://lowtide-energy.vercel.app/connect)** and add it to Claude (Settings → Connectors → Add custom connector) or ChatGPT (developer mode → Create).
 5. Or open it in **[Countertop](https://countertop-mcp.vercel.app/?server=https://lowtide-energy.vercel.app/api/mcp)**, the open-source voice and screen test bench for MCP servers that came out of this project ([source](https://github.com/RohanGlitched/countertop)).
@@ -80,7 +80,7 @@ sequenceDiagram
     autonumber
     actor You
     participant Echo as Echo Show (Alexa+)
-    participant Model as Claude Haiku 4.5<br/>on Amazon Bedrock
+    participant Model as Amazon Nova Micro<br/>on Amazon Bedrock
     participant MCP as Lowtide MCP server
     participant Feeds as Octopus · NESO · ComEd · EPEX
     You->>Echo: "When should I run the dishwasher? Done by seven."
@@ -100,7 +100,7 @@ flowchart TB
         ECHO["Echo simulator<br/>(MCP client + MCP Apps host in the browser)"]
         CLAUDE["Claude · ChatGPT · VS Code"]
     end
-    ECHO -- "model turns" --> ALEXA["/api/alexa<br/>Bedrock Converse (Haiku 4.5)<br/>or the built-in phrase router"]
+    ECHO -- "model turns" --> ALEXA["/api/alexa<br/>Bedrock Converse (Nova Micro)<br/>or the built-in phrase router"]
     ECHO -- "Streamable HTTP" --> MCP
     CLAUDE -- "Streamable HTTP" --> MCP
     MCP["Lowtide MCP server<br/>8 tools + 1 ui:// view<br/>(mcp-handler, MCP SDK v2)"] --> PLAN["Planner<br/>every start that fits, priced per half hour"]
@@ -127,7 +127,8 @@ Every tool returns a **voice-ready sentence** first (times said the way people s
 - **The answer leads.** "Run the dishwasher at 01:00" is the headline on screen and the first words spoken.
 - **Readable across a kitchen.** The view has a fullscreen layout for device screens (sized from the screen, nothing scrolls) and an inline one for chat hosts.
 - **Never stuck.** If Bedrock is unavailable or the daily budget is spent, the simulator falls back to a deterministic phrase router that calls the same tools, and the tools' own sentences are spoken. The page says which one is answering, from a real probe, not from whether a key is set.
-- **A chain of models.** The server asks for Claude Haiku 4.5 first; if the account can't call it (model access, an organisation policy, a region rule), it tries Claude 3.5 Haiku and then Amazon Nova Lite, and remembers what worked.
+- **A chain of models.** The server asks for Amazon Nova Micro first, the cheapest Bedrock model with tool use, through the Asia Pacific inference profile in Sydney; if the account can't call it (model access, an organisation policy, a region rule), it tries Nova Lite and remembers what worked. Nova's `<thinking>` text is stripped, so Alexa never reads it aloud.
+- **Two ways to sign in to Bedrock.** IAM credentials (SigV4-signed requests, a few lines of `node:crypto`, no SDK) when they're set, otherwise a Bedrock API key. Our AWS organisation blocks Bedrock API keys, so production uses a key that can call only Nova Micro and Nova Lite.
 - **Bounded cost.** The model route answers only its own pages, checks every message shape, and caps calls at 40 per visitor per 10 minutes and 250 per visitor per day (per server instance), plus 1,500 a day in all (a count shared through Blob storage, synced every 20 calls and on every call once 80% is spent).
 
 ## Engineering notes
@@ -162,7 +163,7 @@ npm test             # 70 tests: planner, clocks, places, the phrase router, the
 node scripts/mcp-smoke.mjs http://localhost:3000
 ```
 
-Optional environment (see [`web/.env.example`](web/.env.example)): `BLOB_READ_WRITE_TOKEN` (households; without it they're stored in `web/.data`), `AWS_BEARER_TOKEN_BEDROCK` (the simulator's model; without it the phrase router answers).
+Optional environment (see [`web/.env.example`](web/.env.example)): `BLOB_READ_WRITE_TOKEN` (households; without it they're stored in `web/.data`), `BEDROCK_ACCESS_KEY_ID` + `BEDROCK_SECRET_ACCESS_KEY` or `AWS_BEARER_TOKEN_BEDROCK` (the simulator's model; without them the phrase router answers), `BEDROCK_REGION` (default `ap-southeast-2`), `BEDROCK_MODEL`.
 
 ## What's next
 

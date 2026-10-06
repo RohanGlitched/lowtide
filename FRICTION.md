@@ -73,3 +73,13 @@ Kept while building Lowtide (October 2026). Each entry: task attempted, steps ta
 - **Severity:** Low.
 - **Workaround used:** Wrapped the handler to add CORS headers and an OPTIONS response.
 - **Actionable suggestion:** An opt-in CORS option in mcp-handler, and a note in the remote-server docs listing the headers browser hosts need.
+
+## 9. Bedrock API keys blocked by an organisation policy
+- **Task attempted:** Keep the Echo simulator's model working after moving to a new AWS account that belongs to an AWS Organization.
+- **Steps taken:** Generated a Bedrock API key and called the Converse API with it, as in the Bedrock API key guide.
+- **Expected:** The key to work wherever the account may call Bedrock, or a clear pointer to the setting that controls it.
+- **Actual:** Every call was refused with `not authorized to perform: bedrock:CallWithBearerToken ... with an explicit deny in a service control policy`, while ordinary signed (SigV4) requests from the same account to the same model succeeded. The API key guide doesn't say that organisations can block bearer tokens as a separate action, so it looked like a model-access problem at first. The organisation also allowed only one region (Sydney).
+- **Severity:** Medium (the model silently fell back to the phrase router until we found it).
+- **Workaround used:** Signed requests with SigV4 (a few lines of `node:crypto`), an IAM user that may only call `bedrock:InvokeModel` on Amazon Nova Micro and Nova Lite, and the APAC inference profile in ap-southeast-2. Nova Micro is also the cheapest Bedrock model with tool use.
+- **Actionable suggestion:** In the Bedrock API key docs and in the error text, say that `bedrock:CallWithBearerToken` can be denied by an SCP and that SigV4 credentials still work; a console check ("API keys are blocked for this account") would save the hunt.
+

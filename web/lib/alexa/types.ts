@@ -26,7 +26,7 @@ export interface TurnResponse {
   message: Message;
   stop: "tool_use" | "end_turn";
   engine: "bedrock" | "fallback";
-  /** The model's plain name when the engine is Bedrock, e.g. "Claude Haiku 4.5". */
+  /** The model's plain name when the engine is Bedrock, e.g. "Amazon Nova Micro". */
   model?: string;
   note?: string;
 }

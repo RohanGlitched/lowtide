@@ -4,7 +4,7 @@ import { get, put } from "@vercel/blob";
 /**
  * Spend guards for the public demo, so judges can't run up the Bedrock bill:
  * - per visitor (IP): 40 model calls per 10 minutes, kept in memory per server instance;
- * - per day: DAILY_MODEL_CAP calls in total (default 1500 ≈ a few dollars of Haiku), counted in memory and
+ * - per day: DAILY_MODEL_CAP calls in total (default 1500, a few cents of Nova Micro), counted in memory and
  *   flushed to a private blob every 20 calls so the cap holds across instances.
  * When either runs out, the simulator keeps working on the deterministic intent router.
  */
