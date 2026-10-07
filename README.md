@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/cover.png" alt="Lowtide: the next 24 hours of London electricity prices as a machined ring of 48 fins" width="760">
+<img src="docs/cover.png" alt="Lowtide: ask Alexa when to run the dishwasher. Today's London electricity prices as a machined ring of 48 fins." width="100%">
 
 # Lowtide
 
