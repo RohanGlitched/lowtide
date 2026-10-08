@@ -12,6 +12,7 @@ and plans the dishwasher, the washing, the hot water and the car for the cheapes
 [![Live](https://img.shields.io/badge/live-lowtide--energy.vercel.app-2340ff)](https://lowtide-energy.vercel.app)
 [![MCP](https://img.shields.io/badge/MCP-Streamable%20HTTP%20%C2%B7%20MCP%20Apps-16181b)](https://lowtide-energy.vercel.app/connect)
 [![Amazon Bedrock](https://img.shields.io/badge/Amazon%20Bedrock-Amazon%20Nova%20Micro-16181b)](https://lowtide-energy.vercel.app/echo)
+[![Amazon S3](https://img.shields.io/badge/Amazon%20S3-households-16181b)](#engineering-notes)
 [![CI](https://github.com/RohanGlitched/lowtide/actions/workflows/ci.yml/badge.svg)](https://github.com/RohanGlitched/lowtide/actions/workflows/ci.yml)
 [![MIT](https://img.shields.io/badge/license-MIT-5d636b)](LICENSE)
 
@@ -105,7 +106,7 @@ flowchart TB
     CLAUDE -- "Streamable HTTP" --> MCP
     MCP["Lowtide MCP server<br/>8 tools + 1 ui:// view<br/>(mcp-handler, MCP SDK v2)"] --> PLAN["Planner<br/>every start that fits, priced per half hour"]
     PLAN --> FEEDS["Price and carbon feeds<br/>Octopus Agile · NESO · ComEd · aWATTar"]
-    MCP --> STORE[("Households<br/>private Vercel Blob, ETag-guarded")]
+    MCP --> STORE[("Households<br/>private Amazon S3 bucket, If-Match on the ETag")]
 ```
 
 ### The tools
@@ -128,7 +129,7 @@ Every tool returns a **voice-ready sentence** first (times said the way people s
 - **Readable across a kitchen.** The view has a fullscreen layout for device screens (sized from the screen, nothing scrolls) and an inline one for chat hosts.
 - **Never stuck.** If Bedrock is unavailable or the daily budget is spent, the simulator falls back to a deterministic phrase router that calls the same tools, and the tools' own sentences are spoken. The page says which one is answering, from a real probe, not from whether a key is set.
 - **A chain of models.** The server asks for Amazon Nova Micro first, the cheapest Bedrock model with tool use, through the Asia Pacific inference profile in Sydney; if the account can't call it (model access, an organisation policy, a region rule), it tries Nova Lite and remembers what worked. Nova's `<thinking>` text is stripped, so Alexa never reads it aloud.
-- **Two ways to sign in to Bedrock.** IAM credentials (SigV4-signed requests, a few lines of `node:crypto`, no SDK) when they're set, otherwise a Bedrock API key. Our AWS organisation blocks Bedrock API keys, so production uses a key that can call only Nova Micro and Nova Lite.
+- **Signed requests, no SDK.** Bedrock and S3 are both called with SigV4-signed requests written in a few lines of `node:crypto`. Each has its own IAM user with one inline policy: `lowtide-bedrock` may call `InvokeModel` on Nova Micro and Nova Lite, `lowtide-store` may read, write and list one bucket. Nothing else, nowhere else.
 - **Bounded cost.** The model route answers only its own pages, checks every message shape, and caps calls at 40 per visitor per 10 minutes and 250 per visitor per day (per server instance), plus 1,500 a day in all (a count shared through Blob storage, synced every 20 calls and on every call once 80% is spent).
 
 ## Engineering notes
@@ -137,7 +138,7 @@ Every tool returns a **voice-ready sentence** first (times said the way people s
 - **MCP Apps:** the `ui://lowtide/tide-chart.html` resource is one self-contained HTML file (esbuild), using `@modelcontextprotocol/ext-apps`. The Echo simulator hosts it in an opaque-origin sandboxed iframe through `AppBridge`, the same protocol Claude and ChatGPT use.
 - **Prices:** Agile rates by region letter (postcode → grid supply point), NESO regional carbon by region id, ComEd's day-ahead feed parsed from Chicago wall-clock time, aWATTar EUR/MWh → ct/kWh. Feeds are cached two minutes and fail one at a time.
 - **Planner:** every half-hour start that finishes in time is priced by spreading the load evenly over the slots it covers (partial slots included); "balanced" normalises cost and carbon distance from each optimum. Negative prices count as a credit.
-- **Storage:** one private Vercel Blob document per household, read uncached and written with `ifMatch` ETags on every attempt. Blob ETags can lag right after an overwrite, so demo households are written once and updates re-read and retry with backoff; a write that still conflicts says "try again" rather than overwriting.
+- **Storage:** one JSON object per household in a private Amazon S3 bucket in Sydney, the same region as Bedrock, with all public access blocked. Every update is a read-modify-write guarded by S3's `If-Match` on the object's ETag, so two quick saves from two devices can't silently overwrite each other; a conflict re-reads and retries with backoff, and one that still conflicts says "try again" rather than overwriting. The store sits behind a small interface (`web/lib/storage.ts`) with Google Cloud Storage and Vercel Blob as alternatives; Lowtide started on Blob and moved to S3 when the Hobby account's shared monthly Blob allowance ran out mid-judging and took every household with it. On S3 the whole thing costs cents: 130-byte objects, a few thousand requests a month.
 - **Performance:** the 3D object renders on demand (static shadow map, 30 fps idle turn, paused off screen), compiles shaders asynchronously, and mounts in idle time.
 
 ## Proof
