@@ -163,7 +163,7 @@ npm test             # 70 tests: planner, clocks, places, the phrase router, the
 node scripts/mcp-smoke.mjs http://localhost:3000
 ```
 
-Optional environment (see [`web/.env.example`](web/.env.example)): `GCS_BUCKET` + `GCS_WIF_AUDIENCE` (households in a Google Cloud Storage bucket, reached keylessly through the function's Vercel OIDC token; `BLOB_READ_WRITE_TOKEN` for Vercel Blob instead; without either they're stored in `web/.data`), `BEDROCK_ACCESS_KEY_ID` + `BEDROCK_SECRET_ACCESS_KEY` (the simulator's model, called with signed requests to `bedrock-runtime.<region>.amazonaws.com` and nowhere else; without them the phrase router answers), `BEDROCK_REGION` (default `ap-southeast-2`), `BEDROCK_MODEL`.
+Optional environment (see [`web/.env.example`](web/.env.example)): `S3_BUCKET` + `S3_REGION` with `AWS_ROLE_ARN` or `S3_ACCESS_KEY_ID` + `S3_SECRET_ACCESS_KEY` (households in a private Amazon S3 bucket next to Bedrock, written with `If-Match` on the ETag so two quick saves can't overwrite each other; a GCS bucket or `BLOB_READ_WRITE_TOKEN` also work; without any store they're stored in `web/.data`), `BEDROCK_ACCESS_KEY_ID` + `BEDROCK_SECRET_ACCESS_KEY` (the simulator's model, called with signed requests to `bedrock-runtime.<region>.amazonaws.com` and nowhere else; without them the phrase router answers), `BEDROCK_REGION` (default `ap-southeast-2`), `BEDROCK_MODEL`.
 
 ## What's next
 
