@@ -1,4 +1,3 @@
-import "server-only";
 import { sigv4Headers } from "./sigv4";
 import type { Message, ToolSpec, TurnResponse } from "./types";
 
@@ -20,9 +19,10 @@ const LABELS: [RegExp, string][] = [
   [/nova-micro/, "Amazon Nova Micro"],
 ];
 
-// IAM credentials (signed requests) when set, otherwise a Bedrock API key (bearer token)
+// IAM credentials for SigV4-signed requests (the only way Lowtide talks to Bedrock; the IAM user may call
+// InvokeModel on Nova Micro and Nova Lite and nothing else)
 const iam = () => (process.env.BEDROCK_ACCESS_KEY_ID && process.env.BEDROCK_SECRET_ACCESS_KEY ? { id: process.env.BEDROCK_ACCESS_KEY_ID, secret: process.env.BEDROCK_SECRET_ACCESS_KEY } : null);
-export const bedrockReady = () => Boolean(iam() || process.env.AWS_BEARER_TOKEN_BEDROCK);
+export const bedrockReady = () => Boolean(iam());
 export const bedrockModel = PREFERRED;
 export const modelLabel = (id: string) => LABELS.find(([re]) => re.test(id))?.[1] ?? id;
 
@@ -63,11 +63,10 @@ async function converse(model: string, body: Record<string, unknown>) {
   const url = `https://bedrock-runtime.${REGION}.amazonaws.com/model/${encodeURIComponent(model)}/converse`;
   const payload = JSON.stringify(body);
   const creds = iam();
+  if (!creds) throw new Error("Bedrock credentials are not set");
   const res = await fetch(url, {
     method: "POST",
-    headers: creds
-      ? { ...sigv4Headers(url, payload, REGION, creds.id, creds.secret), accept: "application/json" }
-      : { authorization: `Bearer ${process.env.AWS_BEARER_TOKEN_BEDROCK}`, "content-type": "application/json", accept: "application/json" },
+    headers: { ...sigv4Headers(url, payload, REGION, creds.id, creds.secret), accept: "application/json" },
     body: payload,
     signal: AbortSignal.timeout(20_000),
   });

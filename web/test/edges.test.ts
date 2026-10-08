@@ -3,13 +3,11 @@
  * Tests marked `todo` reproduce a known bug: they fail now (reported as TODO, not as a failure)
  * and should pass once the bug is fixed, at which point the `todo` flag can be removed.
  *
- * The second half drives the real MCP tool handlers and two route handlers in-process. Modules that
- * import "server-only" are loaded through a tiny resolve hook that maps it to an empty module, the
- * network is replaced with a stubbed fetch, and households are written to a temp dir, never the repo.
+ * The second half drives the real MCP tool handlers and two route handlers in-process: the network is
+ * replaced with a stubbed fetch, and households are written to a temp dir, never the repo.
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { register } from "node:module";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -26,12 +24,11 @@ import type { Message } from "../lib/alexa/types";
 /* ------------------------------------------------------------------ in-process harness */
 // Set up before any test is registered: node:test starts running tests while a top-level await is pending,
 // so the working directory and imports must be settled first.
-// Households go to a throwaway directory; no Blob token, no Bedrock key, no real network.
+// Households go to a throwaway directory; no store, no Bedrock credentials, no real network.
 const ORIGINAL_CWD = process.cwd();
 const TMP = mkdtempSync(path.join(tmpdir(), "lowtide-edges-"));
 process.chdir(TMP);
 delete process.env.BLOB_READ_WRITE_TOKEN;
-delete process.env.AWS_BEARER_TOKEN_BEDROCK;
 delete process.env.BEDROCK_ACCESS_KEY_ID;
 delete process.env.BEDROCK_SECRET_ACCESS_KEY;
 process.on("exit", () => {
@@ -39,10 +36,6 @@ process.on("exit", () => {
   rmSync(TMP, { recursive: true, force: true });
 });
 
-register(
-  "data:text/javascript,export async function resolve(s,c,n){if(s==='server-only')return{url:'data:text/javascript,export{}',shortCircuit:true};return n(s,c)}",
-  import.meta.url,
-);
 
 // aWATTar stub for Germany: hourly prices from three hours ago to a day ahead. Cheap in the past, dear now.
 let BASE = 0;

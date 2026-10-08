@@ -1,4 +1,3 @@
-import "server-only";
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/server";
 import { registerAppResource, registerAppTool, RESOURCE_MIME_TYPE } from "@modelcontextprotocol/ext-apps/server";
@@ -66,7 +65,7 @@ export function registerLowtide(server: McpServer, ctx: Ctx) {
         place: placeArg,
         after: z.string().max(30).optional().describe("Only look from this local clock time on, e.g. '18:00' when they ask about tonight"),
       }),
-      annotations: { readOnlyHint: true, openWorldHint: true },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       _meta: ui,
     },
     async ({ place, after }) => {
@@ -106,7 +105,7 @@ export function registerLowtide(server: McpServer, ctx: Ctx) {
         place: placeArg,
         appliance: z.string().min(2).max(40).optional().describe("What they want to switch on now, e.g. tumble dryer, so the answer compares its cost now with the cheapest later start"),
       }),
-      annotations: { readOnlyHint: true, openWorldHint: true },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       _meta: ui,
     },
     async ({ place, appliance }) => {
@@ -182,7 +181,7 @@ export function registerLowtide(server: McpServer, ctx: Ctx) {
         minutes: z.number().int().min(15).max(720).optional(),
         place: placeArg,
       }),
-      annotations: { readOnlyHint: true, openWorldHint: true },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       _meta: ui,
     },
     async (args) => {
@@ -264,7 +263,7 @@ export function registerLowtide(server: McpServer, ctx: Ctx) {
       title: "Planned appliance runs",
       description: "The household's upcoming planned runs (and the last few finished ones) with their cost and saving.",
       inputSchema: z.object({}),
-      annotations: { readOnlyHint: true, openWorldHint: false },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
       _meta: ui,
     },
     async () => {
@@ -341,7 +340,7 @@ export function registerLowtide(server: McpServer, ctx: Ctx) {
       title: "Money and carbon saved",
       description: "How much the household has saved by running appliances at the cheapest time instead of when they asked, this week and in total.",
       inputSchema: z.object({}),
-      annotations: { readOnlyHint: true, openWorldHint: false },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
       _meta: ui,
     },
     async () => {

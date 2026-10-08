@@ -1,4 +1,3 @@
-import "server-only";
 import { createHash, createHmac } from "node:crypto";
 
 /**

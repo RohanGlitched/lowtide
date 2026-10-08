@@ -1,4 +1,3 @@
-import "server-only";
 import { createMcpHandler } from "mcp-handler";
 import { registerLowtide, SERVER_INSTRUCTIONS } from "./tools";
 

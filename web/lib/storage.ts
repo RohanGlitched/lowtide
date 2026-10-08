@@ -1,4 +1,3 @@
-import "server-only";
 import { createSign } from "node:crypto";
 
 /**

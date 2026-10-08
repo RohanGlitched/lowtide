@@ -1,4 +1,3 @@
-import "server-only";
 import type { Slot } from "./grid/types";
 import { agileRates, carbonForecast, regionLetter, UK_REGIONS } from "./grid/uk";
 import { offsetMs, zonedToUtc } from "./grid/time";
