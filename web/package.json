@@ -19,6 +19,7 @@
     "@modelcontextprotocol/ext-apps": "^2.0.3",
     "@modelcontextprotocol/server": "^2.3.0",
     "@vercel/blob": "^2.8.0",
+    "@vercel/oidc": "3.8.10",
     "mcp-handler": "^2.2.0",
     "next": "^15.5.27",
     "react": "^19.1.0",

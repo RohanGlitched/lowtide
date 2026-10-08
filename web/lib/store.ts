@@ -1,8 +1,8 @@
 import "server-only";
-import { get, put } from "@vercel/blob";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import type { Country, Home } from "./grid/types";
+import { storage } from "./storage";
 
 export interface ScheduledRun {
   id: string;
@@ -26,11 +26,11 @@ export interface HomeState {
 }
 
 /**
- * One JSON document per household. In production it is a private Vercel Blob read from origin (no CDN
- * cache) and written with an ETag check, so two quick writes can't silently overwrite each other.
- * Locally, without a Blob token, it is a file under .data/.
+ * One JSON document per household. In production it is an object in the configured store (Google Cloud
+ * Storage or Vercel Blob) read from origin and written with a version check, so two quick writes can't silently
+ * overwrite each other. Locally, without a store, it is a file under .data/.
  */
-const useBlob = () => Boolean(process.env.BLOB_READ_WRITE_TOKEN);
+const useBlob = () => storage() !== null;
 const LOCAL_DIR = path.join(process.cwd(), ".data");
 const key = (id: string) => `homes/${id}.json`;
 
@@ -51,11 +51,9 @@ async function read(id: string): Promise<{ state: HomeState; etag?: string } | n
       return null;
     }
   }
-  const r = await get(key(id), { access: "private", useCache: false }).catch(() => null);
-  if (!r || !r.stream) return null;
-  const text = await new Response(r.stream).text();
-  // A compressed (larger) read comes back with a weak ETag, W/"…"; If-Match needs the strong form or it never matches.
-  return { state: JSON.parse(text) as HomeState, etag: r.blob.etag?.replace(/^W\//, "") };
+  const r = await storage()!.read(key(id)).catch(() => null);
+  if (!r) return null;
+  return { state: JSON.parse(r.text) as HomeState, etag: r.etag };
 }
 
 async function write(id: string, state: HomeState, etag?: string): Promise<void> {
@@ -64,14 +62,7 @@ async function write(id: string, state: HomeState, etag?: string): Promise<void>
     await fs.writeFile(path.join(LOCAL_DIR, `${id}.json`), JSON.stringify(state, null, 2));
     return;
   }
-  await put(key(id), JSON.stringify(state), {
-    access: "private",
-    contentType: "application/json",
-    addRandomSuffix: false,
-    allowOverwrite: true,
-    cacheControlMaxAge: 60,
-    ...(etag ? { ifMatch: etag } : {}),
-  });
+  await storage()!.write(key(id), JSON.stringify(state), { ifMatch: etag });
 }
 
 export async function loadHome(id: string): Promise<HomeState | null> {
@@ -105,7 +96,7 @@ export async function updateHome(id: string, change: (s: HomeState) => HomeState
       await write(id, next, cur.etag);
       return next;
     } catch (e) {
-      if (!/etag|precondition/i.test(String(e))) throw e;
+      if (!/etag|precondition|changed since/i.test(String(e))) throw e;
       await new Promise((r) => setTimeout(r, 300 * (attempt + 1)));
     }
   }
