@@ -1,4 +1,5 @@
 import { sigv4Headers } from "./sigv4";
+import { awsCredentials } from "../aws/credentials";
 import type { Message, ToolSpec, TurnResponse } from "./types";
 
 /**
@@ -20,9 +21,10 @@ const LABELS: [RegExp, string][] = [
   [/nova-micro/, "Amazon Nova Micro"],
 ];
 
-// IAM credentials for SigV4-signed requests (the only way Lowtide talks to Bedrock; the IAM user may call
-// InvokeModel on Nova Micro and Nova Lite and nothing else)
-const iam = () => (process.env.BEDROCK_ACCESS_KEY_ID && process.env.BEDROCK_SECRET_ACCESS_KEY ? { id: process.env.BEDROCK_ACCESS_KEY_ID, secret: process.env.BEDROCK_SECRET_ACCESS_KEY } : null);
+// IAM credentials for SigV4-signed requests (the only way Lowtide talks to Bedrock): on AWS Lambda the execution
+// role's temporary credentials, on Vercel the key of an IAM user; either may call InvokeModel on Nova Micro and
+// Nova Lite and nothing else
+const iam = () => awsCredentials("bedrock");
 export const bedrockReady = () => Boolean(iam());
 export const bedrockModel = PREFERRED;
 export const modelLabel = (id: string) => LABELS.find(([re]) => re.test(id))?.[1] ?? id;
@@ -67,7 +69,7 @@ async function converse(model: string, body: Record<string, unknown>) {
   if (!creds) throw new Error("Bedrock credentials are not set");
   const res = await fetch(url, {
     method: "POST",
-    headers: { ...sigv4Headers(url, payload, REGION, creds.id, creds.secret), accept: "application/json" },
+    headers: { ...sigv4Headers(url, payload, REGION, creds.accessKeyId, creds.secretAccessKey, new Date(), creds.sessionToken), accept: "application/json" },
     body: payload,
     signal: AbortSignal.timeout(20_000),
   });
