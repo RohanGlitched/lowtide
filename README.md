@@ -13,10 +13,12 @@ and plans the dishwasher, the washing, the hot water and the car for the cheapes
 [![MCP](https://img.shields.io/badge/MCP-Streamable%20HTTP%20%C2%B7%20MCP%20Apps-16181b)](https://lowtide-energy.vercel.app/connect)
 [![Amazon Bedrock](https://img.shields.io/badge/Amazon%20Bedrock-Amazon%20Nova%20Micro-16181b)](https://lowtide-energy.vercel.app/echo)
 [![Amazon S3](https://img.shields.io/badge/Amazon%20S3-households-16181b)](#engineering-notes)
+[![AWS Lambda](https://img.shields.io/badge/AWS-Lambda%20%C2%B7%20CloudFront%20%C2%B7%20Polly%20%C2%B7%20CloudWatch-16181b)](#runs-on-aws)
 [![CI](https://github.com/RohanGlitched/lowtide/actions/workflows/ci.yml/badge.svg)](https://github.com/RohanGlitched/lowtide/actions/workflows/ci.yml)
 [![MIT](https://img.shields.io/badge/license-MIT-5d636b)](LICENSE)
 
-[**Try it on the Echo**](https://lowtide-energy.vercel.app/echo) · [Add it to Claude or ChatGPT](https://lowtide-energy.vercel.app/connect) · [Today's prices, region by region](https://lowtide-energy.vercel.app/tables)
+<!-- TODO(deploy): after infra/deploy.py, point these links (and the badges above) at the CloudFront URL -->
+[**Try it on the Echo**](https://lowtide-energy.vercel.app/echo) · [**Watch the demo (2:54)**](https://youtu.be/LOHfsCr-m8Y) · [Add it to Claude or ChatGPT](https://lowtide-energy.vercel.app/connect) · [Today's prices, region by region](https://lowtide-energy.vercel.app/tables)
 
 </div>
 
@@ -106,7 +108,7 @@ flowchart TB
     ECHO -- "model turns" --> ALEXA["/api/alexa<br/>Bedrock Converse (Nova Micro)<br/>or the built-in phrase router"]
     ECHO -- "Streamable HTTP" --> MCP
     CLAUDE -- "Streamable HTTP" --> MCP
-    MCP["Lowtide MCP server<br/>8 tools + 1 ui:// view<br/>(mcp-handler, MCP SDK v2)"] --> PLAN["Planner<br/>every start that fits, priced per half hour"]
+    MCP["Lowtide MCP server<br/>9 tools + 1 ui:// view<br/>(mcp-handler, MCP SDK v2)"] --> PLAN["Planner<br/>every start that fits, priced per half hour"]
     PLAN --> FEEDS["Price and carbon feeds<br/>Octopus Agile · NESO · ComEd · aWATTar"]
     MCP --> STORE[("Households<br/>private Amazon S3 bucket, If-Match on the ETag")]
 ```
@@ -122,6 +124,7 @@ flowchart TB
 | `list_runs` / `cancel_run` | The household's planned runs | ✓ |
 | `get_savings` | Money and CO₂ saved by running at the cheap hours | ✓ |
 | `set_home` | Postcode or city, which picks the tariff region | |
+| `get_tonight` | Tonight's plan, made once a night as soon as tomorrow's prices are published: the best start for each appliance the household uses, and whether tonight is unusually cheap. Also a resource, `lowtide://household/tonight` | ✓ |
 
 Every tool returns a **voice-ready sentence** first (times said the way people say them, money in pence or cents), a **structured result** for the view, and, for `plan_appliance`, a line the model uses for `schedule_run` but never reads aloud. The server ships its own instructions, and the repo ships an **Agent Skill** ([`skills/lowtide/SKILL.md`](skills/lowtide/SKILL.md)) for skills-aware agents.
 
@@ -130,9 +133,50 @@ Every tool returns a **voice-ready sentence** first (times said the way people s
 - **The answer leads.** "Run the dishwasher at 01:00" is the headline on screen and the first words spoken.
 - **Readable across a kitchen.** The view has a fullscreen layout for device screens (sized from the screen, nothing scrolls) and an inline one for chat hosts.
 - **Never stuck.** If Bedrock is unavailable or the daily budget is spent, the simulator falls back to a deterministic phrase router that calls the same tools, and the tools' own sentences are spoken. The page says which one is answering, from a real probe, not from whether a key is set.
+- **A real voice.** Replies are spoken by Amazon Polly's neural voices, chosen by tariff region: Amy (British English) for Agile, Joanna (American English) for ComEd, Vicki (German) for EPEX. Plain text only, no SSML, so nothing in a tool result can change how it is said; capped per visitor and per day in characters, cached by a hash of the sentence. If Polly is unreachable the browser's own speech takes over, and the page labels whichever voice actually spoke.
+- **Proactive, without a scheduler.** An Echo shows a waiting notification as a yellow light. Lowtide's version: once Octopus publishes tomorrow's prices (about 4 p.m. UK time), the first request plans the coming night for each active household, once, and stores it with the household (If-Match, like every write); the Echo pulses yellow and shows "Tonight is unusually cheap: tumble dryer at 02:00" until you hear it. Each request also takes one short, bounded step through the other households, so their plans are ready before they ask. It runs lazily because the account's deploy user may not create EventBridge schedules.
 - **A chain of models.** The server asks for Amazon Nova Micro first, the cheapest Bedrock model with tool use, through the Asia Pacific inference profile in Sydney; if the account can't call it (model access, an organisation policy, a region rule), it tries Nova Lite and remembers what worked. Nova's `<thinking>` text is stripped, so Alexa never reads it aloud.
-- **Signed requests, no SDK.** Bedrock and S3 are both called with SigV4-signed requests written in a few lines of `node:crypto`. Each has its own IAM user with one inline policy: `lowtide-bedrock` may call `InvokeModel` on Nova Micro and Nova Lite, `lowtide-store` may read, write and list one bucket. Nothing else, nowhere else.
+- **Signed requests, no SDK.** Bedrock, S3 and Polly are all called with SigV4-signed requests from one small signer in `node:crypto` ([`web/lib/aws/sigv4.ts`](web/lib/aws/sigv4.ts), checked in tests against botocore's signatures). On AWS the credentials are the Lambda function's own role (temporary, with a session token, nothing stored anywhere); its policy allows `InvokeModel` on Nova Micro and Nova Lite, get, put and list on the households bucket, and `SynthesizeSpeech`. The Vercel copy uses two single-purpose IAM users instead, because the organisation denies the OIDC provider that keyless access from Vercel would need.
 - **Bounded cost.** The model route answers only its own pages, checks every message shape, and caps calls at 40 per visitor per 10 minutes and 250 per visitor per day (per server instance), plus 1,500 a day in all (a count shared through the S3 store, synced every 20 calls and on every call once 80% is spent). The same-origin check stops casual reuse but is not authentication, so the caps are the real guard.
+
+## Runs on AWS
+
+<!-- TODO(deploy): once infra/deploy.py has run, say "runs" with the CloudFront URL, and move the live links above to it -->
+Everything Lowtide needs is in one CloudFormation stack in Sydney (ap-southeast-2), deployed by [`infra/deploy.py`](infra/deploy.py) from [`infra/template.yaml`](infra/template.yaml): no servers, no containers, no static keys, sized for the free tier.
+
+```mermaid
+flowchart LR
+    V(["Echo simulator · Claude · ChatGPT · any MCP host"]) --> CF["Amazon CloudFront<br/>one address, HTTP/2 and 3"]
+    CF -- "/_next/static/*" --> S3S[("Amazon S3<br/>hashed assets, origin access control")]
+    CF -- "pages, /api/mcp (streamed), /api/*" --> URL["Lambda Function URL<br/>RESPONSE_STREAM"]
+    URL --> L["AWS Lambda · Node.js 22 · arm64<br/>Next.js standalone + Lowtide MCP server<br/>(Lambda Web Adapter)"]
+    L -- "Converse, SigV4 with the function's role" --> BR["Amazon Bedrock<br/>Amazon Nova Micro → Nova Lite"]
+    L -- "SynthesizeSpeech" --> PO["Amazon Polly<br/>neural Amy · Joanna · Vicki"]
+    L -- "If-Match writes" --> S3H[("Amazon S3<br/>households, tonight's plans,<br/>daily budgets, speech cache")]
+    L -- "one JSON line per tool call" --> CW["Amazon CloudWatch<br/>logs (14 days), metric filters,<br/>error alarm, dashboard"]
+    IAM["IAM role<br/>least privilege, no keys"] -.-> L
+```
+
+| AWS service | What it does for Lowtide | Why this one |
+|---|---|---|
+| **AWS Lambda** (Node.js 22, arm64) | Runs the whole Next.js app: the website, the MCP server (Streamable HTTP), the model, voice and household routes | Pay per request and free at demo scale; arm64 is cheaper per millisecond; nothing to patch |
+| **Lambda Function URL** in response-streaming mode, with the **Lambda Web Adapter** | Turns HTTPS requests into requests to the Next.js server and streams the answers back, so MCP's server-sent events arrive as they are written | No API Gateway needed, and streaming is what MCP's Streamable HTTP expects |
+| **Amazon CloudFront** | The one public address: caches `/_next/static` for a year and pages only as long as Next.js says, never caches `/api/*`, hands the function the visitor's host | TLS, HTTP/3 and edge caching in front of a function that may be cold |
+| **Amazon S3** | Static assets (through origin access control, the bucket stays private) and, in a second bucket, every household as one JSON object with `If-Match` on the ETag | Conditional writes give safe read-modify-write without a database; a few cents a month |
+| **Amazon Bedrock** (Converse API, Amazon Nova Micro, APAC inference profile) | Every turn of the Echo simulator: picks the Lowtide tool, then words the answer | The cheapest Bedrock model with tool use, answering in about a second from Sydney |
+| **Amazon Polly** (neural voices) | Speaks every Echo reply and tonight's notification in the household's region's voice | Natural speech that is the same on every browser, which Web Speech is not |
+| **Amazon CloudWatch** | One JSON log line per tool call, model turn, Polly request and nightly roll; metric filters turn them into tool calls, errors, Bedrock latency, Polly characters and tonight's plans on a dashboard; an alarm on Lambda errors | Seeing what judges and users actually do, at no cost |
+| **AWS IAM** | One execution role: `bedrock:InvokeModel` on Nova Micro and Lite only, the households bucket only, `polly:SynthesizeSpeech` | No access keys exist for the AWS deployment at all |
+| **AWS CloudFormation** | The whole stack (22 resources) from one template; `deploy.py` packages, uploads, deploys and invalidates in one command, with `--dry-run` to build and validate offline | Repeatable, and deletable in one step after judging |
+
+Countertop, the open-source test bench, has its own small stack on the same pattern ([`countertop/infra`](https://github.com/RohanGlitched/countertop/tree/main/infra)): the static site in S3 behind CloudFront, and its model function on Lambda under `/api/turn`, with a role that may only call Nova Micro and Nova Lite.
+
+Deploying it yourself (any account; Python 3.12 with boto3, Node.js 22; credentials from the usual AWS environment):
+
+```bash
+python infra/deploy.py --dry-run     # build, package and validate the template; no AWS calls
+python infra/deploy.py               # create or update the stack, upload assets, invalidate, smoke-test
+```
 
 ## Engineering notes
 
@@ -158,6 +202,9 @@ Every tool returns a **voice-ready sentence** first (times said the way people s
 | A full Bedrock conversation (plan → schedule → savings) works in production | [`web/scripts/alexa-turn.mjs`](web/scripts/alexa-turn.mjs) |
 | The Echo flow works on desktop and phone with no console errors | [`web/scripts/e2e.cjs`](web/scripts/e2e.cjs) |
 | `schedule_run` asks through MCP elicitation when the client can show a form, saves nothing on "decline", and keeps the spoken yes for clients that can't (real SDK client, in-process) | [`web/test/elicit.test.ts`](web/test/elicit.test.ts), live: [`web/scripts/elicit-smoke.mjs`](web/scripts/elicit-smoke.mjs) |
+| SigV4 matches botocore for Bedrock, S3 and Polly, with and without a session token; credentials come from the Lambda role on AWS and never from Vercel's own AWS variables | [`web/test/aws.test.ts`](web/test/aws.test.ts) |
+| `/api/speak` serves Polly audio only to the site's own pages, in the region's voice, cached by text, within per-visitor and daily caps, and fails over to the browser's voice | [`web/test/aws.test.ts`](web/test/aws.test.ts) (Polly replaced by a fake) |
+| Tonight's plan waits for tomorrow's prices, is computed once per household per night even when two instances race (If-Match), and the roll walks households a few at a time, skipping quiet ones | [`web/test/aws.test.ts`](web/test/aws.test.ts) |
 | Savings are quoted against a typical start, not the peak | [`web/test/plan.test.ts`](web/test/plan.test.ts) (`typicalCost`), live figures: [`web/scripts/impact.ts`](web/scripts/impact.ts) |
 | Latency, measured on 15 October 2026 from India over three full conversations: each Bedrock call 0.8–1.2 s (one cold start 2.3 s), a read-only tool 0.5 s, `schedule_run` 1.3–1.4 s (S3 read plus conditional write in Sydney); a whole answered question (two model calls and a tool) 2.5–3.6 s, 3.8 s with the cold start | [`web/scripts/alexa-turn.mjs`](web/scripts/alexa-turn.mjs) |
 
@@ -167,7 +214,7 @@ Every tool returns a **voice-ready sentence** first (times said the way people s
 cd web
 npm install
 npm run dev          # builds the MCP App view, then starts Next.js
-npm test             # 75 tests: planner, clocks, places, the phrase router, the tool handlers, the routes
+npm test             # 90 tests: planner, clocks, places, the phrase router, the tool handlers, the routes, SigV4, Polly, tonight's plan
 node scripts/mcp-smoke.mjs http://localhost:3000
 ```
 
@@ -177,7 +224,7 @@ Optional environment (see [`web/.env.example`](web/.env.example)): `S3_BUCKET` +
 
 - Matter smart plugs and appliance APIs, so a confirmed plan can start the machine itself.
 - More tariffs: Octopus Go and Intelligent, PG&E time-of-use, Tibber; and WattTime carbon for the US.
-- Proactive notifications on the Echo when tonight's prices land ("tonight is unusually cheap, run the dryer").
+- Real push for tonight's plan once Alexa+ opens proactive notifications to MCP integrations (today the Echo simulator shows it when you open it).
 
 ## Who pays
 
