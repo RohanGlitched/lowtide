@@ -1,0 +1,411 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Lowtide on AWS: the Next.js site and MCP server on AWS Lambda (Node.js 22, arm64) behind a Function URL in
+  response-streaming mode, fronted by CloudFront, with static assets in S3 (origin access control), households in
+  the existing S3 bucket, Amazon Bedrock (Nova Micro) and Amazon Polly called with the function's own role (no
+  static keys), structured logs, metric filters, an error alarm and a dashboard in CloudWatch. Free-tier sized,
+  ap-southeast-2 only.
+
+Parameters:
+  CodeBucket:
+    Type: String
+    Description: Bucket holding the Lambda zip (created by infra/deploy.py)
+  CodeKey:
+    Type: String
+    Description: Key of the Lambda zip in CodeBucket
+  HomesBucket:
+    Type: String
+    Default: lowtide-homes-0415
+    Description: Existing private bucket with the households, the daily counters and the speech cache
+  Adapter:
+    Type: String
+    Default: layer
+    AllowedValues: [layer, bridge]
+    Description: layer = AWS Lambda Web Adapter (public layer); bridge = the package's own Node streaming bridge
+  AdapterLayerArn:
+    Type: String
+    Default: ""
+    Description: Lambda Web Adapter layer (arm64); empty = arn:aws:lambda:<region>:753240598075:layer:LambdaAdapterLayerArm64:30
+  BedrockModel:
+    Type: String
+    Default: ""
+    Description: Bedrock model or inference profile to try first; empty = apac.amazon.nova-micro-v1:0, then Nova Lite
+  DailyModelCap:
+    Type: Number
+    Default: 1500
+    Description: Bedrock calls per UTC day across all visitors (spending guard; the phrase router answers after that)
+  PollyDailyChars:
+    Type: Number
+    Default: 40000
+    Description: Amazon Polly characters per UTC day (spending guard; the browser's voice speaks after that)
+  MemorySize:
+    Type: Number
+    Default: 1024
+  MaxConcurrency:
+    Type: Number
+    Default: 5
+    Description: Reserved concurrency (caps spend if the URL is hammered); 0 = don't reserve any
+  Observability:
+    Type: String
+    Default: "true"
+    AllowedValues: ["true", "false"]
+    Description: Metric filters and the CloudWatch dashboard (the error alarm is always created)
+  AlarmEmail:
+    Type: String
+    Default: ""
+    Description: Optional address that gets the error alarm by email (an SNS topic; confirm the subscription)
+
+Conditions:
+  UseLayer: !Equals [!Ref Adapter, layer]
+  DefaultLayer: !Equals [!Ref AdapterLayerArn, ""]
+  Reserve: !Not [!Equals [!Ref MaxConcurrency, "0"]]
+  WithObservability: !Equals [!Ref Observability, "true"]
+  WithEmail: !Not [!Equals [!Ref AlarmEmail, ""]]
+  HasModel: !Not [!Equals [!Ref BedrockModel, ""]]
+
+Resources:
+  # site/_next/static/* (immutable, hashed) and nothing else; households stay in HomesBucket
+  Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault: { SSEAlgorithm: AES256 }
+
+  FnRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: lambda.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: lowtide
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              # Nova Micro and Nova Lite only: the APAC inference profiles in this region, and the foundation
+              # models in whichever APAC region the profile routes a call to
+              - Sid: Bedrock
+                Effect: Allow
+                Action: bedrock:InvokeModel
+                Resource:
+                  - !Sub "arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/apac.amazon.nova-micro-v1:0"
+                  - !Sub "arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/apac.amazon.nova-lite-v1:0"
+                  - arn:aws:bedrock:*::foundation-model/amazon.nova-micro-v1:0
+                  - arn:aws:bedrock:*::foundation-model/amazon.nova-lite-v1:0
+              - Sid: Households
+                Effect: Allow
+                Action: [s3:GetObject, s3:PutObject, s3:DeleteObject]
+                Resource: !Sub "arn:aws:s3:::${HomesBucket}/*"
+              - Sid: HouseholdList
+                Effect: Allow
+                Action: s3:ListBucket
+                Resource: !Sub "arn:aws:s3:::${HomesBucket}"
+              - Sid: Voice
+                Effect: Allow
+                Action: polly:SynthesizeSpeech
+                Resource: "*"
+
+  Logs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${AWS::StackName}"
+      RetentionInDays: 14
+
+  Fn:
+    Type: AWS::Lambda::Function
+    DependsOn: Logs
+    Properties:
+      FunctionName: !Ref AWS::StackName
+      Description: Lowtide site and MCP server (Next.js standalone)
+      Runtime: nodejs22.x
+      Architectures: [arm64]
+      Handler: !If [UseLayer, run.sh, bridge.handler]
+      MemorySize: !Ref MemorySize
+      Timeout: 30
+      ReservedConcurrentExecutions: !If [Reserve, !Ref MaxConcurrency, !Ref AWS::NoValue]
+      Role: !GetAtt FnRole.Arn
+      Layers: !If
+        - UseLayer
+        - [!If [DefaultLayer, !Sub "arn:aws:lambda:${AWS::Region}:753240598075:layer:LambdaAdapterLayerArm64:30", !Ref AdapterLayerArn]]
+        - !Ref AWS::NoValue
+      Code:
+        S3Bucket: !Ref CodeBucket
+        S3Key: !Ref CodeKey
+      LoggingConfig:
+        LogGroup: !Ref Logs
+        LogFormat: Text
+      Environment:
+        Variables:
+          AWS_LAMBDA_EXEC_WRAPPER: !If [UseLayer, /opt/bootstrap, !Ref AWS::NoValue]
+          AWS_LWA_INVOKE_MODE: response_stream
+          AWS_LWA_PORT: "8080"
+          AWS_LWA_READINESS_CHECK_PATH: /api/health
+          PORT: "8080"
+          NODE_ENV: production
+          NEXT_TELEMETRY_DISABLED: "1"
+          S3_BUCKET: !Ref HomesBucket
+          S3_REGION: !Ref AWS::Region
+          BEDROCK_REGION: !Ref AWS::Region
+          BEDROCK_MODEL: !If [HasModel, !Ref BedrockModel, !Ref AWS::NoValue]
+          POLLY_REGION: !Ref AWS::Region
+          DAILY_MODEL_CAP: !Ref DailyModelCap
+          POLLY_DAILY_CHARS: !Ref PollyDailyChars
+
+  FnUrl:
+    Type: AWS::Lambda::Url
+    Properties:
+      TargetFunctionArn: !GetAtt Fn.Arn
+      AuthType: NONE
+      InvokeMode: RESPONSE_STREAM
+
+  FnUrlPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref Fn
+      Action: lambda:InvokeFunctionUrl
+      Principal: "*"
+      FunctionUrlAuthType: NONE
+
+  # since Oct 2025 a public function URL also needs lambda:InvokeFunction, granted only for calls through the URL
+  FnUrlInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref Fn
+      Action: lambda:InvokeFunction
+      Principal: "*"
+      InvokedViaFunctionUrl: true
+
+  AlarmTopic:
+    Type: AWS::SNS::Topic
+    Condition: WithEmail
+    Properties:
+      Subscription:
+        - { Protocol: email, Endpoint: !Ref AlarmEmail }
+
+  ErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Lowtide Lambda errors (crashes, timeouts) in five minutes
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions: [{ Name: FunctionName, Value: !Ref Fn }]
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: !If [WithEmail, [!Ref AlarmTopic], !Ref AWS::NoValue]
+
+  # One JSON line per tool call, model turn, Polly request and nightly roll (web/lib/log.ts) becomes a metric.
+  ToolCallsMetric:
+    Type: AWS::Logs::MetricFilter
+    Condition: WithObservability
+    Properties:
+      LogGroupName: !Ref Logs
+      FilterName: lowtide-tool-calls
+      FilterPattern: '{ $.evt = "tool" }'
+      MetricTransformations: [{ MetricNamespace: Lowtide, MetricName: ToolCalls, MetricValue: "1", DefaultValue: 0 }]
+  ToolErrorsMetric:
+    Type: AWS::Logs::MetricFilter
+    Condition: WithObservability
+    Properties:
+      LogGroupName: !Ref Logs
+      FilterName: lowtide-tool-errors
+      FilterPattern: '{ $.evt = "tool" && $.ok IS FALSE }'
+      MetricTransformations: [{ MetricNamespace: Lowtide, MetricName: ToolErrors, MetricValue: "1", DefaultValue: 0 }]
+  BedrockTurnsMetric:
+    Type: AWS::Logs::MetricFilter
+    Condition: WithObservability
+    Properties:
+      LogGroupName: !Ref Logs
+      FilterName: lowtide-bedrock-turns
+      FilterPattern: '{ $.evt = "model" && $.engine = "bedrock" && $.ok IS TRUE }'
+      MetricTransformations: [{ MetricNamespace: Lowtide, MetricName: BedrockTurns, MetricValue: "1", DefaultValue: 0 }]
+  BedrockLatencyMetric:
+    Type: AWS::Logs::MetricFilter
+    Condition: WithObservability
+    Properties:
+      LogGroupName: !Ref Logs
+      FilterName: lowtide-bedrock-latency
+      FilterPattern: '{ $.evt = "model" && $.engine = "bedrock" && $.ok IS TRUE }'
+      MetricTransformations: [{ MetricNamespace: Lowtide, MetricName: BedrockLatency, MetricValue: "$.ms", Unit: Milliseconds }]
+  FallbackTurnsMetric:
+    Type: AWS::Logs::MetricFilter
+    Condition: WithObservability
+    Properties:
+      LogGroupName: !Ref Logs
+      FilterName: lowtide-fallback-turns
+      FilterPattern: '{ $.evt = "model" && $.engine = "fallback" }'
+      MetricTransformations: [{ MetricNamespace: Lowtide, MetricName: FallbackTurns, MetricValue: "1", DefaultValue: 0 }]
+  PollyCharsMetric:
+    Type: AWS::Logs::MetricFilter
+    Condition: WithObservability
+    Properties:
+      LogGroupName: !Ref Logs
+      FilterName: lowtide-polly-chars
+      FilterPattern: '{ $.evt = "speak" && $.ok IS TRUE && $.cached NOT EXISTS }'
+      MetricTransformations: [{ MetricNamespace: Lowtide, MetricName: PollyCharacters, MetricValue: "$.chars", DefaultValue: 0 }]
+  TonightPlansMetric:
+    Type: AWS::Logs::MetricFilter
+    Condition: WithObservability
+    Properties:
+      LogGroupName: !Ref Logs
+      FilterName: lowtide-tonight-plans
+      FilterPattern: '{ $.evt = "tonight" && $.ok IS TRUE }'
+      MetricTransformations: [{ MetricNamespace: Lowtide, MetricName: TonightPlans, MetricValue: "$.computed", DefaultValue: 0 }]
+
+  Dashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Condition: WithObservability
+    Properties:
+      DashboardName: !Ref AWS::StackName
+      DashboardBody: !Sub |
+        {"widgets":[
+        {"type":"text","x":0,"y":0,"width":24,"height":2,"properties":{"markdown":"## Lowtide on AWS\nLambda ${Fn} behind CloudFront ${Cdn.DomainName}. Model turns: Amazon Nova Micro on Bedrock. Voice: Amazon Polly. Logs: ${Logs} (one JSON line per tool call, model turn, voice request and nightly roll)."}},
+        {"type":"metric","x":0,"y":2,"width":8,"height":6,"properties":{"title":"Requests and errors","region":"${AWS::Region}","stat":"Sum","period":300,"metrics":[["AWS/Lambda","Invocations","FunctionName","${Fn}"],[".","Errors",".","."],[".","Throttles",".","."]]}},
+        {"type":"metric","x":8,"y":2,"width":8,"height":6,"properties":{"title":"Duration (ms)","region":"${AWS::Region}","period":300,"metrics":[["AWS/Lambda","Duration","FunctionName","${Fn}",{"stat":"p50"}],["...",{"stat":"p95"}],["...",{"stat":"Maximum"}]]}},
+        {"type":"metric","x":16,"y":2,"width":8,"height":6,"properties":{"title":"Concurrent instances","region":"${AWS::Region}","stat":"Maximum","period":300,"metrics":[["AWS/Lambda","ConcurrentExecutions","FunctionName","${Fn}"]]}},
+        {"type":"metric","x":0,"y":8,"width":8,"height":6,"properties":{"title":"MCP tool calls","region":"${AWS::Region}","stat":"Sum","period":300,"metrics":[["Lowtide","ToolCalls"],[".","ToolErrors"]]}},
+        {"type":"metric","x":8,"y":8,"width":8,"height":6,"properties":{"title":"Model turns: Bedrock and the phrase router","region":"${AWS::Region}","stat":"Sum","period":300,"metrics":[["Lowtide","BedrockTurns"],[".","FallbackTurns"]]}},
+        {"type":"metric","x":16,"y":8,"width":8,"height":6,"properties":{"title":"Bedrock latency (ms)","region":"${AWS::Region}","period":300,"metrics":[["Lowtide","BedrockLatency",{"stat":"p50"}],["...",{"stat":"p95"}]]}},
+        {"type":"metric","x":0,"y":14,"width":8,"height":6,"properties":{"title":"Bedrock invocations (AWS/Bedrock)","region":"${AWS::Region}","period":300,"metrics":[[{"expression":"SEARCH('{AWS/Bedrock,ModelId} MetricName=\"Invocations\"', 'Sum', 300)","id":"b"}]]}},
+        {"type":"metric","x":8,"y":14,"width":8,"height":6,"properties":{"title":"Polly characters and tonight's plans","region":"${AWS::Region}","stat":"Sum","period":3600,"metrics":[["Lowtide","PollyCharacters"],[".","TonightPlans",{"yAxis":"right"}]]}},
+        {"type":"log","x":16,"y":14,"width":8,"height":6,"properties":{"title":"Tool calls by time taken","region":"${AWS::Region}","view":"table","query":"SOURCE '${Logs}' | filter evt = \"tool\" | stats count(*) as calls, avg(ms) as avg_ms, max(ms) as max_ms by tool | sort avg_ms desc"}}
+        ]}
+
+  Oac:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub "${AWS::StackName}-oac"
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  # The function sees its own URL as Host; this hands it the address the visitor used (links, same-origin checks).
+  ForwardHostFn:
+    Type: AWS::CloudFront::Function
+    Properties:
+      Name: !Sub "${AWS::StackName}-forward-host"
+      AutoPublish: true
+      FunctionConfig: { Comment: viewer Host to x-forwarded-host, Runtime: cloudfront-js-2.0 }
+      FunctionCode: |
+        function handler(event) {
+          var r = event.request;
+          r.headers['x-forwarded-host'] = { value: r.headers.host.value };
+          return r;
+        }
+
+  # Pages: cached only as long as Next.js says (ISR pages s-maxage=300, dynamic ones not at all). Next's RSC
+  # headers are in the key so a page and its client-navigation payload never share an entry.
+  PagesCachePolicy:
+    Type: AWS::CloudFront::CachePolicy
+    Properties:
+      CachePolicyConfig:
+        Name: !Sub "${AWS::StackName}-pages"
+        MinTTL: 0
+        DefaultTTL: 0
+        MaxTTL: 31536000
+        ParametersInCacheKeyAndForwardedToOrigin:
+          EnableAcceptEncodingGzip: true
+          EnableAcceptEncodingBrotli: true
+          QueryStringsConfig: { QueryStringBehavior: all }
+          CookiesConfig: { CookieBehavior: none }
+          HeadersConfig:
+            HeaderBehavior: whitelist
+            Headers: [rsc, next-router-prefetch, next-router-state-tree, next-url]
+
+  Cdn:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Comment: Lowtide
+        HttpVersion: http2and3
+        PriceClass: PriceClass_All
+        Origins:
+          - Id: app
+            DomainName: !Select [2, !Split ["/", !GetAtt FnUrl.FunctionUrl]]
+            CustomOriginConfig: { OriginProtocolPolicy: https-only, OriginSSLProtocols: [TLSv1.2], OriginReadTimeout: 30, OriginKeepaliveTimeout: 5 }
+          - Id: static
+            DomainName: !GetAtt Bucket.RegionalDomainName
+            OriginPath: /site
+            S3OriginConfig: { OriginAccessIdentity: "" }
+            OriginAccessControlId: !GetAtt Oac.Id
+        DefaultCacheBehavior:
+          TargetOriginId: app
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods: [GET, HEAD, OPTIONS, PUT, POST, PATCH, DELETE]
+          CachedMethods: [GET, HEAD]
+          Compress: true
+          CachePolicyId: !Ref PagesCachePolicy
+          OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac # AllViewerExceptHostHeader
+          ResponseHeadersPolicyId: 67f7725c-6f97-4210-82d7-5512b31e9d03 # SecurityHeadersPolicy
+          FunctionAssociations:
+            - EventType: viewer-request
+              FunctionARN: !GetAtt ForwardHostFn.FunctionMetadata.FunctionARN
+        CacheBehaviors:
+          # MCP (Streamable HTTP, streamed answers), the model and voice routes: never cached, every header but Host
+          - PathPattern: /api/*
+            TargetOriginId: app
+            ViewerProtocolPolicy: https-only
+            AllowedMethods: [GET, HEAD, OPTIONS, PUT, POST, PATCH, DELETE]
+            CachedMethods: [GET, HEAD]
+            Compress: false
+            CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad # CachingDisabled
+            OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac # AllViewerExceptHostHeader
+            FunctionAssociations:
+              - EventType: viewer-request
+                FunctionARN: !GetAtt ForwardHostFn.FunctionMetadata.FunctionARN
+          - PathPattern: /_next/static/*
+            TargetOriginId: static
+            ViewerProtocolPolicy: redirect-to-https
+            Compress: true
+            CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6 # CachingOptimized
+            ResponseHeadersPolicyId: 67f7725c-6f97-4210-82d7-5512b31e9d03
+
+  BucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref Bucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: cloudfront.amazonaws.com }
+            Action: s3:GetObject
+            Resource: !Sub "${Bucket.Arn}/site/*"
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub "arn:aws:cloudfront::${AWS::AccountId}:distribution/${Cdn}"
+
+Outputs:
+  SiteUrl:
+    Value: !Sub "https://${Cdn.DomainName}"
+  McpUrl:
+    Value: !Sub "https://${Cdn.DomainName}/api/mcp"
+  DistributionId:
+    Value: !Ref Cdn
+  Bucket:
+    Value: !Ref Bucket
+  FunctionUrl:
+    Value: !GetAtt FnUrl.FunctionUrl
+  FunctionName:
+    Value: !Ref Fn
+  LogGroup:
+    Value: !Ref Logs
+  DashboardUrl:
+    Condition: WithObservability
+    Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#dashboards/dashboard/${AWS::StackName}"
