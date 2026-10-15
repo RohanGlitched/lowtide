@@ -1,19 +1,21 @@
 import type { Metadata, Viewport } from "next";
-import { Funnel_Display, Funnel_Sans } from "next/font/google";
+import localFont from "next/font/local";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { SITE_URL } from "@/lib/site";
 import "./globals.css";
 
-const display = Funnel_Display({
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
+// Funnel Display and Funnel Sans (SIL OFL 1.1, see app/fonts/OFL.txt), self-hosted as the
+// latin variable subsets so the build never depends on fetching Google Fonts.
+const display = localFont({
+  src: "./fonts/FunnelDisplay-latin.woff2",
+  weight: "400 600",
   variable: "--font-display",
   display: "swap",
 });
-const text = Funnel_Sans({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+const text = localFont({
+  src: "./fonts/FunnelSans-latin.woff2",
+  weight: "400 700",
   variable: "--font-text",
   display: "swap",
 });
