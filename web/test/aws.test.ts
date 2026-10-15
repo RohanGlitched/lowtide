@@ -342,3 +342,70 @@ test("tonight: the phrase router sends 'what's the plan for tonight' to get_toni
   const cheap = ask("When is electricity cheapest tonight?");
   assert.ok("toolUse" in cheap && cheap.toolUse.name === "get_tide");
 });
+
+/* ------------------------------------------------------------------ the nightly schedule (EventBridge Scheduler) */
+
+const scheduled = await import("../lib/scheduled");
+const eventsRoute = await import("../app/events/route");
+const SCHEDULE_BODY = JSON.stringify({ source: "lowtide.schedule", job: "tonight" });
+
+test("schedule: /events takes only the Web Adapter's loopback pass-through, never a request through CloudFront or the Function URL", async () => {
+  const h = (o: Record<string, string>) => new Headers(o);
+  assert.equal(scheduled.scheduledGuard(h({ host: "127.0.0.1:8080", "content-type": "application/json" })), null);
+  assert.equal(scheduled.scheduledGuard(h({ host: "localhost:8080" })), null);
+  // through CloudFront: the function URL as Host, the viewer's host and CloudFront's own headers alongside
+  assert.ok(scheduled.scheduledGuard(h({ host: "abc.lambda-url.ap-southeast-2.on.aws", "x-forwarded-host": "d1soo7510nfzf4.cloudfront.net", via: "2.0 x.cloudfront.net (CloudFront)", "x-amz-cf-id": "x" })));
+  // straight at the Function URL: AWS adds x-forwarded-for even when the caller forges Host
+  assert.ok(scheduled.scheduledGuard(h({ host: "127.0.0.1:8080", "x-forwarded-for": "203.0.113.9" })));
+  assert.ok(scheduled.scheduledGuard(h({ host: "127.0.0.1:8080", via: "1.1 proxy" })));
+  assert.ok(scheduled.scheduledGuard(h({})));
+  assert.equal(scheduled.isScheduleEvent(JSON.parse(SCHEDULE_BODY)), true);
+  assert.equal(scheduled.isScheduleEvent({ source: "aws.events", job: "tonight" }), false);
+
+  const post = (headers: Record<string, string>, body = SCHEDULE_BODY) => eventsRoute.POST(new Request("http://127.0.0.1:8080/events", { method: "POST", headers, body }));
+  const outside = await post({ host: "abc.lambda-url.ap-southeast-2.on.aws", "x-forwarded-host": "d1soo7510nfzf4.cloudfront.net", "x-forwarded-for": "203.0.113.9" });
+  assert.equal(outside.status, 403);
+  assert.equal((await post({ host: "127.0.0.1:8080" }, '{"source":"someone","job":"tonight"}')).status, 400);
+  assert.equal((await post({ host: "127.0.0.1:8080" }, "not json")).status, 400);
+  assert.equal(eventsRoute.GET().status, 405);
+  // the real thing, with no store configured: nothing to plan, still a clean summary
+  const local = await post({ host: "127.0.0.1:8080", "content-type": "application/json" });
+  assert.equal(local.status, 200);
+  const j = await local.json();
+  assert.deepEqual([j.ok, j.planned, j.night], [true, 0, null]);
+});
+
+test("schedule: one scheduled run plans every active household page by page, waits for Agile, and a second run finds the night done", async () => {
+  const mem = memoryStore();
+  storageMod.setStorageForTests(mem.s);
+  try {
+    const getTide = async () => tide({ until: TOMORROW_23, price: dip });
+    const ids: string[] = [];
+    for (let i = 0; i < 5; i++) ids.push((await store.createHome("SE1 7PB", "GB")).home.id);
+    await mem.s.write("homes/zzzzzzzzzz.json", JSON.stringify({ home: { id: "zzzzzzzzzz", place: "SE1 7PB", country: "GB", createdAt: T0 - 40 * 86_400_000 }, runs: [], overrides: {} }));
+
+    // 16:45 on a day Agile is late: nothing is published for tomorrow, so nothing is written
+    const early = await scheduled.runScheduledTonight({ getTide: async () => tide({ until: TODAY_23 }), now: T0, pageSize: 2 });
+    assert.deepEqual([early.night, early.planned, early.steps], [null, 0, 1]);
+    assert.ok(![...mem.objects.keys()].some((k) => k.startsWith("tonight/")));
+
+    // 18:30: published; the whole roll in one invocation, two households a page
+    const run = await scheduled.runScheduledTonight({ getTide, now: T0, pageSize: 2 });
+    assert.deepEqual([run.night, run.planned, run.skipped, run.done], ["2026-10-15", 5, 1, true]);
+    assert.ok(run.steps >= 3);
+    for (const id of ids) assert.equal((await store.loadHome(id))!.tonight?.night, "2026-10-15");
+    assert.equal((await store.loadHome("zzzzzzzzzz"))!.tonight, undefined, "a household quiet for weeks is left alone");
+
+    // a retry, or the next schedule: idempotent, writes no household again
+    const writes = mem.writes.filter((k) => k.startsWith("homes/")).length;
+    const again = await scheduled.runScheduledTonight({ getTide, now: T0 + 3600_000, pageSize: 2 });
+    assert.deepEqual([again.planned, again.done, again.steps], [0, true, 1]);
+    assert.equal(mem.writes.filter((k) => k.startsWith("homes/")).length, writes);
+
+    // the time budget bounds a run: an exhausted budget does no work and says it isn't done
+    const none = await scheduled.runScheduledTonight({ getTide, now: T0, budgetMs: 0 });
+    assert.deepEqual([none.steps, none.done], [0, false]);
+  } finally {
+    storageMod.setStorageForTests(undefined);
+  }
+});

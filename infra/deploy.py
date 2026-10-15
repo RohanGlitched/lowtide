@@ -16,7 +16,8 @@ Steps:
   4. upload /_next/static to the stack's bucket (CloudFront serves it from S3), invalidate CloudFront
   5. on the first deploy the CloudFront address only exists after step 3, so the app is rebuilt with it and
      updated once more; later deploys read it from the stack
-  6. smoke-test /api/health and the MCP endpoint through CloudFront, and print every URL
+  6. smoke-test /api/health and the MCP endpoint through CloudFront, check /events is closed to the
+     public, and print every URL
 """
 from __future__ import annotations
 
@@ -30,6 +31,7 @@ import shutil
 import subprocess
 import sys
 import time
+import urllib.error
 import urllib.request
 import zipfile
 from pathlib import Path
@@ -316,6 +318,14 @@ def smoke(site: str):
         print(f"GET / → {status}, {len(body)} bytes")
     except Exception as e:
         print(f"GET / failed: {e}")
+    # the scheduler's pass-through route must not be reachable from outside
+    try:
+        status, _ = get("/events", data=b'{"source":"lowtide.schedule","job":"tonight"}', method="POST", headers={"content-type": "application/json"})
+        print(f"POST /events → {status} (expected 403 or 404: the route is meant for the scheduler only)")
+    except urllib.error.HTTPError as e:
+        print(f"POST /events → {e.code} (closed to the public, as intended)")
+    except Exception as e:
+        print(f"POST /events check failed: {e}")
 
 
 def main():

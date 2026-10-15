@@ -2,6 +2,7 @@
 // Adapter=bridge (infra/deploy.py --adapter bridge), e.g. if the account can't attach the public Lambda Web
 // Adapter layer. It does the adapter's job in plain Node: starts server.js on 127.0.0.1:8080 once per instance,
 // then streams each Function URL request through to it (RESPONSE_STREAM), so MCP's streamed answers still stream.
+// Scheduled (non-HTTP) events go to the pass-through path, as with the adapter.
 import http from "node:http";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -83,10 +84,27 @@ export async function proxy(event, responseStream, rt = globalThis.awslambda) {
   });
 }
 
+/**
+ * A non-HTTP invocation (Amazon EventBridge Scheduler's nightly event) becomes what the Web Adapter makes of it:
+ * a POST of the event to the pass-through path on the local server, with no forwarding headers, which is how
+ * that route tells it apart from anything that came in through CloudFront or the Function URL.
+ */
+export function passThroughEvent(event) {
+  return {
+    rawPath: process.env.AWS_LWA_PASS_THROUGH_PATH || "/events",
+    requestContext: { http: { method: "POST" } },
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(event ?? {}),
+    isBase64Encoded: false,
+  };
+}
+
+const isHttp = (event) => Boolean(event?.requestContext?.http);
+
 const rt = globalThis.awslambda;
 export const handler = rt
   ? rt.streamifyResponse(async (event, responseStream) => {
       await start();
-      await proxy(event, responseStream, rt);
+      await proxy(isHttp(event) ? event : passThroughEvent(event), responseStream, rt);
     })
   : undefined;

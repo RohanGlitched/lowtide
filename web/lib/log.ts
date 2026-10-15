@@ -1,5 +1,5 @@
 /**
- * Structured logs: one JSON line per event (a tool call, a model turn, a Polly request, a nightly roll), so
+ * Structured logs: one JSON line per event (a tool call, a model turn, a Polly request, a nightly roll, a scheduled run), so
  * CloudWatch Logs Insights can query them and the stack's metric filters can count them without parsing prose.
  *
  *   fields @timestamp, tool, ms, ok | filter evt = "tool" | stats avg(ms) by tool
@@ -10,7 +10,8 @@ export type LogEvent =
   | { evt: "tool"; tool: string; ms: number; ok: boolean; home?: boolean; error?: string }
   | { evt: "model"; engine: "bedrock" | "fallback"; model?: string; ms: number; ok: boolean; stop?: string; inputTokens?: number; outputTokens?: number; note?: string; error?: string }
   | { evt: "speak"; voice: string; chars: number; ms: number; ok: boolean; cached?: "memory" | "store"; error?: string }
-  | { evt: "tonight"; scope: "home" | "roll"; ms: number; ok: boolean; computed?: number; skipped?: number; night?: string; error?: string };
+  | { evt: "tonight"; scope: "home" | "roll"; ms: number; ok: boolean; computed?: number; skipped?: number; night?: string; error?: string }
+  | { evt: "schedule"; job: "tonight"; ms: number; ok: boolean; night?: string | null; planned?: number; skipped?: number; steps?: number; done?: boolean; error?: string };
 
 export function log(e: LogEvent): void {
   // quiet under `node --test` unless a test asks for the lines
