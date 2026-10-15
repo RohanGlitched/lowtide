@@ -110,16 +110,7 @@ Kept while building Lowtide (October 2026). Each entry: task attempted, steps ta
 - **Workaround used:** Strip `<thinking>` blocks (closed or not) before anything is spoken, drop text blocks left empty, and tighten the system prompt (`web/lib/alexa/bedrock.ts`).
 - **Actionable suggestion:** Return Nova's reasoning in a separate `reasoningContent` block in Converse, as other reasoning models on Bedrock do, or add an option to leave it out, and document in the Nova tool-use guide that text blocks can contain `<thinking>` tags.
 
-## 13. A nightly job in an organisation account: no scheduler for the deploy user
-- **Task attempted:** Plan "tonight" for every household once a night, as soon as Octopus publishes tomorrow's prices (about 4 p.m. UK time), with Amazon EventBridge Scheduler invoking a Lambda function in ap-southeast-2.
-- **Steps taken:** Designed the job as a schedule plus a small Lambda, then tried to set it up in Sydney with the IAM user we deploy with.
-- **Expected:** A deploy user that can create a Lambda function and an IAM role can also attach a schedule to it, or the console says up front which services the organisation blocks.
-- **Actual:** EventBridge Scheduler was denied to the deploy user by the organisation's service control policy. Nothing in the Scheduler or Lambda console says that a policy above the account blocks the service, so the only way to find out is to try; and an AWS Builder entry loses the most natural "autonomous" piece of its architecture.
-- **Severity:** Medium (changed the design of a feature).
-- **Workaround used:** "Tonight's plan" runs lazily instead of on a timer: after tomorrow's prices are published, the first request plans the coming night for its household once and stores it in the household's S3 object under `If-Match`, and each request takes one short, bounded step through the other active households, so their plans are ready before they ask (`web/lib/tonight.ts`, tested in `web/test/aws.test.ts`). The README and the submission say it runs lazily and why.
-- **Actionable suggestion:** Show in each service's console when a service control policy denies it for the signed-in principal (IAM's policy simulator already knows), and document a recommended pattern for scheduled work in accounts where EventBridge is not available.
-
-## 14. Next.js on Lambda: a read-only file system the framework expects to write to
+## 13. Next.js on Lambda: a read-only file system the framework expects to write to
 - **Task attempted:** Run Lowtide's unmodified Next.js 15 standalone server on AWS Lambda (Node.js 22, arm64) through the Lambda Web Adapter, with pages that revalidate every five minutes (ISR) and cached `fetch()` calls for the price feeds.
 - **Steps taken:** Built with `output: "standalone"`, packaged the server with its traced `node_modules`, and ran the package on Linux with the application directory mounted read-only, as Lambda does, before deploying.
 - **Expected:** A guide for running a framework server on Lambda to list the paths it will try to write, or the Web Adapter's Next.js example to set up a cache that works on Lambda.
