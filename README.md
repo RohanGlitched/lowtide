@@ -116,7 +116,7 @@ flowchart TB
 | Tool | What it does | Shows a view |
 |---|---|---|
 | `plan_appliance` | Cheapest or greenest start for a load, with an optional deadline and earliest start; compares with starting now. "Done by seven" asked at half past six means tomorrow morning | ✓ |
-| `schedule_run` | Saves the run once the person agrees, with its saving (it keeps the plan; it doesn't switch anything on) | ✓ |
+| `schedule_run` | Saves the run once the person agrees, with its saving (it keeps the plan; it doesn't switch anything on). On hosts that can show a form (MCP elicitation, 2026-07-28) the person confirms on screen; elsewhere the spoken "yes" counts | ✓ |
 | `check_now` | Whether this half hour is cheap or dear, and when it drops; name an appliance and it prices that load now against its best later start | ✓ |
 | `get_tide` | The next 24 hours of prices and carbon, with the cheapest and dearest hours; `after: "18:00"` answers "tonight" | ✓ |
 | `list_runs` / `cancel_run` | The household's planned runs | ✓ |
@@ -157,6 +157,9 @@ Every tool returns a **voice-ready sentence** first (times said the way people s
 | Every tool works over Streamable HTTP against the live deployment (a tool error fails the build) | [`web/scripts/mcp-smoke.mjs`](web/scripts/mcp-smoke.mjs), run in CI |
 | A full Bedrock conversation (plan → schedule → savings) works in production | [`web/scripts/alexa-turn.mjs`](web/scripts/alexa-turn.mjs) |
 | The Echo flow works on desktop and phone with no console errors | [`web/scripts/e2e.cjs`](web/scripts/e2e.cjs) |
+| `schedule_run` asks through MCP elicitation when the client can show a form, saves nothing on "decline", and keeps the spoken yes for clients that can't (real SDK client, in-process) | [`web/test/elicit.test.ts`](web/test/elicit.test.ts), live: [`web/scripts/elicit-smoke.mjs`](web/scripts/elicit-smoke.mjs) |
+| Savings are quoted against a typical start, not the peak | [`web/test/plan.test.ts`](web/test/plan.test.ts) (`typicalCost`), live figures: [`web/scripts/impact.ts`](web/scripts/impact.ts) |
+| Latency, measured on 15 October 2026 from India over three full conversations: each Bedrock call 0.8–1.2 s (one cold start 2.3 s), a read-only tool 0.5 s, `schedule_run` 1.3–1.4 s (S3 read plus conditional write in Sydney); a whole answered question 2.5–3.5 s | [`web/scripts/alexa-turn.mjs`](web/scripts/alexa-turn.mjs) |
 
 ## Run it
 
