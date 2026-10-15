@@ -388,7 +388,7 @@ const offered = (id: string, appliance: string, start: string): Message[] => [
     role: "user",
     content: [{ toolResult: { toolUseId: id, content: [{ text: "Run it at 1 a.m." }, { text: `For schedule_run, pass start "${start}". Don't read this line aloud.` }] } }],
   },
-  { role: "assistant", content: [{ text: "Run it at 1 a.m. Want me to set a reminder?" }] },
+  { role: "assistant", content: [{ text: "Run it at 1 a.m. Shall I save it?" }] },
 ];
 
 test("router: 'yes' with nothing offered gets the help sentence, never schedule_run", () => {
@@ -472,7 +472,7 @@ test("router: off-topic requests get the help sentence", () => {
   }
 });
 
-test("router: tool results are spoken; errors don't offer a reminder; empty results say 'Done.'", () => {
+test("router: tool results are spoken; errors don't offer to save; empty results say 'Done.'", () => {
   const use = (id: string, name: string): Message => ({ role: "assistant", content: [{ toolUse: { toolUseId: id, name, input: { appliance: "car" } } }] });
   const errored = fallbackTurn([
     user("car"),

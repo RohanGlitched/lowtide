@@ -44,7 +44,7 @@ test("'yes' schedules the plan that was just offered", () => {
         },
       ],
     },
-    { role: "assistant", content: [{ text: "Run the dishwasher tonight at 1 a.m. Want me to set a reminder?" }] },
+    { role: "assistant", content: [{ text: "Run the dishwasher tonight at 1 a.m. Shall I save it?" }] },
     user("yes please"),
   ];
   const call = toolOf(fallbackTurn(history));

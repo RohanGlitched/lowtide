@@ -34,7 +34,7 @@ On the guest endpoint, pass `place` (a UK postcode, "Chicago", or "Germany") wit
 ## How to answer
 
 - Lead with the time and the saving in one sentence: "Run the dishwasher at 1:30 tonight. It costs 11p instead of 39p now."
-- Then offer the reminder. Only call `schedule_run` after the person agrees.
+- Then offer to save the run for the household (it counts toward their savings). Only call `schedule_run` after the person agrees. Lowtide can't send reminders, so never promise one: suggest the machine's delay-start button instead.
 - Say times the way people do ("one thirty a.m."), never ISO timestamps. Lines marked "Don't read this line aloud" are for you.
 - The tools return an MCP App chart; if your client renders it, don't read numbers off it aloud.
 - `goal: "greenest"` uses the carbon forecast (Britain, Germany); on a flat-rate tariff that is the useful question.

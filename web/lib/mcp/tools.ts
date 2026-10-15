@@ -207,7 +207,7 @@ export function registerLowtide(server: McpServer, ctx: Ctx) {
     {
       title: "Schedule an appliance run",
       description:
-        "Saves a planned run for the household (after plan_appliance and the person's agreement) so Lowtide can remind them and count the saving. Pass the start time plan_appliance chose.",
+        "Saves a planned run for the household (after plan_appliance and the person's agreement) so it shows in list_runs and counts toward the household's savings. Lowtide does not send reminders; the person sets the machine's delay start. Pass the start time plan_appliance chose.",
       inputSchema: z.object({
         appliance: z.string().min(2).max(40),
         start: z.string().max(40).describe("Start time: the ISO time from plan_appliance, or a local clock time like '01:30'"),
