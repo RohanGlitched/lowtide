@@ -2,6 +2,8 @@ import { bedrockReady, bedrockStatus, bedrockTurn, systemPrompt } from "@/lib/al
 import { ipAllowed, takeDaily } from "@/lib/alexa/budget";
 import { fallbackTurn } from "@/lib/alexa/fallback";
 import { LOWTIDE_TOOLS, type Message, type ToolSpec, type TurnRequest, type TurnResponse } from "@/lib/alexa/types";
+import { log } from "@/lib/log";
+import { sameOrigin, visitorIp } from "@/lib/origin";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -9,18 +11,6 @@ export const maxDuration = 30;
 const MAX_MESSAGES = 40;
 const MAX_BYTES = 32_000;
 const allowed = new Set<string>(LOWTIDE_TOOLS);
-
-/** Only this site's own pages may spend the Bedrock budget: the request's Origin must be this host. */
-function sameOrigin(req: Request): boolean {
-  const origin = req.headers.get("origin");
-  const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host");
-  if (!origin || !host) return false;
-  try {
-    return new URL(origin).host === host;
-  } catch {
-    return false;
-  }
-}
 
 /** Bedrock message shapes only; anything else is a 400, not a crash. */
 function cleanMessages(raw: unknown): Message[] | null {
@@ -79,20 +69,24 @@ export async function POST(req: Request) {
 
   let note: string | undefined;
   if (bedrockReady()) {
-    const ip = (req.headers.get("x-forwarded-for") ?? "local").split(",")[0].trim();
+    const ip = visitorIp(req);
     if (!ipAllowed(ip)) note = "You've used the voice model a lot today, so I'm on simple commands for a bit.";
     else if (!(await takeDaily())) note = "Today's voice-model budget is used up, so I'm on simple commands until tomorrow.";
     else {
+      const t0 = Date.now();
       try {
         const turn = await bedrockTurn(messages, tools, systemPrompt(tz, place));
+        log({ evt: "model", engine: "bedrock", model: turn.model, ms: Date.now() - t0, ok: true, stop: turn.stop, inputTokens: turn.usage?.inputTokens, outputTokens: turn.usage?.outputTokens });
         return Response.json({ message: turn.message, stop: turn.stop, engine: "bedrock", model: turn.model } satisfies TurnResponse);
       } catch (e) {
-        console.error("bedrock", e instanceof Error ? e.message : e);
+        const error = e instanceof Error ? e.message : String(e);
+        log({ evt: "model", engine: "bedrock", ms: Date.now() - t0, ok: false, error });
         note = "The voice model isn't available right now, so I'm on simple commands.";
       }
     }
   }
   const turn = fallbackTurn(messages);
+  log({ evt: "model", engine: "fallback", ms: 0, ok: true, stop: turn.stop, note });
   return Response.json({ ...turn, note } satisfies TurnResponse);
 }
 

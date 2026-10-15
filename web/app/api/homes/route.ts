@@ -1,6 +1,7 @@
 import { getTide } from "@/lib/grid";
 import { createHome } from "@/lib/store";
 import { seedHistory } from "@/lib/seed";
+import { publicOrigin, visitorIp } from "@/lib/origin";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -25,7 +26,7 @@ function allowed(ip: string): boolean {
 }
 
 export async function POST(req: Request) {
-  const ip = (req.headers.get("x-forwarded-for") ?? "local").split(",")[0].trim();
+  const ip = visitorIp(req);
   if (!allowed(ip)) return Response.json({ error: "That's a lot of households. Try again in an hour." }, { status: 429 });
   const body = (await req.json().catch(() => ({}))) as { place?: unknown; name?: unknown; demo?: unknown };
   const place = typeof body.place === "string" ? body.place.trim().slice(0, 40) : "";
@@ -37,7 +38,8 @@ export async function POST(req: Request) {
     const runs = body.demo && tide.region.country === "GB" ? await seedHistory(place).catch(() => []) : [];
     const state = await createHome(place, tide.region.country, name, runs);
     const demo = runs.length > 0;
-    const origin = new URL(req.url).origin;
+    // the address the visitor used (CloudFront or Vercel), not the function's own host
+    const origin = publicOrigin(req);
     return Response.json({
       id: state.home.id,
       region: tide.region.name,
