@@ -1,5 +1,5 @@
 // schedule_run's elicitation confirm against a deployment, with a client that speaks 2026-07-28 and shows forms.
-// Usage: node scripts/elicit-smoke.mjs https://lowtide-energy.vercel.app [accept|decline]
+// Usage: node scripts/elicit-smoke.mjs https://d1soo7510nfzf4.cloudfront.net [accept|decline]
 import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
 
 const [base, answer = "decline"] = process.argv.slice(2);

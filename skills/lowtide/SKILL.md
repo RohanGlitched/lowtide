@@ -13,8 +13,8 @@ Lowtide tells a household when electricity is cheapest and cleanest, from live p
 ## Connect
 
 Remote MCP server, Streamable HTTP:
-- Guest (no saved runs): `https://lowtide-energy.vercel.app/api/mcp`
-- Household (saved runs and savings): make a link at `https://lowtide-energy.vercel.app/connect`
+- Guest (no saved runs): `https://d1soo7510nfzf4.cloudfront.net/api/mcp`
+- Household (saved runs and savings): make a link at `https://d1soo7510nfzf4.cloudfront.net/connect`
 
 ## Which tool
 

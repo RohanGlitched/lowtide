@@ -8,7 +8,7 @@ export async function getText(url: string, revalidate = 300, timeoutMs = 8000): 
     try {
       const res = await fetch(url, {
         signal: AbortSignal.timeout(timeoutMs),
-        headers: { "user-agent": "Lowtide/1.0 (+https://lowtide-energy.vercel.app)" },
+        headers: { "user-agent": "Lowtide/1.0 (+https://d1soo7510nfzf4.cloudfront.net)" },
         next: { revalidate },
       } as RequestInit);
       if (!res.ok) throw new Error(`${new URL(url).host} answered ${res.status}`);

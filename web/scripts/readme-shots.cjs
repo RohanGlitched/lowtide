@@ -4,7 +4,7 @@ const fs = require("fs");
 const path = require("path");
 const { chromium } = require(process.env.PLAYWRIGHT || "playwright");
 
-const BASE = process.argv[2] || "https://lowtide-energy.vercel.app";
+const BASE = process.argv[2] || "https://d1soo7510nfzf4.cloudfront.net";
 const OUT = path.join(__dirname, "..", "..", "docs", "screens");
 const RAW = path.join(__dirname, "..", "..", "docs", "raw");
 fs.mkdirSync(OUT, { recursive: true });

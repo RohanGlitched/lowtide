@@ -32,4 +32,4 @@ jobs:
       - name: Production build
         run: npx next build
       - name: Every tool over Streamable HTTP against the live server
-        run: node scripts/mcp-smoke.mjs https://lowtide-energy.vercel.app
+        run: node scripts/mcp-smoke.mjs https://d1soo7510nfzf4.cloudfront.net

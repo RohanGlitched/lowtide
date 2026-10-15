@@ -1,6 +1,6 @@
 // End-to-end: the Echo simulator conversation on a real deployment. Usage: node scripts/e2e.cjs [baseUrl]
 const { chromium } = require(process.env.PLAYWRIGHT || "playwright");
-const BASE = process.argv[2] || "https://lowtide-energy.vercel.app";
+const BASE = process.argv[2] || "https://d1soo7510nfzf4.cloudfront.net";
 
 async function say(page, text) {
   const before = await page.locator("li[data-who=alexa]").count();
