@@ -3,7 +3,7 @@
   python infra/deploy.py --dry-run                 # build, package, validate the template; no AWS calls
   python infra/deploy.py [--stack lowtide-web] [--region ap-southeast-2] [--adapter layer|bridge]
                          [--site-url URL] [--countertop-url URL] [--concurrency N] [--alarm-email ADDRESS]
-                         [--no-observability] [--skip-build]
+                         [--no-observability] [--no-schedule] [--skip-build]
 
 Credentials come from the standard boto3 chain (AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY / AWS_SESSION_TOKEN,
 or AWS_PROFILE). Nothing here reads a key file. Everything is created in ap-southeast-2.
@@ -18,6 +18,10 @@ Steps:
      updated once more; later deploys read it from the stack
   6. smoke-test /api/health and the MCP endpoint through CloudFront, check /events is closed to the
      public, and print every URL
+
+The stack includes two Amazon EventBridge Scheduler schedules (16:45 and 18:30 London time) that run tonight's
+plan for every household, and a named role for them (lowtide-web-scheduler), hence CAPABILITY_NAMED_IAM.
+--no-schedule leaves them out; the lazy roll on ordinary requests still plans tonight.
 """
 from __future__ import annotations
 
@@ -255,10 +259,10 @@ def deploy_stack(cf, stack: str, params: dict) -> bool:
         exists = False
     try:
         if exists:
-            cf.update_stack(StackName=stack, TemplateBody=body, Parameters=p, Capabilities=["CAPABILITY_IAM"])
+            cf.update_stack(StackName=stack, TemplateBody=body, Parameters=p, Capabilities=["CAPABILITY_IAM", "CAPABILITY_NAMED_IAM"])
             waiter = cf.get_waiter("stack_update_complete")
         else:
-            cf.create_stack(StackName=stack, TemplateBody=body, Parameters=p, Capabilities=["CAPABILITY_IAM"], OnFailure="ROLLBACK", Tags=[{"Key": "project", "Value": "lowtide"}])
+            cf.create_stack(StackName=stack, TemplateBody=body, Parameters=p, Capabilities=["CAPABILITY_IAM", "CAPABILITY_NAMED_IAM"], OnFailure="ROLLBACK", Tags=[{"Key": "project", "Value": "lowtide"}])
             waiter = cf.get_waiter("stack_create_complete")
     except ClientError as e:
         if "No updates are to be performed" in str(e):
@@ -341,6 +345,7 @@ def main():
     ap.add_argument("--concurrency", type=int, default=5, help="reserved concurrency; 0 = none")
     ap.add_argument("--alarm-email", default="")
     ap.add_argument("--no-observability", action="store_true", help="skip metric filters and the dashboard")
+    ap.add_argument("--no-schedule", action="store_true", help="skip the EventBridge Scheduler schedules (the lazy roll still plans tonight)")
     a = ap.parse_args()
     if a.region != REGION:
         raise SystemExit(f"the organisation allows only {REGION}")
@@ -370,7 +375,8 @@ def main():
 
     def params(code_key):
         return {"CodeBucket": code_bucket, "CodeKey": code_key, "HomesBucket": a.homes_bucket, "Adapter": a.adapter,
-                "MaxConcurrency": a.concurrency, "AlarmEmail": a.alarm_email, "Observability": "false" if a.no_observability else "true"}
+                "MaxConcurrency": a.concurrency, "AlarmEmail": a.alarm_email, "Observability": "false" if a.no_observability else "true",
+                "NightlySchedule": "false" if a.no_schedule else "true"}
 
     for round_ in (1, 2):
         if not a.skip_build or round_ == 2:

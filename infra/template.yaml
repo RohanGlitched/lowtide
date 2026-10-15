@@ -3,8 +3,8 @@ Description: >
   Lowtide on AWS: the Next.js site and MCP server on AWS Lambda (Node.js 22, arm64) behind a Function URL in
   response-streaming mode, fronted by CloudFront, with static assets in S3 (origin access control), households in
   the existing S3 bucket, Amazon Bedrock (Nova Micro) and Amazon Polly called with the function's own role (no
-  static keys), structured logs, metric filters, an error alarm and a dashboard in CloudWatch. Free-tier sized,
-  ap-southeast-2 only.
+  static keys), Amazon EventBridge Scheduler running tonight's plan twice each evening, structured logs, metric
+  filters, an error alarm and a dashboard in CloudWatch. Free-tier sized, ap-southeast-2 only.
 
 Parameters:
   CodeBucket:
@@ -54,6 +54,11 @@ Parameters:
     Type: String
     Default: ""
     Description: Optional address that gets the error alarm by email (an SNS topic; confirm the subscription)
+  NightlySchedule:
+    Type: String
+    Default: "true"
+    AllowedValues: ["true", "false"]
+    Description: EventBridge Scheduler runs tonight's plan at 16:45 and 18:30 London time (false = only the lazy roll)
 
 Conditions:
   UseLayer: !Equals [!Ref Adapter, layer]
@@ -62,6 +67,7 @@ Conditions:
   WithObservability: !Equals [!Ref Observability, "true"]
   WithEmail: !Not [!Equals [!Ref AlarmEmail, ""]]
   HasModel: !Not [!Equals [!Ref BedrockModel, ""]]
+  WithSchedule: !Equals [!Ref NightlySchedule, "true"]
 
 Resources:
   # site/_next/static/* (immutable, hashed) and nothing else; households stay in HomesBucket
@@ -151,6 +157,8 @@ Resources:
           AWS_LWA_INVOKE_MODE: response_stream
           AWS_LWA_PORT: "8080"
           AWS_LWA_READINESS_CHECK_PATH: /api/health
+          # non-HTTP invocations (the nightly schedule) arrive as a POST from 127.0.0.1 to this path
+          AWS_LWA_PASS_THROUGH_PATH: /events
           PORT: "8080"
           NODE_ENV: production
           NEXT_TELEMETRY_DISABLED: "1"
@@ -186,6 +194,66 @@ Resources:
       Principal: "*"
       InvokedViaFunctionUrl: true
 
+  # Tonight's plan, computed ahead: Octopus publishes tomorrow's Agile prices around 16:00-17:00 UK time, so the
+  # schedule runs at 16:45 and again at 18:30 (the second finds the first's work done, or catches a late
+  # publication). The Web Adapter passes the event to POST /events; the lazy roll on ordinary requests stays as
+  # the fallback. Named lowtide-* (and the role lowtide-web-*) to fit the deploy user's scoped permissions.
+  SchedulerRole:
+    Type: AWS::IAM::Role
+    Condition: WithSchedule
+    Properties:
+      RoleName: !Sub "${AWS::StackName}-scheduler"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: scheduler.amazonaws.com }
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals: { "aws:SourceAccount": !Ref AWS::AccountId }
+      Policies:
+        - PolicyName: invoke-lowtide
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: lambda:InvokeFunction
+                Resource: !GetAtt Fn.Arn
+
+  TonightEarly:
+    Type: AWS::Scheduler::Schedule
+    Condition: WithSchedule
+    Properties:
+      Name: !Sub "${AWS::StackName}-tonight-1645"
+      GroupName: default
+      Description: Plan tonight for every household once tomorrow's Agile prices are out
+      ScheduleExpression: cron(45 16 * * ? *)
+      ScheduleExpressionTimezone: Europe/London
+      FlexibleTimeWindow: { Mode: "OFF" }
+      State: ENABLED
+      Target:
+        Arn: !GetAtt Fn.Arn
+        RoleArn: !GetAtt SchedulerRole.Arn
+        Input: '{"source":"lowtide.schedule","job":"tonight"}'
+        RetryPolicy: { MaximumRetryAttempts: 2, MaximumEventAgeInSeconds: 3600 }
+
+  TonightLate:
+    Type: AWS::Scheduler::Schedule
+    Condition: WithSchedule
+    Properties:
+      Name: !Sub "${AWS::StackName}-tonight-1830"
+      GroupName: default
+      Description: Second pass for tonight's plan (a late Agile publication, or households the first pass ran out of time for)
+      ScheduleExpression: cron(30 18 * * ? *)
+      ScheduleExpressionTimezone: Europe/London
+      FlexibleTimeWindow: { Mode: "OFF" }
+      State: ENABLED
+      Target:
+        Arn: !GetAtt Fn.Arn
+        RoleArn: !GetAtt SchedulerRole.Arn
+        Input: '{"source":"lowtide.schedule","job":"tonight"}'
+        RetryPolicy: { MaximumRetryAttempts: 2, MaximumEventAgeInSeconds: 3600 }
+
   AlarmTopic:
     Type: AWS::SNS::Topic
     Condition: WithEmail
@@ -208,7 +276,7 @@ Resources:
       TreatMissingData: notBreaching
       AlarmActions: !If [WithEmail, [!Ref AlarmTopic], !Ref AWS::NoValue]
 
-  # One JSON line per tool call, model turn, Polly request and nightly roll (web/lib/log.ts) becomes a metric.
+  # One JSON line per tool call, model turn, Polly request, nightly roll and scheduled run (web/lib/log.ts) becomes a metric.
   ToolCallsMetric:
     Type: AWS::Logs::MetricFilter
     Condition: WithObservability
@@ -265,6 +333,30 @@ Resources:
       FilterName: lowtide-tonight-plans
       FilterPattern: '{ $.evt = "tonight" && $.ok IS TRUE }'
       MetricTransformations: [{ MetricNamespace: Lowtide, MetricName: TonightPlans, MetricValue: "$.computed", DefaultValue: 0 }]
+  ScheduledRunsMetric:
+    Type: AWS::Logs::MetricFilter
+    Condition: WithObservability
+    Properties:
+      LogGroupName: !Ref Logs
+      FilterName: lowtide-scheduled-runs
+      FilterPattern: '{ $.evt = "schedule" && $.ok IS TRUE }'
+      MetricTransformations: [{ MetricNamespace: Lowtide, MetricName: ScheduledRuns, MetricValue: "1", DefaultValue: 0 }]
+  ScheduledPlansMetric:
+    Type: AWS::Logs::MetricFilter
+    Condition: WithObservability
+    Properties:
+      LogGroupName: !Ref Logs
+      FilterName: lowtide-scheduled-plans
+      FilterPattern: '{ $.evt = "schedule" && $.ok IS TRUE }'
+      MetricTransformations: [{ MetricNamespace: Lowtide, MetricName: ScheduledPlans, MetricValue: "$.planned", DefaultValue: 0 }]
+  ScheduledFailuresMetric:
+    Type: AWS::Logs::MetricFilter
+    Condition: WithObservability
+    Properties:
+      LogGroupName: !Ref Logs
+      FilterName: lowtide-scheduled-failures
+      FilterPattern: '{ $.evt = "schedule" && $.ok IS FALSE }'
+      MetricTransformations: [{ MetricNamespace: Lowtide, MetricName: ScheduledFailures, MetricValue: "1", DefaultValue: 0 }]
 
   Dashboard:
     Type: AWS::CloudWatch::Dashboard
@@ -273,7 +365,7 @@ Resources:
       DashboardName: !Ref AWS::StackName
       DashboardBody: !Sub |
         {"widgets":[
-        {"type":"text","x":0,"y":0,"width":24,"height":2,"properties":{"markdown":"## Lowtide on AWS\nLambda ${Fn} behind CloudFront ${Cdn.DomainName}. Model turns: Amazon Nova Micro on Bedrock. Voice: Amazon Polly. Logs: ${Logs} (one JSON line per tool call, model turn, voice request and nightly roll)."}},
+        {"type":"text","x":0,"y":0,"width":24,"height":2,"properties":{"markdown":"## Lowtide on AWS\nLambda ${Fn} behind CloudFront ${Cdn.DomainName}. Model turns: Amazon Nova Micro on Bedrock. Voice: Amazon Polly. Tonight's plan: EventBridge Scheduler at 16:45 and 18:30 London time. Logs: ${Logs} (one JSON line per tool call, model turn, voice request, nightly roll and scheduled run)."}},
         {"type":"metric","x":0,"y":2,"width":8,"height":6,"properties":{"title":"Requests and errors","region":"${AWS::Region}","stat":"Sum","period":300,"metrics":[["AWS/Lambda","Invocations","FunctionName","${Fn}"],[".","Errors",".","."],[".","Throttles",".","."]]}},
         {"type":"metric","x":8,"y":2,"width":8,"height":6,"properties":{"title":"Duration (ms)","region":"${AWS::Region}","period":300,"metrics":[["AWS/Lambda","Duration","FunctionName","${Fn}",{"stat":"p50"}],["...",{"stat":"p95"}],["...",{"stat":"Maximum"}]]}},
         {"type":"metric","x":16,"y":2,"width":8,"height":6,"properties":{"title":"Concurrent instances","region":"${AWS::Region}","stat":"Maximum","period":300,"metrics":[["AWS/Lambda","ConcurrentExecutions","FunctionName","${Fn}"]]}},
@@ -282,7 +374,9 @@ Resources:
         {"type":"metric","x":16,"y":8,"width":8,"height":6,"properties":{"title":"Bedrock latency (ms)","region":"${AWS::Region}","period":300,"metrics":[["Lowtide","BedrockLatency",{"stat":"p50"}],["...",{"stat":"p95"}]]}},
         {"type":"metric","x":0,"y":14,"width":8,"height":6,"properties":{"title":"Bedrock invocations (AWS/Bedrock)","region":"${AWS::Region}","period":300,"metrics":[[{"expression":"SEARCH('{AWS/Bedrock,ModelId} MetricName=\"Invocations\"', 'Sum', 300)","id":"b"}]]}},
         {"type":"metric","x":8,"y":14,"width":8,"height":6,"properties":{"title":"Polly characters and tonight's plans","region":"${AWS::Region}","stat":"Sum","period":3600,"metrics":[["Lowtide","PollyCharacters"],[".","TonightPlans",{"yAxis":"right"}]]}},
-        {"type":"log","x":16,"y":14,"width":8,"height":6,"properties":{"title":"Tool calls by time taken","region":"${AWS::Region}","view":"table","query":"SOURCE '${Logs}' | filter evt = \"tool\" | stats count(*) as calls, avg(ms) as avg_ms, max(ms) as max_ms by tool | sort avg_ms desc"}}
+        {"type":"log","x":16,"y":14,"width":8,"height":6,"properties":{"title":"Tool calls by time taken","region":"${AWS::Region}","view":"table","query":"SOURCE '${Logs}' | filter evt = \"tool\" | stats count(*) as calls, avg(ms) as avg_ms, max(ms) as max_ms by tool | sort avg_ms desc"}},
+        {"type":"metric","x":0,"y":20,"width":12,"height":6,"properties":{"title":"Nightly schedule (EventBridge Scheduler): runs, failures, households planned","region":"${AWS::Region}","stat":"Sum","period":3600,"metrics":[["Lowtide","ScheduledRuns"],[".","ScheduledFailures"],[".","ScheduledPlans",{"yAxis":"right"}]]}},
+        {"type":"log","x":12,"y":20,"width":12,"height":6,"properties":{"title":"Scheduled runs","region":"${AWS::Region}","view":"table","query":"SOURCE '${Logs}' | filter evt = \"schedule\" | fields @timestamp, ok, night, planned, skipped, steps, done, ms | sort @timestamp desc | limit 20"}}
         ]}
 
   Oac:
@@ -294,7 +388,8 @@ Resources:
         SigningBehavior: always
         SigningProtocol: sigv4
 
-  # The function sees its own URL as Host; this hands it the address the visitor used (links, same-origin checks).
+  # The function sees its own URL as Host; this hands it the address the visitor used (links, same-origin checks),
+  # and closes /events (the scheduler's pass-through route) to visitors.
   ForwardHostFn:
     Type: AWS::CloudFront::Function
     Properties:
@@ -304,6 +399,10 @@ Resources:
       FunctionCode: |
         function handler(event) {
           var r = event.request;
+          // /events is the scheduler's pass-through route inside the function: never reachable from outside
+          if (r.uri === '/events' || r.uri.indexOf('/events/') === 0) {
+            return { statusCode: 404, statusDescription: 'Not Found' };
+          }
           r.headers['x-forwarded-host'] = { value: r.headers.host.value };
           return r;
         }
@@ -406,6 +505,9 @@ Outputs:
     Value: !Ref Fn
   LogGroup:
     Value: !Ref Logs
+  Schedules:
+    Condition: WithSchedule
+    Value: !Sub "${TonightEarly}, ${TonightLate} (Europe/London)"
   DashboardUrl:
     Condition: WithObservability
     Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#dashboards/dashboard/${AWS::StackName}"
