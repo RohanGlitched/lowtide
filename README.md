@@ -164,7 +164,7 @@ Every tool returns a **voice-ready sentence** first (times said the way people s
 cd web
 npm install
 npm run dev          # builds the MCP App view, then starts Next.js
-npm test             # 71 tests: planner, clocks, places, the phrase router, the tool handlers, the routes
+npm test             # 75 tests: planner, clocks, places, the phrase router, the tool handlers, the routes
 node scripts/mcp-smoke.mjs http://localhost:3000
 ```
 

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { McpServer } from "@modelcontextprotocol/server";
+import { inputRequired, inputResponse, type McpServer } from "@modelcontextprotocol/server";
 import { registerAppResource, registerAppTool, RESOURCE_MIME_TYPE } from "@modelcontextprotocol/ext-apps/server";
 import { getTide, type Region, type Slot, type Tide } from "../grid";
 import { clock, dayPart, spokenTime } from "../grid/time";
@@ -217,7 +217,7 @@ export function registerLowtide(server: McpServer, ctx: Ctx) {
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
       _meta: ui,
     },
-    async (args) => {
+    async (args, extra) => {
       const id = requireHome(ctx);
       const { tide, state } = await tideFor(ctx);
       const tz = tide.region.timeZone;
@@ -229,6 +229,26 @@ export function registerLowtide(server: McpServer, ctx: Ctx) {
       const run = costRun(tide.slots, start, minutes, kwh);
       if (!run) throw new Error("Prices aren't published for that whole stretch yet, so I can't save it.");
       const ifNow = costRun(tide.slots, now, minutes, kwh);
+      // When the host can show a form (MCP elicitation), the person confirms there, not only through the model.
+      // Hosts without elicitation keep the spoken "yes" the model already heard.
+      if (canElicit(server, extra)) {
+        const answer = inputResponse(extraInputs(extra), "save");
+        if (answer.kind === "missing") {
+          const saving = ifNow ? ifNow.cost - run.cost : 0;
+          return inputRequired({
+            inputRequests: {
+              save: inputRequired.elicit({
+                message: `Save the ${app.name} for ${spokenTime(run.start, tz)} ${dayPart(run.start, now, tz)}? It costs about ${money(run.cost, tide.region)}${saving >= 1 ? `, ${money(saving, tide.region)} less than starting now` : ""}.`,
+                requestedSchema: SAVE_FORM,
+              }),
+            },
+          });
+        }
+        if (!(answer.kind === "elicit" && answer.action === "accept" && answer.content?.save === true)) {
+          const view = viewOf("runs", tide, "Not saved", `The ${app.name} isn't saved. Ask again whenever you like.`, [], [], now);
+          return result("Okay, I won't save it.", view);
+        }
+      }
       const saved: ScheduledRun = {
         id: crypto.randomUUID().slice(0, 8),
         appliance: app.id,
@@ -397,6 +417,38 @@ export function registerLowtide(server: McpServer, ctx: Ctx) {
 }
 
 /* ---------- helpers ---------- */
+
+/** The one-question form schedule_run shows on hosts that support MCP elicitation (form mode). */
+const SAVE_FORM = {
+  type: "object" as const,
+  properties: { save: { type: "boolean" as const, title: "Save this run", description: "Lowtide keeps it in your plan and counts the saving.", default: true } },
+  required: ["save"],
+};
+
+type ExtraLike = { mcpReq?: { envelope?: Record<string, unknown>; inputResponses?: Record<string, unknown> } } | undefined;
+
+/**
+ * Whether this request's client declared form elicitation: on the 2026-07-28 protocol from the request's own
+ * `_meta` envelope, on the 2025 protocol from what it declared at initialize (a stateless 2025 request has no
+ * such record, so it falls back to the model's spoken confirmation).
+ */
+function canElicit(server: McpServer, extra: unknown): boolean {
+  const env = (extra as ExtraLike)?.mcpReq?.envelope;
+  type Caps = { elicitation?: Record<string, unknown> } | undefined;
+  const modern = env?.["io.modelcontextprotocol/clientCapabilities"] as Caps;
+  let caps: Caps = modern;
+  if (!caps) {
+    try {
+      caps = (server as unknown as { server?: { getClientCapabilities?: () => Caps } }).server?.getClientCapabilities?.();
+    } catch {
+      caps = undefined;
+    }
+  }
+  const e = caps?.elicitation;
+  return Boolean(e && (Object.keys(e).length === 0 || "form" in e));
+}
+
+const extraInputs = (extra: unknown) => (extra as ExtraLike)?.mcpReq?.inputResponses;
 
 async function tideFor(ctx: Ctx, place?: string): Promise<{ tide: Tide; state: HomeState | null }> {
   const state = ctx.homeId ? await loadHome(ctx.homeId) : null;
