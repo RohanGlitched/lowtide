@@ -40,4 +40,5 @@ export const LOWTIDE_TOOLS = [
   "cancel_run",
   "get_savings",
   "set_home",
+  "get_tonight",
 ] as const;

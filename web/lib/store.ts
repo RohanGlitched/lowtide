@@ -2,6 +2,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import type { Country, Home } from "./grid/types";
 import { storage } from "./storage";
+import type { TonightPlan } from "./tonight";
 
 export interface ScheduledRun {
   id: string;
@@ -22,6 +23,8 @@ export interface HomeState {
   home: Home;
   runs: ScheduledRun[];
   overrides: Record<string, { kwh?: number; minutes?: number }>;
+  /** The plan for the coming night, computed once per night after tomorrow's prices are published (lib/tonight.ts). */
+  tonight?: TonightPlan;
 }
 
 /**
@@ -80,17 +83,20 @@ export async function createHome(place: string, country: Country, name?: string,
 }
 
 /**
- * Read-modify-write guarded by the blob's ETag on every attempt. Blob ETags can lag for a moment right
+ * Read-modify-write guarded by the store's ETag on every attempt (`change` may return false to write nothing). Blob ETags can lag for a moment right
  * after an overwrite, so a mismatch is re-read and retried with a short backoff; if it still mismatches
  * the caller hears "try again" rather than silently overwriting someone else's save.
  */
-export async function updateHome(id: string, change: (s: HomeState) => HomeState | void): Promise<HomeState> {
+export async function updateHome(id: string, change: (s: HomeState) => HomeState | void | false): Promise<HomeState> {
   const ATTEMPTS = 5;
   for (let attempt = 0; attempt < ATTEMPTS; attempt++) {
     const cur = await read(id);
     if (!cur) throw new Error("This Lowtide link doesn't match a household. Get a new one on the Lowtide website.");
     const draft = structuredClone(cur.state);
-    const next = change(draft) ?? draft;
+    const changed = change(draft);
+    // `false`: nothing to write (an idempotent update that someone else already made)
+    if (changed === false) return cur.state;
+    const next = changed ?? draft;
     try {
       await write(id, next, cur.etag);
       return next;

@@ -31,6 +31,8 @@ process.chdir(TMP);
 delete process.env.BLOB_READ_WRITE_TOKEN;
 delete process.env.BEDROCK_ACCESS_KEY_ID;
 delete process.env.BEDROCK_SECRET_ACCESS_KEY;
+// the standard AWS chain counts too now (Lambda's role), so a developer's shell credentials must not leak in
+for (const k of ["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN", "S3_BUCKET", "POLLY_ACCESS_KEY_ID"]) delete process.env[k];
 process.on("exit", () => {
   process.chdir(ORIGINAL_CWD); // Windows can't remove the current directory
   rmSync(TMP, { recursive: true, force: true });
@@ -534,7 +536,7 @@ test("tools: zod limits reject out-of-range input before any work is done", asyn
     ["set_home", { place: "SW1A", name: "x".repeat(41) }],
   ];
   for (const [name, args] of bad) assert.notEqual(await callError(guest, name, args), "", `${name} ${JSON.stringify(args)}`);
-  assert.equal(guest.size, 8);
+  assert.equal(guest.size, 9);
 });
 
 test("tools: the guest endpoint answers price questions for a named place and refuses anything stateful", async () => {
@@ -547,6 +549,14 @@ test("tools: the guest endpoint answers price questions for a named place and re
   assert.match(await callError(guest, "get_tide", { place: "Paris" }), /couldn't place "Paris"/);
   const r = await call(guest, "get_tide", { place: "Berlin" });
   assert.match(r.content[0].text, /^Electricity in Germany is cheapest/);
+});
+
+test("tools: get_tonight on the guest endpoint needs a place, then gives tonight's plan or says when it will be ready", async () => {
+  const guest = toolsFor(null);
+  assert.match(await callError(guest, "get_tonight"), /Which postcode or city/);
+  const r = await call(guest, "get_tonight", { place: "Berlin" });
+  assert.match(r.content[0].text, /^Tonight/);
+  assert.doesNotMatch(r.content[0].text, /undefined|NaN/);
 });
 
 test("tools: an EV top-up's run time scales with the energy at 7.4 kW, in 15-minute steps", async () => {
@@ -582,10 +592,10 @@ test("store: household ids are 10 base32 characters, and a well-formed unknown i
   assert.equal(ids.size, 200);
   for (const id of ids) assert.match(id, HOME_ID);
   assert.ok(!HOME_ID.test("ABCDEFGHIJ") && !HOME_ID.test("abcdefghi1") && !HOME_ID.test("abcdefghijk"));
-  // The MCP endpoint only checks the id's shape, so a client "connects" and lists all eight tools
+  // The MCP endpoint only checks the id's shape, so a client "connects" and lists all nine tools
   // for a household that doesn't exist (the Echo's "household gone" recovery never triggers).
   const ghost = toolsFor(newHomeId());
-  assert.equal(ghost.size, 8);
+  assert.equal(ghost.size, 9);
   assert.match(await callError(ghost, "get_tide"), /doesn't match a household/);
 });
 

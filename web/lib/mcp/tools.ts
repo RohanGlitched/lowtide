@@ -9,13 +9,16 @@ import { duration, grams, money, moneySpoken, rate } from "../format";
 import { nextClockTime } from "../when";
 import { loadHome, updateHome, type HomeState, type ScheduledRun } from "../store";
 import { VIEW_HTML } from "../generated/view";
+import { tonightForHome, tonightForPlace, type TonightPlan } from "../tonight";
+import { log } from "../log";
 
 export const VIEW_URI = "ui://lowtide/tide-chart.html";
+export const TONIGHT_URI = "lowtide://household/tonight";
 
 export const SERVER_INSTRUCTIONS = `Lowtide tells a household when electricity is cheapest and cleanest, and when to run shiftable appliances (dishwasher, washing machine, tumble dryer, EV charger, immersion heater, home battery).
 Prices are live: Octopus Agile half-hourly rates across Britain (by postcode), ComEd hourly pricing in northern Illinois, and the German day-ahead spot price. Britain also has a regional carbon forecast.
 Answer like a voice assistant: lead with the time and the saving in one short sentence, then stop. Read times the way people say them ("one thirty a.m."). Never read out raw tables.
-Use plan_appliance for "when should I run...", then schedule_run only when the person agrees (it saves the run; it does not switch anything on). Use get_tide for general "when is power cheap" questions (pass after: "18:00" for "tonight") and check_now for "is now a good time", with the appliance if they named one.`;
+Use plan_appliance for "when should I run...", then schedule_run only when the person agrees (it saves the run; it does not switch anything on). Use get_tide for general "when is power cheap" questions (pass after: "18:00" for "tonight") and check_now for "is now a good time", with the appliance if they named one. Use get_tonight for "what's the plan for tonight?": once tomorrow's prices are out it has already planned the household's usual appliances for the night.`;
 
 /** What the view draws. Kept compact: it travels in every tool result. */
 export interface ViewData {
@@ -40,7 +43,24 @@ const placeArg = z
   .optional()
   .describe("UK postcode (e.g. SW1A 2AA), 'Chicago' or another northern Illinois place, or 'Germany'. Optional once the household is set up.");
 
+/** Wraps a tool callback so every call writes one structured log line (name, time, outcome; never the arguments). */
+function logged<F extends (...args: never[]) => unknown>(name: string, ctx: Ctx, fn: F): F {
+  return (async (...args: never[]) => {
+    const t0 = Date.now();
+    try {
+      const out = (await fn(...args)) as { isError?: boolean } | undefined;
+      log({ evt: "tool", tool: name, ms: Date.now() - t0, ok: !out?.isError, home: Boolean(ctx.homeId) });
+      return out;
+    } catch (e) {
+      log({ evt: "tool", tool: name, ms: Date.now() - t0, ok: false, home: Boolean(ctx.homeId), error: e instanceof Error ? e.message : String(e) });
+      throw e;
+    }
+  }) as unknown as F;
+}
+
 export function registerLowtide(server: McpServer, ctx: Ctx) {
+  const appTool = ((srv: McpServer, name: string, config: unknown, cb: (...args: never[]) => unknown) =>
+    registerAppTool(srv as never, name, config as never, logged(name, ctx, cb) as never)) as unknown as typeof registerAppTool;
   registerAppResource(server, "Lowtide day dial", VIEW_URI, { mimeType: RESOURCE_MIME_TYPE, description: "The next 24 hours of electricity prices on a dial" }, async () => ({
     contents: [
       {
@@ -54,7 +74,7 @@ export function registerLowtide(server: McpServer, ctx: Ctx) {
 
   const ui = { ui: { resourceUri: VIEW_URI } };
 
-  registerAppTool(
+  appTool(
     server,
     "get_tide",
     {
@@ -95,7 +115,7 @@ export function registerLowtide(server: McpServer, ctx: Ctx) {
     },
   );
 
-  registerAppTool(
+  appTool(
     server,
     "check_now",
     {
@@ -163,7 +183,7 @@ export function registerLowtide(server: McpServer, ctx: Ctx) {
     },
   );
 
-  registerAppTool(
+  appTool(
     server,
     "plan_appliance",
     {
@@ -201,7 +221,7 @@ export function registerLowtide(server: McpServer, ctx: Ctx) {
     },
   );
 
-  registerAppTool(
+  appTool(
     server,
     "schedule_run",
     {
@@ -276,7 +296,7 @@ export function registerLowtide(server: McpServer, ctx: Ctx) {
     },
   );
 
-  registerAppTool(
+  appTool(
     server,
     "list_runs",
     {
@@ -314,7 +334,7 @@ export function registerLowtide(server: McpServer, ctx: Ctx) {
     },
   );
 
-  registerAppTool(
+  appTool(
     server,
     "cancel_run",
     {
@@ -353,7 +373,7 @@ export function registerLowtide(server: McpServer, ctx: Ctx) {
     },
   );
 
-  registerAppTool(
+  appTool(
     server,
     "get_savings",
     {
@@ -403,7 +423,7 @@ export function registerLowtide(server: McpServer, ctx: Ctx) {
       inputSchema: z.object({ place: z.string().min(2).max(40), name: z.string().max(40).optional() }),
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     },
-    async ({ place, name }) => {
+    logged("set_home", ctx, async ({ place, name }: { place: string; name?: string }) => {
       const id = requireHome(ctx);
       const tide = await getTide(place); // validates the place before saving it
       await updateHome(id, (s) => {
@@ -412,8 +432,62 @@ export function registerLowtide(server: McpServer, ctx: Ctx) {
         if (name) s.home.name = name;
       });
       return { content: [{ type: "text" as const, text: `Got it. You're on ${tide.region.tariff} in ${tide.region.name}.` }] };
+    }),
+  );
+
+  appTool(
+    server,
+    "get_tonight",
+    {
+      title: "Tonight's plan",
+      description:
+        "The plan for the coming night (18:00 to 08:00): the best start tonight for each appliance the household usually runs, and whether tonight is unusually cheap. Lowtide plans it once a night as soon as tomorrow's prices are published (Octopus Agile: about 4 p.m. UK time), so it's ready before anyone asks. Read-only; use schedule_run to save one of the runs if the person wants.",
+      inputSchema: z.object({ place: placeArg }),
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+      _meta: ui,
+    },
+    async ({ place }) => {
+      const now = Date.now();
+      let plan: TonightPlan | null;
+      let ready: boolean;
+      if (ctx.homeId && !place) ({ plan, ready } = await tonightForHome(ctx.homeId));
+      else {
+        if (!place && !ctx.homeId) throw new Error("Which postcode or city are you in? Lowtide covers Britain, northern Illinois and Germany.");
+        ({ plan, ready } = await tonightForPlace(place!));
+      }
+      const { tide } = await tideFor(ctx, place);
+      const tz = tide.region.timeZone;
+      if (!plan) {
+        const when = tide.region.country === "GB" ? "around 4 p.m." : tide.region.country === "DE" ? "early in the afternoon, German time" : "in the evening, Chicago time";
+        const view = viewOf("tide", tide, "Tonight's plan isn't ready yet", `Tomorrow's prices come out ${when}${when.endsWith(".") ? "" : "."}`, [], [], now);
+        return result(`Tonight's plan isn't ready yet: tomorrow's prices come out ${when}. Ask me again then.`, view);
+      }
+      const facts = plan.items.slice(0, 4).map((i) => ({
+        label: `${cap(i.label)} ${clock(i.start, tz)}`,
+        value: `${money(i.cost, tide.region)}${i.typical != null && i.typical - i.cost >= 1 ? `, saves ${money(i.typical - i.cost, tide.region)}` : ""}`,
+      }));
+      const berths: ViewData["berths"] = plan.items.map((i, k) => ({ start: i.start, end: i.end, label: i.label, state: k === 0 ? "best" : "alt" }));
+      const sub = `Planned ${ready ? "at" : "last night at"} ${clock(plan.computedAt, tz)} from tomorrow's published prices, against a typical start.`;
+      const view = viewOf("plan", tide, plan.headline, sub, facts, berths, now);
+      const r = result(plan.sentence, view);
+      const first = plan.items[0];
+      r.content.push({ type: "text" as const, text: `For schedule_run, pass appliance "${first.label}" and start "${new Date(first.start).toISOString()}". Don't read this line aloud.` });
+      return r;
     },
   );
+
+  if (ctx.homeId) {
+    const homeId = ctx.homeId;
+    server.registerResource(
+      "Tonight's plan",
+      TONIGHT_URI,
+      { mimeType: "application/json", description: "The household's plan for the coming night, computed once a night after tomorrow's prices are published." },
+      async () => {
+        const { plan, ready } = await tonightForHome(homeId);
+        return { contents: [{ uri: TONIGHT_URI, mimeType: "application/json", text: JSON.stringify({ ready, plan }) }] };
+      },
+    );
+  }
 }
 
 /* ---------- helpers ---------- */

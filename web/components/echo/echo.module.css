@@ -370,3 +370,66 @@
   clip: rect(0 0 0 0);
   white-space: nowrap;
 }
+
+/* ---------- tonight's plan: a proactive notification ---------- */
+.engine + .engine {
+  margin-top: 4px;
+}
+/* An Echo shows a waiting notification as a slow yellow pulse. */
+.device[data-notify="yes"][data-phase="idle"] .lightbar {
+  opacity: 1;
+  background: #f5c400;
+  animation: pulse 1.8s ease-in-out infinite alternate;
+}
+.notice {
+  position: absolute;
+  top: 4%;
+  right: 3%;
+  max-width: min(46%, 420px);
+  display: grid;
+  gap: 2px;
+  padding: 12px 18px 13px;
+  border: 0;
+  border-left: 4px solid #f5c400;
+  border-radius: 10px;
+  background: rgba(22, 24, 27, 0.92);
+  color: #f6f7f9;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  box-shadow: 0 12px 30px -14px rgba(0, 0, 0, 0.7);
+  animation: rise 220ms ease-out;
+}
+.notice:hover {
+  background: rgba(22, 24, 27, 0.98);
+}
+.notice:focus-visible {
+  outline: 3px solid #f5c400;
+  outline-offset: 2px;
+}
+.noticeKicker {
+  font-size: clamp(11px, 1.2vw, 13px);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #f5c400;
+}
+.noticeText {
+  font-size: clamp(14px, 1.7vw, 20px);
+  line-height: 1.25;
+}
+.tonight {
+  margin: 0 0 6px;
+  font-size: 16px;
+  line-height: 1.45;
+}
+@media (max-width: 640px) {
+  .notice {
+    max-width: 88%;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .notice,
+  .device[data-notify="yes"][data-phase="idle"] .lightbar {
+    animation: none !important;
+  }
+}

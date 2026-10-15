@@ -57,6 +57,7 @@ function route(u: string, history: Message[]): Call | null {
     if (!appliance && !ENERGY.test(u)) return { say: "There's nothing to save yet. Ask me when to run something first, like the dishwasher." };
   }
   if (/\b(sav(ed|ing|ings)|how much have i)\b/.test(u)) return { name: "get_savings", input: {} };
+  if (/\b(tonight'?s plan|plan (for )?tonight|what should i run tonight|anything (cheap )?(on )?tonight)\b/.test(u)) return { name: "get_tonight", input: {} };
   if (/\b(planned|scheduled|what'?s (on|coming)|my runs|reminders?|lined up)\b/.test(u)) return { name: "list_runs", input: {} };
   // "Is now a good time to use the dryer?" asks about now, not for a plan.
   if (/\b(is (it|now)|now) (a )?(good|bad|cheap|ok(ay)?) time\b|\bright now\b|\bat the moment\b|\b(cheap|expensive|dear) now\b/.test(u)) {

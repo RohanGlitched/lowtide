@@ -2,12 +2,18 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { CallToolResult } from "@modelcontextprotocol/client";
 import { callTool, connect, mountView, type Connection, type MountedView } from "@/lib/echo/host";
-import { canListen, listen, speak, stopSpeaking } from "@/lib/echo/voice";
+import { canListen, listen, speakAloud, stopSpeaking, type Spoken } from "@/lib/echo/voice";
 import type { Message, ToolSpec, TurnResponse } from "@/lib/alexa/types";
 import s from "./echo.module.css";
 
 type Phase = "connecting" | "idle" | "listening" | "thinking" | "speaking";
 type Line = { who: "you" | "alexa" | "tool" | "note"; text: string; engine?: string };
+interface Tonight {
+  headline: string;
+  sentence: string;
+  unusual: boolean;
+  night: string;
+}
 interface Household {
   id: string;
   place: string;
@@ -27,6 +33,7 @@ const SUGGESTIONS = [
   "When is electricity cheapest tonight?",
   "What have I got planned?",
   "How much have I saved?",
+  "What's the plan for tonight?",
 ];
 
 const ZONES: Record<string, string> = { GB: "Europe/London", US: "America/Chicago", DE: "Europe/Berlin" };
@@ -69,8 +76,12 @@ export default function Echo() {
   const [editing, setEditing] = useState(false);
   const [placeInput, setPlaceInput] = useState("");
   const [copied, setCopied] = useState(false);
+  const [voice, setVoice] = useState<Spoken & { configured?: boolean }>({ used: "none" });
+  const [tonight, setTonight] = useState<Tonight | null>(null);
+  const [tonightHeard, setTonightHeard] = useState(false);
 
-  const tz = ZONES[guessCountry(home?.region ?? "")];
+  const country = guessCountry(home?.region ?? "");
+  const tz = ZONES[country];
   const say = (l: Line) => setLog((xs) => [...xs.slice(-60), l]);
 
   // The Echo's screen is a dark instrument, whatever the page around it.
@@ -131,6 +142,15 @@ export default function Echo() {
         }
         await show("get_tide", {}, tide);
         setPhase("idle");
+        // The proactive card: tonight's plan, computed once a night after tomorrow's prices are out.
+        setTonight(null);
+        setTonightHeard(false);
+        fetch(`/api/tonight?home=${encodeURIComponent(h.id)}`)
+          .then((r) => (r.ok ? r.json() : null))
+          .then((j) => {
+            if (j?.card) setTonight(j.card as Tonight);
+          })
+          .catch(() => {});
       } catch (e) {
         setSetupError(e instanceof Error ? e.message : String(e));
         setEditing(true);
@@ -145,6 +165,10 @@ export default function Echo() {
     fetch("/api/alexa")
       .then((r) => r.json())
       .then((j) => setEngine({ engine: j.engine, model: j.model }))
+      .catch(() => {});
+    fetch("/api/speak")
+      .then((r) => r.json())
+      .then((j) => setVoice((v) => ({ ...v, configured: j.engine === "polly" })))
       .catch(() => {});
     setup(DEFAULT_PLACE, false);
     const mq = matchMedia("(prefers-color-scheme: dark)");
@@ -219,7 +243,8 @@ export default function Echo() {
           setCaption({ who: "alexa", text: reply });
           setPhase("speaking");
           finished = true;
-          await speak(reply, "en-GB", muted);
+          const spoken = await speakAloud(reply, country, muted, voice.configured !== false);
+          if (spoken.used !== "none") setVoice((v) => ({ ...spoken, configured: v.configured }));
           break;
         }
         if (!finished) {
@@ -237,8 +262,22 @@ export default function Echo() {
         captionTimer.current = setTimeout(() => setCaption((cur) => (cur?.who === "alexa" ? null : cur)), 7000);
       }
     },
-    [home?.place, muted, show, tz],
+    [home?.place, muted, show, tz, country, voice.configured],
   );
+
+  /** Reads tonight's card aloud, the way an Echo reads a notification when you ask for it. */
+  const hearTonight = useCallback(async () => {
+    if (!tonight || phase !== "idle") return;
+    setTonightHeard(true);
+    say({ who: "alexa", text: tonight.sentence, engine: "notification" });
+    setCaption({ who: "alexa", text: tonight.sentence });
+    setPhase("speaking");
+    const spoken = await speakAloud(tonight.sentence, country, muted, voice.configured !== false);
+    if (spoken.used !== "none") setVoice((v) => ({ ...spoken, configured: v.configured }));
+    setPhase("idle");
+    if (captionTimer.current) clearTimeout(captionTimer.current);
+    captionTimer.current = setTimeout(() => setCaption((cur) => (cur?.who === "alexa" ? null : cur)), 7000);
+  }, [country, muted, phase, tonight, voice.configured]);
 
   const talk = useCallback(async () => {
     if (phase === "listening") {
@@ -285,11 +324,17 @@ export default function Echo() {
   return (
     <div className={s.wrap}>
       <section className={s.stage} aria-label="Simulated Echo Show">
-        <div className={s.device} data-phase={phase}>
+        <div className={s.device} data-phase={phase} data-notify={tonight && !tonightHeard ? "yes" : undefined}>
           <span className={s.camera} aria-hidden />
           <div className={s.screen}>
             <div ref={screen} className={s.view} />
             {phase === "connecting" && <p className={s.boot}>Connecting to Lowtide…</p>}
+            {tonight && !tonightHeard && phase === "idle" && !caption && (
+              <button type="button" className={s.notice} onClick={hearTonight} aria-label={`Notification: ${tonight.headline}. Press to hear it.`}>
+                <span className={s.noticeKicker}>{tonight.unusual ? "Tonight · unusually cheap" : "Tonight's plan"}</span>
+                <span className={s.noticeText}>{tonight.headline.replace(/^Tonight is unusually cheap: /, "").replace(/^Tonight: /, "")}</span>
+              </button>
+            )}
             <p className={s.caption} data-who={caption?.who ?? "alexa"} aria-live="polite" hidden={!(caption && (caption.text || phase === "listening"))}>
               {caption ? (caption.who === "you" ? (caption.text ? `“${caption.text}”` : "Listening…") : caption.text) : ""}
             </p>
@@ -371,6 +416,32 @@ export default function Echo() {
                 ? "Understanding: Lowtide's built-in phrase router (the Bedrock model isn't reachable right now)"
                 : " "}
           </p>
+          <p className={s.engine}>
+            {voice.used === "polly"
+              ? `Voice: ${voice.voice ?? "Amazon Polly"} (neural)`
+              : voice.used === "browser"
+                ? voice.configured
+                  ? "Voice: your browser's speech (Amazon Polly isn't reachable right now)"
+                  : "Voice: your browser's speech"
+                : voice.configured
+                  ? "Voice: Amazon Polly (neural)"
+                  : " "}
+          </p>
+        </div>
+
+        <div className={s.block}>
+          <h2>Tonight</h2>
+          {tonight ? (
+            <>
+              <p className={s.tonight}>{tonight.sentence}</p>
+              <button type="button" className={s.link} onClick={hearTonight} disabled={phase !== "idle"}>
+                Hear it on the Echo
+              </button>
+              <p className={s.muted}>Planned once a night from tomorrow&apos;s published prices, for the appliances this household uses, and kept with the household.</p>
+            </>
+          ) : (
+            <p className={s.muted}>Tomorrow&apos;s prices come out in the afternoon (Octopus Agile: about 4 p.m. UK time). After that, Lowtide plans tonight for this household and the Echo shows it here.</p>
+          )}
         </div>
 
         <div className={s.block}>
