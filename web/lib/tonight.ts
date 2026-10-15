@@ -8,9 +8,10 @@ import { loadHome, updateHome, type HomeState } from "./store";
 import { storage } from "./storage";
 
 /**
- * "Tonight's plan", without a scheduler. EventBridge and Lambda schedules are denied to this account's deploy
- * user, so the nightly job runs lazily: the first request after tomorrow's prices are published (Octopus Agile
- * lands around 16:00 UK time) computes each household's plan for the coming night once and stores it in the
+ * "Tonight's plan". Amazon EventBridge Scheduler runs the roll to the end at 16:45 and 18:30 London time, after
+ * Octopus Agile publishes tomorrow's prices (around 16:00 UK time; see lib/scheduled.ts). The same roll is also the
+ * lazy fallback: the first request after the prices are published computes that household's plan for the coming
+ * night once, and each request takes one bounded step through the others. Either way the plan is stored in the
  * household's own S3 object, written with If-Match like every other update. Asking again the same night reads
  * the stored plan; a second instance racing the first sees the night already written and leaves it.
  *
