@@ -138,7 +138,11 @@ def content_type(f: Path) -> str:
 # ───────────────────────── template checks (no AWS) ─────────────────────────
 
 def load_template() -> dict:
-    import yaml
+    try:
+        import yaml
+    except ImportError:
+        print("PyYAML isn't installed: skipping the offline template check (CloudFormation still validates it)")
+        return None
 
     class Loader(yaml.SafeLoader):
         pass
@@ -325,7 +329,9 @@ def main():
     if a.region != REGION:
         raise SystemExit(f"the organisation allows only {REGION}")
 
-    check_template(load_template())
+    t = load_template()
+    if t:
+        check_template(t)
 
     if a.dry_run:
         site = a.site_url or PLACEHOLDER_SITE
