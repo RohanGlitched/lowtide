@@ -24,9 +24,11 @@ and plans the dishwasher, the washing, the hot water and the car for the cheapes
 
 ## The problem
 
-Millions of homes now pay a different price for electricity every half hour: Octopus Agile in Britain, ComEd Hourly Pricing in Illinois, dynamic tariffs across Germany. The same dishwasher cycle can cost 9p at one in the morning and 43p at six in the evening, and the grid is often half as dirty at night. But nobody reads a price table while loading the dishwasher.
+Millions of homes now pay a different price for electricity every half hour: Octopus Agile in Britain, ComEd Hourly Pricing in Illinois, and dynamic tariffs in Germany, where every supplier has had to offer one to smart-meter customers since 1 January 2025 ([EnWG §41a](https://www.gesetze-im-internet.de/enwg_2005/__41a.html)). Britain is moving every meter to half-hourly settlement, and suppliers must finish by 7 May 2027 ([Ofgem, P487 decision](https://www.ofgem.gov.uk/sites/default/files/2026-05/decision-to-approve-BSC-P487-Incentive-on-BSC-Supplier-Parties-to-meet-the-M15-MHHS-Milestone.pdf)).
 
-The question is always the same, and it's asked in the kitchen with your hands full: **"When should I run it?"** That's a voice question. Lowtide is the answer.
+The money is in the big loads. On 15 October 2026 in London, charging a car (22 kWh) at Agile's cheapest time cost **£4.25 instead of £7.30** at a typical time of day, and heating a 6 kWh hot-water cylinder cost **£1.16 instead of £1.97**. Twice a week for the car and daily for the water, that is about **£610 a year from two habits** if every day were like that one. The baseline is a typical start (the average of every start time in the next 24 hours), not the evening peak; [`web/scripts/impact.ts`](web/scripts/impact.ts) prints today's figures for any postcode. The grid gains too: the car is 7.3 kW of load moved out of the evening, the immersion heater 3 kW.
+
+But nobody reads a price table while plugging in the car or loading the dishwasher. The question is always the same, and it's asked out loud with your hands full: **"When should I run it?"** That's a voice question. Lowtide is the answer.
 
 ## What it does
 
@@ -130,7 +132,7 @@ Every tool returns a **voice-ready sentence** first (times said the way people s
 - **Never stuck.** If Bedrock is unavailable or the daily budget is spent, the simulator falls back to a deterministic phrase router that calls the same tools, and the tools' own sentences are spoken. The page says which one is answering, from a real probe, not from whether a key is set.
 - **A chain of models.** The server asks for Amazon Nova Micro first, the cheapest Bedrock model with tool use, through the Asia Pacific inference profile in Sydney; if the account can't call it (model access, an organisation policy, a region rule), it tries Nova Lite and remembers what worked. Nova's `<thinking>` text is stripped, so Alexa never reads it aloud.
 - **Signed requests, no SDK.** Bedrock and S3 are both called with SigV4-signed requests written in a few lines of `node:crypto`. Each has its own IAM user with one inline policy: `lowtide-bedrock` may call `InvokeModel` on Nova Micro and Nova Lite, `lowtide-store` may read, write and list one bucket. Nothing else, nowhere else.
-- **Bounded cost.** The model route answers only its own pages, checks every message shape, and caps calls at 40 per visitor per 10 minutes and 250 per visitor per day (per server instance), plus 1,500 a day in all (a count shared through Blob storage, synced every 20 calls and on every call once 80% is spent).
+- **Bounded cost.** The model route answers only its own pages, checks every message shape, and caps calls at 40 per visitor per 10 minutes and 250 per visitor per day (per server instance), plus 1,500 a day in all (a count shared through the S3 store, synced every 20 calls and on every call once 80% is spent). The same-origin check stops casual reuse but is not authentication, so the caps are the real guard.
 
 ## Engineering notes
 
@@ -138,7 +140,9 @@ Every tool returns a **voice-ready sentence** first (times said the way people s
 - **MCP Apps:** the `ui://lowtide/tide-chart.html` resource is one self-contained HTML file (esbuild), using `@modelcontextprotocol/ext-apps`. The Echo simulator hosts it in an opaque-origin sandboxed iframe through `AppBridge`, the same protocol Claude and ChatGPT use.
 - **Prices:** Agile rates by region letter (postcode → grid supply point), NESO regional carbon by region id, ComEd's day-ahead feed parsed from Chicago wall-clock time, aWATTar EUR/MWh → ct/kWh. Feeds are cached two minutes and fail one at a time.
 - **Planner:** every half-hour start that finishes in time is priced by spreading the load evenly over the slots it covers (partial slots included); "balanced" normalises cost and carbon distance from each optimum. Negative prices count as a credit.
-- **Storage:** one JSON object per household in a private Amazon S3 bucket in Sydney, the same region as Bedrock, with all public access blocked. Every update is a read-modify-write guarded by S3's `If-Match` on the object's ETag, so two quick saves from two devices can't silently overwrite each other; a conflict re-reads and retries with backoff, and one that still conflicts says "try again" rather than overwriting. The store sits behind a small interface (`web/lib/storage.ts`) with Google Cloud Storage and Vercel Blob as alternatives; Lowtide started on Blob and moved to S3 when the Hobby account's shared monthly Blob allowance ran out mid-judging and took every household with it. On S3 the whole thing costs cents: 130-byte objects, a few thousand requests a month.
+- **Storage:** one JSON object per household in a private Amazon S3 bucket in Sydney, the same region as Bedrock, with all public access blocked. Every update is a read-modify-write guarded by S3's `If-Match` on the object's ETag, so two quick saves from two devices can't silently overwrite each other; a conflict re-reads and retries with backoff, and one that still conflicts says "try again" rather than overwriting. The store sits behind a small interface (`web/lib/storage.ts`) with Google Cloud Storage and Vercel Blob as alternatives; Lowtide started on Blob and moved to S3 when the Hobby account's shared monthly Blob allowance ran out during the submission period and took every household with it. On S3 the whole thing costs cents: 130-byte objects, a few thousand requests a month.
+- **Households are capability links, not accounts (a deliberate choice).** A household is `/api/mcp/h/<id>`, ten random base-32 characters (about 50 bits), and holds only a place and its planned runs: no name required, no address, no payment details. Alexa+ account linking isn't open to outside developers for MCP integrations yet, and a link works in every MCP host today. The production path is the MCP specification's authorization flow (OAuth 2.1 with PKCE, Lowtide as a protected resource), with the energy supplier as the identity provider, so a household signs in once with the account it already has.
+- **Savings are quoted against a typical start.** Every saving on the website compares the cheapest start with the average of every start time in the next 24 hours (`typicalCost` in `web/lib/plan.ts`), not with the evening peak, and the page says so. The voice tools compare with starting now, and say that too.
 - **Performance:** the 3D object renders on demand (static shadow map, 30 fps idle turn, paused off screen), compiles shaders asynchronously, and mounts in idle time.
 
 ## Proof
@@ -160,7 +164,7 @@ Every tool returns a **voice-ready sentence** first (times said the way people s
 cd web
 npm install
 npm run dev          # builds the MCP App view, then starts Next.js
-npm test             # 70 tests: planner, clocks, places, the phrase router, the tool handlers, the routes
+npm test             # 71 tests: planner, clocks, places, the phrase router, the tool handlers, the routes
 node scripts/mcp-smoke.mjs http://localhost:3000
 ```
 
@@ -171,6 +175,10 @@ Optional environment (see [`web/.env.example`](web/.env.example)): `S3_BUCKET` +
 - Matter smart plugs and appliance APIs, so a confirmed plan can start the machine itself.
 - More tariffs: Octopus Go and Intelligent, PG&E time-of-use, Tibber; and WattTime carbon for the US.
 - Proactive notifications on the Echo when tonight's prices land ("tonight is unusually cheap, run the dryer").
+
+## Who pays
+
+The household keeps the saving, but the natural buyer is the energy supplier. Suppliers with time-of-use tariffs need load moved out of the evening peak, and Britain already pays for it: the National Energy System Operator's Demand Flexibility Service had 2.46 million households and businesses signed up by March 2026, and since then the service also covers turning demand *up* when power is plentiful, not only down ([NESO, 25 March 2026](https://www.neso.energy/neso-announces-shakeup-new-look-demand-flexibility-service)). In winter 2024/25 it shifted 3,917.7 MWh and paid £943,983 to providers ([NESO](https://www.neso.energy/nearly-2-million-households-and-businesses-registered-demand-flexibility-service-dfs-last-winter)). NESO pays the providers, and each provider decides how to reward its customers. Alexa+ MCP integrations are open to brands, so the route to market is a supplier-branded Lowtide: the supplier's tariff and flexibility events in, one spoken sentence and a screen out, at the moment someone is standing at the machine.
 
 ## Feedback for the Amazon teams
 

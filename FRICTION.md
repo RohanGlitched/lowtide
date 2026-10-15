@@ -8,7 +8,7 @@ Kept while building Lowtide (October 2026). Each entry: task attempted, steps ta
 - **Expected:** A developer sandbox (even preview-only) where an outside developer can add a Streamable HTTP URL and talk to it in the Alexa app or on a test Echo.
 - **Actual:** Alexa+ MCP integrations are in preview for brands only; there is no path for outside developers to connect or test a server on a real device.
 - **Severity:** High (blocks testing on the target platform).
-- **Workaround used:** Built an Echo Show simulator: a real MCP host in the browser (MCP client + MCP Apps AppBridge) with Claude Haiku 4.5 on Amazon Bedrock as the model, then open-sourced it as [Countertop](https://github.com/RohanGlitched/countertop).
+- **Workaround used:** Built an Echo Show simulator: a real MCP host in the browser (MCP client + MCP Apps AppBridge) with a model on Amazon Bedrock (Claude Haiku 4.5 at first, Amazon Nova Micro since October 7), then open-sourced it as [Countertop](https://github.com/RohanGlitched/countertop).
 - **Actionable suggestion:** Offer an Alexa+ developer sandbox that accepts a Streamable HTTP URL and plays it in the Alexa app or on a test device, with MCP Apps rendered on Echo Show screens.
 
 ## 2. Knowing which MCP version and extensions Alexa+ supports
@@ -83,3 +83,29 @@ Kept while building Lowtide (October 2026). Each entry: task attempted, steps ta
 - **Workaround used:** Signed requests with SigV4 (a few lines of `node:crypto`), an IAM user that may only call `bedrock:InvokeModel` on Amazon Nova Micro and Nova Lite, and the APAC inference profile in ap-southeast-2. Nova Micro is also the cheapest Bedrock model with tool use.
 - **Actionable suggestion:** In the Bedrock API key docs and in the error text, say that `bedrock:CallWithBearerToken` can be denied by an SCP and that SigV4 credentials still work; a console check ("API keys are blocked for this account") would save the hunt.
 
+## 10. Keyless access from Vercel blocked by an organisation policy
+- **Task attempted:** Give the Vercel functions access to Lowtide's Amazon S3 bucket without a long-lived key, by trusting Vercel's OIDC issuer from an IAM role (AssumeRoleWithWebIdentity), the pattern we already use for Google Cloud.
+- **Steps taken:** Wrote the federation path (`web/lib/storage.ts` exchanges the function's Vercel OIDC token at the regional STS endpoint), then tried to create the IAM OIDC identity provider for Vercel's issuer in the account.
+- **Expected:** An OIDC provider and a role whose trust policy names this one Vercel project, so no access key exists anywhere.
+- **Actual:** The organisation's service control policy denies creating IAM OIDC providers, so the keyless path can't be set up in this account. The refusal is an explicit deny from the organisation, which a member account can't change.
+- **Severity:** Medium (forced a static access key onto a third-party host).
+- **Workaround used:** An IAM user, `lowtide-store`, with one inline policy (get, put and delete objects in one bucket, and list that bucket), its key stored as a sensitive Vercel variable, and a note to rotate it after judging. The keyless code path stays in the repo for accounts that allow it.
+- **Actionable suggestion:** In the IAM console, show when an SCP blocks identity-provider creation before the form is filled in, and suggest an allowed alternative (for example, IAM Roles Anywhere or a request to the organisation's administrator) in the error.
+
+## 11. S3 conditional writes: two different answers for "someone else wrote first"
+- **Task attempted:** Make every household update a safe read-modify-write: read the JSON object, change it, and write it back only if nobody else changed it in between (`If-Match` on the ETag).
+- **Steps taken:** Moved storage from Vercel Blob to S3 and sent `PutObject` with `If-Match` from SigV4-signed requests.
+- **Expected:** One status code for a lost race, so one retry path.
+- **Actual:** S3 answers `412 Precondition Failed` when the ETag no longer matches, and `409 ConditionalRequestConflict` when a conflicting write is still in flight, and the PutObject reference gives different advice for each (re-read and recompute, or fetch the ETag and retry). A client that only handles 412, the code most HTTP libraries treat as "precondition failed", can surface a 409 to the user as a hard error.
+- **Severity:** Low (documented, but easy to miss).
+- **Workaround used:** Treat 412 and 409 the same way: re-read the object, re-apply the change and retry with backoff, and after five tries tell the person to try again rather than overwrite (`web/lib/store.ts`, `web/lib/storage.ts`).
+- **Actionable suggestion:** Put one "conditional update with retry" example in the S3 user guide that handles both codes, or offer a single retryable code for both cases.
+
+## 12. Amazon Nova's reasoning text in the spoken answer
+- **Task attempted:** Use Amazon Nova Micro through the Converse API as the Echo simulator's model and speak its text blocks aloud.
+- **Steps taken:** Switched the model from Claude Haiku 4.5 to Nova Micro with the same tool list and system prompt.
+- **Expected:** Text content blocks that hold only the answer, with any reasoning kept out of them (or in its own block type).
+- **Actual:** In tool-use turns Nova Micro sometimes writes its reasoning inside `<thinking>…</thinking>` in the same text block as the answer, so the simulated Alexa would have read its reasoning out loud. It also tended to repeat phrases from the system prompt back to the user.
+- **Severity:** Medium for a voice product (reasoning read aloud sounds broken).
+- **Workaround used:** Strip `<thinking>` blocks (closed or not) before anything is spoken, drop text blocks left empty, and tighten the system prompt (`web/lib/alexa/bedrock.ts`).
+- **Actionable suggestion:** Return Nova's reasoning in a separate `reasoningContent` block in Converse, as other reasoning models on Bedrock do, or add an option to leave it out, and document in the Nova tool-use guide that text blocks can contain `<thinking>` tags.
