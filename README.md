@@ -159,7 +159,7 @@ Every tool returns a **voice-ready sentence** first (times said the way people s
 | The Echo flow works on desktop and phone with no console errors | [`web/scripts/e2e.cjs`](web/scripts/e2e.cjs) |
 | `schedule_run` asks through MCP elicitation when the client can show a form, saves nothing on "decline", and keeps the spoken yes for clients that can't (real SDK client, in-process) | [`web/test/elicit.test.ts`](web/test/elicit.test.ts), live: [`web/scripts/elicit-smoke.mjs`](web/scripts/elicit-smoke.mjs) |
 | Savings are quoted against a typical start, not the peak | [`web/test/plan.test.ts`](web/test/plan.test.ts) (`typicalCost`), live figures: [`web/scripts/impact.ts`](web/scripts/impact.ts) |
-| Latency, measured on 15 October 2026 from India over three full conversations: each Bedrock call 0.8–1.2 s (one cold start 2.3 s), a read-only tool 0.5 s, `schedule_run` 1.3–1.4 s (S3 read plus conditional write in Sydney); a whole answered question 2.5–3.5 s | [`web/scripts/alexa-turn.mjs`](web/scripts/alexa-turn.mjs) |
+| Latency, measured on 15 October 2026 from India over three full conversations: each Bedrock call 0.8–1.2 s (one cold start 2.3 s), a read-only tool 0.5 s, `schedule_run` 1.3–1.4 s (S3 read plus conditional write in Sydney); a whole answered question (two model calls and a tool) 2.5–3.6 s, 3.8 s with the cold start | [`web/scripts/alexa-turn.mjs`](web/scripts/alexa-turn.mjs) |
 
 ## Run it
 
