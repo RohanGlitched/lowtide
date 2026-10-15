@@ -288,7 +288,7 @@ export function registerLowtide(server: McpServer, ctx: Ctx) {
       });
       const upcoming = next.runs.filter((r) => r.status === "planned" && r.end > now).sort((a, b) => a.start - b.start);
       const headline = `${cap(app.name)} at ${clock(run.start, tz)}`;
-      const sub = `Saved for ${clock(run.start, tz)} ${dayPart(run.start, now, tz)}${saved.costIfNow != null ? `, saving ${money(saved.costIfNow - saved.cost, tide.region)} on starting now` : ""}. Set the delay start, or ask me what's planned.`;
+      const sub = `Saved for ${clock(run.start, tz)} ${dayPart(run.start, now, tz)}${saved.costIfNow == null ? "" : saved.costIfNow - saved.cost >= 0.5 ? `, saving ${money(saved.costIfNow - saved.cost, tide.region)} on starting now` : saved.costIfNow - saved.cost <= -0.5 ? `, ${money(saved.cost - saved.costIfNow, tide.region)} more than starting now` : ""}. Set the delay start, or ask me what's planned.`;
       const berths = upcoming.map((r) => ({ start: r.start, end: r.end, label: r.label, state: r.id === saved.id ? ("best" as const) : ("planned" as const) }));
       const view = viewOf("scheduled", tide, headline, sub, runFacts(tide, saved), berths, now);
       const spoken = `Saved. ${cap(app.action)} ${dayPart(run.start, now, tz)} at ${spokenTime(run.start, tz)}.${saved.costIfNow != null && saved.costIfNow - saved.cost >= 1 ? ` That saves ${moneySpoken(saved.costIfNow - saved.cost, tide.region)}.` : ""}`;
@@ -571,12 +571,32 @@ function greenFact(tide: Tide) {
   return [{ label: "Cleanest", value: `${clock(g.start, tide.region.timeZone)}, ${g.carbon} g/kWh` }];
 }
 
+/** How much less carbon `pick` emits than starting now, in whole percent; null without both forecasts. */
+function carbonCut(nowRun: Run | null, pick: Run): number | null {
+  if (!nowRun || nowRun.carbon == null || pick.carbon == null || nowRun.carbon <= 0 || nowRun.start === pick.start) return null;
+  if (pick.carbon >= nowRun.carbon) return null; // not cleaner: nothing to claim
+  return Math.max(0, Math.round((1 - pick.carbon / nowRun.carbon) * 100));
+}
+
 export function planResult(tide: Tide, app: Appliance, plan: Plan, now: number) {
   const tz = tide.region.timeZone;
   const b = plan.best;
   const startsNow = b.start - now < 5 * 60_000;
+  // Which goal actually decided the start: greenest and balanced fall back to price where no carbon is published.
+  const green = plan.goal !== "cheapest" && plan.greenest !== null;
+  // Against starting now: positive is a saving, negative means the pick costs more (only a greener goal does that).
+  const vsNowCost = plan.now && !startsNow ? plan.now.cost - b.cost : 0;
+  const cut = carbonCut(plan.now, b);
   const headline = startsNow ? `${cap(app.action)} now` : `${cap(app.action)} at ${clock(b.start, tz)}`;
-  const vsNow = plan.now && !startsNow ? `, ${money(b.cost, tide.region)} instead of ${money(plan.now.cost, tide.region)} now` : `, ${money(b.cost, tide.region)}`;
+  const m = (x: number) => money(x, tide.region);
+  const vsNow =
+    !plan.now || startsNow
+      ? `, ${m(b.cost)}`
+      : vsNowCost >= 0.5
+        ? `, ${m(b.cost)} instead of ${m(plan.now.cost)} now${green && cut !== null ? `, ${cut >= 1 ? `${cut}%` : "a little"} less CO₂` : ""}`
+        : vsNowCost <= -0.5
+          ? `, ${m(b.cost)}: ${m(-vsNowCost)} more than now${cut !== null ? ` for ${cut >= 1 ? `${cut}%` : "a little"} less CO₂` : ""}`
+          : `, ${m(b.cost)}, about the same as now`;
   const sub = `${duration(plan.minutes)}, done by ${clock(b.end, tz)}${vsNow}.`;
   const facts = [
     { label: "Start", value: `${clock(b.start, tz)} ${dayPart(b.start, now, tz)}` },
@@ -590,13 +610,29 @@ export function planResult(tide: Tide, app: Appliance, plan: Plan, now: number) 
     berths.push({ start: plan.greenest.start, end: plan.greenest.end, label: "greenest", state: "alt" });
   }
   const view = viewOf("plan", tide, headline, sub, facts, berths, now);
-  const saving = plan.now ? plan.now.cost - b.cost : 0;
-  let spoken = startsNow
-    ? `Now's the cheapest time to ${app.action}: about ${moneySpoken(b.cost, tide.region)}.`
-    : `${cap(app.action)} ${dayPart(b.start, now, tz)} at ${spokenTime(b.start, tz)}. It costs about ${moneySpoken(b.cost, tide.region)}${saving >= 1 ? `, ${moneySpoken(saving, tide.region)} less than starting now` : ""}.`;
+  const say = (x: number) => moneySpoken(x, tide.region);
+  const less = cut === null ? "" : cut >= 1 ? `${cut}% less carbon` : "a little less carbon";
+  let spoken: string;
+  if (startsNow) {
+    const why = !green ? "the cheapest" : plan.goal === "greenest" ? "the cleanest" : "the best balance of price and carbon";
+    spoken = `Now's ${why} time to ${app.action}: about ${say(b.cost)}.`;
+  } else {
+    const why = !green ? "" : plan.goal === "greenest" ? ", the cleanest start" : ", the best balance of price and carbon";
+    let cost = `It costs about ${say(b.cost)}`;
+    if (vsNowCost >= 1) cost += `, ${say(vsNowCost)} less than starting now${green && cut !== null ? `, with ${less}` : ""}`;
+    else if (vsNowCost <= -1) cost += `, about ${say(-vsNowCost)} more than starting now${cut !== null ? `, but ${less}` : ""}`;
+    else if (plan.now && green && cut !== null) cost += `, about the same as starting now, with ${less}`;
+    spoken = `${cap(app.action)} ${dayPart(b.start, now, tz)} at ${spokenTime(b.start, tz)}${why}. ${cost}.`;
+  }
   if (plan.greenest && plan.goal === "cheapest" && plan.greenest.start !== b.start && b.carbon != null) {
     spoken += ` The cleanest start would be ${spokenTime(plan.greenest.start, tz)}.`;
   }
+  // A greener pick that costs noticeably more than the cheapest start: say what the cheapest would have been.
+  if (green && plan.cheapest.start !== b.start && b.cost - plan.cheapest.cost >= 1) {
+    const at = plan.now && plan.cheapest.start === plan.now.start ? "now" : `at ${spokenTime(plan.cheapest.start, tz)}`;
+    if (!(at === "now" && vsNowCost <= -1)) spoken += ` The cheapest start is ${at}, ${say(b.cost - plan.cheapest.cost)} less.`;
+  }
+  if (plan.goal !== "cheapest" && !plan.greenest) spoken += " There's no carbon forecast here, so I went by price.";
   const r = result(spoken, view);
   r.content.push({ type: "text" as const, text: `For schedule_run, pass start "${new Date(b.start).toISOString()}" and minutes ${plan.minutes}. Don't read this line aloud.` });
   return r;
@@ -608,7 +644,9 @@ function runFacts(tide: Tide, r: ScheduledRun) {
     { label: "Start", value: clock(r.start, tz) },
     { label: "Done by", value: clock(r.end, tz) },
     { label: "Cost", value: money(r.cost, tide.region) },
-    ...(r.costIfNow != null ? [{ label: "Saving", value: money(r.costIfNow - r.cost, tide.region) }] : []),
+    ...(r.costIfNow != null
+      ? [r.costIfNow - r.cost >= 0 ? { label: "Saving", value: money(r.costIfNow - r.cost, tide.region) } : { label: "More than now", value: money(r.cost - r.costIfNow, tide.region) }]
+      : []),
   ];
 }
 

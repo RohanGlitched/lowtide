@@ -102,6 +102,10 @@ export function planRun(
   }
 
   const nowRun = earliest - now < 60_000 ? costRun(slots, now, opts.minutes, opts.kwh) : null;
+  // Asked for the cheapest time, never send someone to wait for a start that costs the same or more than
+  // starting now: within half a penny (or cent) of now, now wins. Greener goals may cost more than now;
+  // planResult says so out loud.
+  if (nowRun && (goal === "cheapest" || !greenest) && nowRun.cost - best.cost < 0.5) best = nowRun;
   return {
     best,
     now: nowRun,

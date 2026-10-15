@@ -81,7 +81,7 @@ export default async function Home() {
                   <p className={s.screenHead}>Run the dishwasher at {clock(plan.best.start, tide.region.timeZone)}</p>
                   <p className={s.screenSub}>
                     {money(plan.best.cost, tide.region)}
-                    {plan.now ? ` instead of ${money(plan.now.cost, tide.region)} now` : ""}
+                    {plan.now && plan.best.start !== plan.now.start && plan.now.cost - plan.best.cost >= 0.5 ? ` instead of ${money(plan.now.cost, tide.region)} now` : ""}
                   </p>
                 </div>
               </div>
