@@ -1,28 +1,30 @@
+import { timingSafeEqual } from "node:crypto";
 import { rollTonight } from "./tonight";
 import { log } from "./log";
 
 /**
  * The scheduled side of tonight's plan. Amazon EventBridge Scheduler invokes the Lambda function twice each
  * evening (16:45 and 18:30 London time, after Octopus publishes tomorrow's Agile prices); the Lambda Web Adapter
- * hands that non-HTTP event to this app as a POST to /events from 127.0.0.1. The job walks every saved household
+ * hands that non-HTTP event to this app as a POST to /events. The job walks every saved household
  * with the same idempotent roll ordinary requests take a step of (the lazy fallback), until it is done or the
  * time budget runs out, and logs one JSON summary line for CloudWatch.
  */
 export const SCHEDULE_EVENT = { source: "lowtide.schedule", job: "tonight" } as const;
 
-// Headers a request picks up on the way in from outside: CloudFront, the Function URL front end, any proxy.
-const OUTSIDE = ["x-forwarded-host", "x-forwarded-for", "x-forwarded-proto", "forwarded", "via", "x-amz-cf-id", "cloudfront-viewer-address", "cloudfront-forwarded-proto"];
-const LOCAL_HOST = /^(127\.0\.0\.1|localhost|\[::1\])(:\d+)?$/i;
-
 /**
- * Whether a request is the adapter's local pass-through call, and nothing a visitor could send: addressed to
- * the loopback host, with none of the forwarding headers CloudFront or a Function URL add. Returns the reason
- * when it isn't.
+ * Whether a parsed /events body really came from our schedule. Next.js adds forwarding headers to every request
+ * it serves, the adapter's loopback call included, so headers can't tell the schedule from a visitor. Instead each
+ * deploy generates a random token that only two places hold: the function's environment (SCHEDULE_TOKEN) and the
+ * schedule's event Input. CloudFront doesn't route /events at all; this guards the Function URL. Returns the
+ * reason when the token is missing or wrong.
  */
-export function scheduledGuard(headers: Headers): string | null {
-  const host = headers.get("host") ?? "";
-  if (!LOCAL_HOST.test(host)) return "not the local pass-through";
-  for (const h of OUTSIDE) if (headers.has(h)) return `arrived through ${h}`;
+export function scheduledGuard(body: unknown, expected: string = process.env.SCHEDULE_TOKEN ?? ""): string | null {
+  if (expected.length < 16) return "no schedule token configured";
+  const got = (body as Record<string, unknown> | null)?.token;
+  if (typeof got !== "string") return "no token";
+  const x = Buffer.from(got);
+  const y = Buffer.from(expected);
+  if (x.length !== y.length || !timingSafeEqual(x, y)) return "wrong token";
   return null;
 }
 

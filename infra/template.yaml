@@ -54,6 +54,11 @@ Parameters:
     Type: String
     Default: ""
     Description: Optional address that gets the error alarm by email (an SNS topic; confirm the subscription)
+  ScheduleToken:
+    Type: String
+    NoEcho: true
+    Default: ""
+    Description: Random per-deploy token the schedule sends and /events checks (deploy.py generates it)
   NightlySchedule:
     Type: String
     Default: "true"
@@ -159,6 +164,7 @@ Resources:
           AWS_LWA_READINESS_CHECK_PATH: /api/health
           # non-HTTP invocations (the nightly schedule) arrive as a POST from 127.0.0.1 to this path
           AWS_LWA_PASS_THROUGH_PATH: /events
+          SCHEDULE_TOKEN: !Ref ScheduleToken
           PORT: "8080"
           NODE_ENV: production
           NEXT_TELEMETRY_DISABLED: "1"
@@ -234,7 +240,7 @@ Resources:
       Target:
         Arn: !GetAtt Fn.Arn
         RoleArn: !GetAtt SchedulerRole.Arn
-        Input: '{"source":"lowtide.schedule","job":"tonight"}'
+        Input: !Sub '{"source":"lowtide.schedule","job":"tonight","token":"${ScheduleToken}"}'
         RetryPolicy: { MaximumRetryAttempts: 2, MaximumEventAgeInSeconds: 3600 }
 
   TonightLate:
@@ -251,7 +257,7 @@ Resources:
       Target:
         Arn: !GetAtt Fn.Arn
         RoleArn: !GetAtt SchedulerRole.Arn
-        Input: '{"source":"lowtide.schedule","job":"tonight"}'
+        Input: !Sub '{"source":"lowtide.schedule","job":"tonight","token":"${ScheduleToken}"}'
         RetryPolicy: { MaximumRetryAttempts: 2, MaximumEventAgeInSeconds: 3600 }
 
   AlarmTopic:

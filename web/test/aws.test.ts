@@ -347,24 +347,22 @@ test("tonight: the phrase router sends 'what's the plan for tonight' to get_toni
 
 const scheduled = await import("../lib/scheduled");
 const eventsRoute = await import("../app/events/route");
-const SCHEDULE_BODY = JSON.stringify({ source: "lowtide.schedule", job: "tonight" });
+const TOKEN = "t".repeat(43);
+process.env.SCHEDULE_TOKEN = TOKEN;
+const SCHEDULE_BODY = JSON.stringify({ source: "lowtide.schedule", job: "tonight", token: TOKEN });
 
-test("schedule: /events takes only the Web Adapter's loopback pass-through, never a request through CloudFront or the Function URL", async () => {
-  const h = (o: Record<string, string>) => new Headers(o);
-  assert.equal(scheduled.scheduledGuard(h({ host: "127.0.0.1:8080", "content-type": "application/json" })), null);
-  assert.equal(scheduled.scheduledGuard(h({ host: "localhost:8080" })), null);
-  // through CloudFront: the function URL as Host, the viewer's host and CloudFront's own headers alongside
-  assert.ok(scheduled.scheduledGuard(h({ host: "abc.lambda-url.ap-southeast-2.on.aws", "x-forwarded-host": "d1soo7510nfzf4.cloudfront.net", via: "2.0 x.cloudfront.net (CloudFront)", "x-amz-cf-id": "x" })));
-  // straight at the Function URL: AWS adds x-forwarded-for even when the caller forges Host
-  assert.ok(scheduled.scheduledGuard(h({ host: "127.0.0.1:8080", "x-forwarded-for": "203.0.113.9" })));
-  assert.ok(scheduled.scheduledGuard(h({ host: "127.0.0.1:8080", via: "1.1 proxy" })));
-  assert.ok(scheduled.scheduledGuard(h({})));
+test("schedule: /events runs only for an event carrying this deploy's schedule token", async () => {
+  assert.equal(scheduled.scheduledGuard({ source: "lowtide.schedule", job: "tonight", token: TOKEN }), null);
+  assert.ok(scheduled.scheduledGuard({ source: "lowtide.schedule", job: "tonight" }));
+  assert.ok(scheduled.scheduledGuard({ source: "lowtide.schedule", job: "tonight", token: "t".repeat(42) + "x" }));
+  assert.ok(scheduled.scheduledGuard({ source: "lowtide.schedule", job: "tonight", token: TOKEN }, ""));
   assert.equal(scheduled.isScheduleEvent(JSON.parse(SCHEDULE_BODY)), true);
   assert.equal(scheduled.isScheduleEvent({ source: "aws.events", job: "tonight" }), false);
 
   const post = (headers: Record<string, string>, body = SCHEDULE_BODY) => eventsRoute.POST(new Request("http://127.0.0.1:8080/events", { method: "POST", headers, body }));
-  const outside = await post({ host: "abc.lambda-url.ap-southeast-2.on.aws", "x-forwarded-host": "d1soo7510nfzf4.cloudfront.net", "x-forwarded-for": "203.0.113.9" });
+  const outside = await post({ host: "abc.lambda-url.ap-southeast-2.on.aws", "x-forwarded-for": "203.0.113.9" }, JSON.stringify({ source: "lowtide.schedule", job: "tonight" }));
   assert.equal(outside.status, 403);
+  assert.equal((await post({ host: "127.0.0.1:8080" }, JSON.stringify({ source: "lowtide.schedule", job: "tonight", token: "nope" }))).status, 403);
   assert.equal((await post({ host: "127.0.0.1:8080" }, '{"source":"someone","job":"tonight"}')).status, 400);
   assert.equal((await post({ host: "127.0.0.1:8080" }, "not json")).status, 400);
   assert.equal(eventsRoute.GET().status, 405);

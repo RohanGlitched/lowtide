@@ -9,12 +9,10 @@ const refuse = (status: number, error: string) => Response.json({ error }, { sta
 /**
  * POST /events: the Lambda Web Adapter's pass-through for non-HTTP invocations (AWS_LWA_PASS_THROUGH_PATH).
  * Amazon EventBridge Scheduler's nightly event lands here and runs tonight's plan for every saved household.
- * Only the adapter's own loopback call is accepted: anything that came through CloudFront or the Function URL
- * (which add forwarding headers) is refused, and CloudFront doesn't route /events at all.
+ * Only an event carrying this deploy's schedule token is accepted (see scheduledGuard); CloudFront doesn't route
+ * /events at all.
  */
 export async function POST(req: Request) {
-  const why = scheduledGuard(req.headers);
-  if (why) return refuse(403, "Not available.");
   let body: unknown;
   try {
     const raw = await req.text();
@@ -24,6 +22,7 @@ export async function POST(req: Request) {
     return refuse(400, "Bad event.");
   }
   if (!isScheduleEvent(body)) return refuse(400, "Unknown event.");
+  if (scheduledGuard(body)) return refuse(403, "Not available.");
   try {
     const summary = await runScheduledTonight();
     return Response.json({ ok: true, ...summary }, { headers: { "cache-control": "no-store" } });

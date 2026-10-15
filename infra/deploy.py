@@ -26,6 +26,7 @@ plan for every household, and a named role for them (lowtide-web-scheduler), hen
 from __future__ import annotations
 
 import argparse
+import secrets
 import hashlib
 import json
 import mimetypes
@@ -53,6 +54,9 @@ BUILD = ROOT / "build"
 REGION = "ap-southeast-2"
 PLACEHOLDER_SITE = "https://lowtide.invalid"
 ZIP_LIMIT = 250e6  # Lambda's unzipped package limit (bytes)
+
+
+SCHEDULE_TOKEN = secrets.token_urlsafe(32)  # never printed
 
 
 def sh(*cmd, cwd=None, env=None):
@@ -376,7 +380,7 @@ def main():
     def params(code_key):
         return {"CodeBucket": code_bucket, "CodeKey": code_key, "HomesBucket": a.homes_bucket, "Adapter": a.adapter,
                 "MaxConcurrency": a.concurrency, "AlarmEmail": a.alarm_email, "Observability": "false" if a.no_observability else "true",
-                "NightlySchedule": "false" if a.no_schedule else "true"}
+                "NightlySchedule": "false" if a.no_schedule else "true", "ScheduleToken": SCHEDULE_TOKEN}
 
     for round_ in (1, 2):
         if not a.skip_build or round_ == 2:
