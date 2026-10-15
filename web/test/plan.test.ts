@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { costRun, planRun, tideMarks } from "../lib/plan";
+import { costRun, planRun, tideMarks, typicalCost } from "../lib/plan";
 import type { Slot } from "../lib/grid/types";
 
 const H = 30 * 60_000;
@@ -77,4 +77,14 @@ test("a run already in progress starts mid-slot at 'now'", () => {
   const p = planRun(s, { kwh: 1, minutes: 60, now });
   assert.equal(p.now!.start, now);
   assert.ok(p.best.start >= now);
+});
+
+test("typicalCost averages every fully priced start, so savings aren't quoted against the peak", () => {
+  const s = slots([40, 38, 30, 12, 8, 9, 25, 41]);
+  // 1 kWh over an hour: starts at slots 0..6 cost 39, 34, 21, 10, 8.5, 17, 33 (the last start would run past the prices)
+  const typical = typicalCost(s, 60, 1, T0, 4)!;
+  assert.equal(typical, Math.round(((39 + 34 + 21 + 10 + 8.5 + 17 + 33) / 7) * 100) / 100);
+  const p = planRun(s, { kwh: 1, minutes: 60, now: T0 });
+  assert.ok(typical > p.best.cost && typical < p.priciest.cost);
+  assert.equal(typicalCost(s, 60, 1, T0 + 10 * H), null); // nothing priced that far ahead
 });

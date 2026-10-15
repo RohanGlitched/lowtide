@@ -18,8 +18,9 @@ for (const u of said) {
     const results = [];
     for (const b of r.message.content) {
       if (!b.toolUse) continue;
-      console.log("  tool:", b.toolUse.name, JSON.stringify(b.toolUse.input));
+      const t1 = Date.now();
       const res = await c.callTool({ name: b.toolUse.name, arguments: b.toolUse.input });
+      console.log(`  tool [${Date.now() - t1}ms]:`, b.toolUse.name, JSON.stringify(b.toolUse.input));
       results.push({ toolResult: { toolUseId: b.toolUse.toolUseId, content: res.content.filter((x) => x.type === "text").map((x) => ({ text: x.text })), status: res.isError ? "error" : "success" } });
     }
     messages.push({ role: "user", content: results });

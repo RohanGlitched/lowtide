@@ -2,7 +2,8 @@ import { sigv4Headers } from "./sigv4";
 import type { Message, ToolSpec, TurnResponse } from "./types";
 
 /**
- * Amazon Bedrock Converse API with a Bedrock API key (bearer token). The preferred model is Amazon Nova Micro,
+ * Amazon Bedrock Converse API, called with SigV4-signed requests from a single-purpose IAM user (no SDK, no API key,
+ * since the organisation denies bedrock:CallWithBearerToken). The preferred model is Amazon Nova Micro,
  * the cheapest Bedrock model with tool use, through the region's cross-region inference profile; if the account can't
  * call it (model access not enabled, an organisation policy, a region rule) the next model in the chain is tried
  * and remembered, so the demo keeps a real model for as long as any of them is allowed.

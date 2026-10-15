@@ -115,6 +115,24 @@ export function planRun(
   };
 }
 
+/**
+ * What a run costs at a typical time: the average over every half-hour start from `from` that finishes within
+ * `hours` and is fully priced. This is the baseline Lowtide quotes savings against on the website (running the
+ * load whenever was convenient), rather than the evening peak, which would flatter every saving.
+ */
+export function typicalCost(slots: Slot[], minutes: number, kwh: number, from: number, hours = 24): number | null {
+  const horizon = from + hours * 3600_000;
+  let sum = 0;
+  let n = 0;
+  for (let t = Math.ceil(from / STEP) * STEP; t + minutes * 60_000 <= horizon; t += STEP) {
+    const r = costRun(slots, t, minutes, kwh);
+    if (!r) continue;
+    sum += r.cost;
+    n++;
+  }
+  return n ? round(sum / n) : null;
+}
+
 /** Low and high water: the cheapest and dearest stretches of at least `minutes`, for the tide table. */
 export function tideMarks(slots: Slot[], minutes = 60): { low: Run | null; high: Run | null } {
   if (!slots.length) return { low: null, high: null };

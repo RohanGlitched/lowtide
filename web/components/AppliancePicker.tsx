@@ -45,14 +45,20 @@ export default function AppliancePicker({ scene }: { scene: SceneData }) {
     const horizon = now + 24 * 3600_000;
     let best: { start: number; c: number } | null = null;
     let worst: { start: number; c: number } | null = null;
+    // A typical start: the average over every start time in the next 24 hours. Savings are quoted against this
+    // (running it whenever was convenient), not against the evening peak.
+    let sum = 0;
+    let n = 0;
     for (let t = Math.ceil(now / 1800_000) * 1800_000; t + load.minutes * 60_000 <= horizon; t += 1800_000) {
       const c = cost(scene.slots, t, load.minutes, load.kwh);
       if (c == null) continue;
+      sum += c;
+      n++;
       if (!best || c < best.c) best = { start: t, c };
       if (!worst || c > worst.c) worst = { start: t, c };
     }
     const nowC = cost(scene.slots, now, load.minutes, load.kwh);
-    return { best, worst, nowC };
+    return { best, worst, nowC, typical: n ? sum / n : null };
   }, [load, scene]);
 
   const highlight = useMemo(
@@ -97,14 +103,15 @@ export default function AppliancePicker({ scene }: { scene: SceneData }) {
             <dd className={s.cheap}>{plan.best ? money(plan.best.c, scene) : "—"}</dd>
           </div>
           <div>
-            <dt>Saved in a year, {load.perWeek === 7 ? "daily" : `${load.perWeek}× a week`}</dt>
-            <dd>{plan.best && plan.nowC != null ? money(Math.max(0, plan.nowC - plan.best.c) * load.perWeek * 52, scene) : "—"}</dd>
+            <dt>Saved in a year vs a typical time, {load.perWeek === 7 ? "daily" : `${load.perWeek}× a week`}</dt>
+            <dd>{plan.best && plan.typical != null ? money(Math.max(0, plan.typical - plan.best.c) * load.perWeek * 52, scene) : "—"}</dd>
           </div>
         </dl>
       </div>
       <p className={s.note}>
-        {load.kwh} kWh over {Math.floor(load.minutes / 60)} h{load.minutes % 60 ? ` ${load.minutes % 60}` : ""}, priced with the live {scene.tariff} rates for {scene.region}. The
-        yearly saving assumes every day's prices look like today's, so read it as a rough guide.
+        {load.kwh} kWh over {Math.floor(load.minutes / 60)} h{load.minutes % 60 ? ` ${load.minutes % 60}` : ""} ({(load.kwh / (load.minutes / 60)).toFixed(1)} kW moved), priced with the live {scene.tariff} rates for {scene.region}.
+        A typical time is the average of every start in the next 24 hours{plan.typical != null ? ` (${money(plan.typical, scene)} a run)` : ""}, so the yearly figure is what
+        moving it saves over running it whenever was convenient, not over the peak. It assumes every day's prices look like today's: a rough guide.
       </p>
     </div>
   );

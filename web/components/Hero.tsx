@@ -40,11 +40,11 @@ export default function Hero({ places }: { places: { key: string; label: string;
   const u = sc.unit === "ct" ? " ct" : sc.unit;
   const dish = sc.runs.find((r) => r.id === "dishwasher");
   const all = sc.runs.reduce((a, r) => a + r.cost, 0);
-  const allSix = sc.runs.reduce((a, r) => a + r.costAtSix, 0);
+  // Savings are quoted against a typical start (the average of every start time in the next 24 hours), not the peak.
+  const allTypical = sc.runs.reduce((a, r) => a + r.costTypical, 0);
   // "tomorrow afternoon" reads long in a headline: keep the day, drop the part of it.
   const when = low ? dayPart(low.start, sc.now, tz).replace(/^tomorrow .*/, "tomorrow").replace(/^early this morning$/, "tonight").replace(/^this (afternoon|evening|morning)$/, "today") : "";
   const dishWhen = dish ? dayPart(dish.start, sc.now, tz).replace(/^tomorrow .*/, "tomorrow") : "";
-  const baseline = sc.eveningIsNow ? "now" : "at 6 p.m.";
 
   return (
     <section className={s.hero} aria-labelledby="hero-title">
@@ -93,7 +93,8 @@ export default function Hero({ places }: { places: { key: string; label: string;
         </div>
         <p className={s.caption}>
           The next 24 hours in {place.label}, one fin per half hour, machined from the live {sc.tariff} prices. Taller costs more.
-          Cobalt is the cheapest quarter, graphite the dearest; the pin is now. Drag to turn it.
+          Cobalt is the cheapest quarter, graphite the dearest; the pin is now. Drag to turn it. Savings below compare with a
+          typical start: the average of every start time in the next 24 hours, not the evening peak.
         </p>
         <dl className={s.spec}>
           <div>
@@ -109,12 +110,12 @@ export default function Hero({ places }: { places: { key: string; label: string;
           <div>
             <dt>Dishwasher {dishWhen}</dt>
             <dd>{dish ? hhmm(dish.start, tz) : "—"}</dd>
-            <span>{dish ? (dish.costAtSix > dish.cost ? `${money(dish.cost, sc)} instead of ${money(dish.costAtSix, sc)} ${baseline}` : `${money(dish.cost, sc)}, as cheap as it gets`) : ""}</span>
+            <span>{dish ? (dish.costTypical > dish.cost ? `${money(dish.cost, sc)} instead of ${money(dish.costTypical, sc)} at a typical time` : `${money(dish.cost, sc)}, as cheap as it gets`) : ""}</span>
           </div>
           <div>
             <dt>Everything, next 24 hours</dt>
             <dd>{sc.runs.length ? money(all, sc) : "—"}</dd>
-            <span>{sc.runs.length ? `${money(allSix, sc)} if it all ran ${baseline}` : ""}</span>
+            <span>{sc.runs.length ? `${money(allTypical, sc)} at a typical time of day` : ""}</span>
           </div>
         </dl>
       </div>

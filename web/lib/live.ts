@@ -1,6 +1,6 @@
 import { getTide, type Tide } from "./grid";
 import { ukTable, UK_REGIONS } from "./grid/uk";
-import { tideMarks, planRun, costRun, type Run } from "./plan";
+import { tideMarks, planRun, costRun, typicalCost, type Run } from "./plan";
 import { APPLIANCES } from "./appliances";
 /** A day's prices for a dial or chart. */
 export interface ChartData {
@@ -64,7 +64,8 @@ export interface SceneRun {
   start: number;
   end: number;
   cost: number; // minor units at low tide
-  costAtSix: number; // minor units had it started at 18:00 (or now, if later)
+  /** minor units at a typical time: the average of every priced start in the next 24 hours (see typicalCost) */
+  costTypical: number;
 }
 export interface SceneData {
   place: string;
@@ -74,15 +75,13 @@ export interface SceneData {
   unit: Tide["region"]["unit"];
   currency: Tide["region"]["currency"];
   now: number;
-  /** True when "six in the evening" has already passed and the comparison is with starting now. */
-  eveningIsNow: boolean;
   slots: { s: number; e: number; p: number; c: number | null }[];
   runs: SceneRun[];
 }
 
 /**
  * Tonight in one household: each appliance planned by Lowtide to finish by the morning, from the live
- * prices, compared with switching everything on at six in the evening.
+ * prices, compared with running it at a typical time of day (the average start), not the evening peak.
  */
 export function sceneOf(tide: Tide): SceneData {
   const now = Date.now();
@@ -100,7 +99,6 @@ export function sceneOf(tide: Tide): SceneData {
     { id: "hot-water", finish: [6, 30] },
     { id: "ev", finish: [7, 30], kwh: 22, minutes: 180 },
   ];
-  const evening = Math.max(now, zonedNext(18, 0, tz, now - 12 * 3600_000));
   const runs: SceneRun[] = [];
   for (const h of habits) {
     const a = APPLIANCES.find((x) => x.id === h.id)!;
@@ -108,8 +106,8 @@ export function sceneOf(tide: Tide): SceneData {
     const minutes = h.minutes ?? a.minutes;
     try {
       const plan = planRun(tide.slots, { kwh, minutes, now, finishBy: morning(h.finish[0], h.finish[1]) });
-      const six = costRun(tide.slots, evening, minutes, kwh) ?? plan.now ?? plan.priciest;
-      runs.push({ id: h.id, label: a.name, start: plan.best.start, end: plan.best.end, cost: plan.best.cost, costAtSix: six.cost });
+      const typical = typicalCost(tide.slots, minutes, kwh, now) ?? plan.now?.cost ?? plan.best.cost;
+      runs.push({ id: h.id, label: a.name, start: plan.best.start, end: plan.best.end, cost: plan.best.cost, costTypical: typical });
     } catch {
       /* not enough published prices yet for this one */
     }
@@ -122,7 +120,6 @@ export function sceneOf(tide: Tide): SceneData {
     unit: tide.region.unit,
     currency: tide.region.currency,
     now,
-    eveningIsNow: evening === now,
     slots: tide.slots.filter((s) => s.end > now - 3600_000 && s.start < horizon + 3600_000).map((s) => ({ s: s.start, e: s.end, p: s.price, c: s.carbon })),
     runs,
   };
