@@ -25,7 +25,7 @@ const COLUMNS: { title: string; links: { label: string; href: string; ext?: bool
     ],
   },
   {
-    title: "Where the numbers come from",
+    title: "Data sources",
     links: [
       { label: "Octopus Energy Agile, Britain", href: "https://octopus.energy/smart/agile/", ext: true },
       { label: "ComEd Hourly Pricing, Illinois", href: "https://hourlypricing.comed.com/", ext: true },
@@ -58,14 +58,6 @@ export default function Footer() {
             An MCP server for Alexa+ that reads every half-hourly electricity price and the grid&apos;s carbon forecast, and tells you
             when to run the dishwasher, the washing, the hot water and the car.
           </p>
-          <div className={s.ctas}>
-            <Link href="/echo" prefetch={false} className="btn btn-primary">
-              Ask Alexa on the Echo
-            </Link>
-            <Link href="/connect" prefetch={false} className="btn btn-quiet">
-              Add to your assistant
-            </Link>
-          </div>
         </div>
         <nav className={s.cols} aria-label="Footer">
           {COLUMNS.map((c) => (
@@ -102,7 +94,7 @@ export default function Footer() {
       <div className={`shell ${s.log}`}>
         <h2>What changed lately</h2>
         <ol>
-          {CHANGES.map((c, i) => (
+          {CHANGES.slice(0, 2).map((c, i) => (
             <li key={i}>
               <time>{c.date}</time>
               <p>{c.text}</p>

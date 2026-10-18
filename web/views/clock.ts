@@ -110,8 +110,11 @@ export function drawClock(
     if (labels && major && !nearNow) {
       // Labels sit clear of the ticks whatever the size: the font has a floor, so the radius grows with it.
       const fs = Math.max(10, S * 0.03);
-      const [lx, ly] = pt(cx, cy, Math.min(S / 2 - fs * 1.7, R + S * 0.05 + fs * 1.7), a);
-      const t = el("text", { x: lx, y: ly, "text-anchor": "middle", "dominant-baseline": "central", fill: T.muted, class: "lt-hour", "font-size": fs }, ticks);
+      // At 06:00 and 18:00 the label runs sideways from the tick ring, so it is anchored at its near end.
+      const side = h === 6 ? "start" : h === 18 ? "end" : "middle";
+      const lr = side === "middle" ? Math.min(S / 2 - fs * 1.1, R + S * 0.05 + fs * 1.1) : R + S * 0.05 + fs * 0.35;
+      const [lx, ly] = pt(cx, cy, lr, a);
+      const t = el("text", { x: lx, y: ly, "text-anchor": side, "dominant-baseline": "central", fill: T.muted, class: "lt-hour", "font-size": fs }, ticks);
       t.textContent = `${String(h).padStart(2, "0")}:00`;
     }
   }

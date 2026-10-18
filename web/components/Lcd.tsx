@@ -32,7 +32,12 @@ export function Lcd({
         <span>{top}</span>
         {topRight && <span>{topRight}</span>}
       </div>
-      <div className={s.big}>{big}</div>
+      <div className={s.big}>
+        <span className={s.unlit} aria-hidden>
+          {big.replace(/[0-9]/g, "8")}
+        </span>
+        <span className={s.lit}>{big}</span>
+      </div>
       {(foot || footRight) && (
         <div className={s.row}>
           <span>{foot}</span>
@@ -67,7 +72,7 @@ export function Knob({ hours, size = 200, label }: { hours: number; size?: numbe
         y1={Math.round((C - r0 * Math.cos(a)) * 100) / 100}
         x2={Math.round((C + r1 * Math.sin(a)) * 100) / 100}
         y2={Math.round((C - r1 * Math.cos(a)) * 100) / 100}
-        stroke={lit ? "#ff6a33" : "#3a4052"}
+        stroke={lit ? "#d9dde6" : "#3a4052"}
         strokeWidth={major ? 3 : 1.6}
         strokeLinecap="round"
       />,

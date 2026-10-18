@@ -3,7 +3,7 @@
   --ink: #16181b;
   --muted: #5d636b;
   --rule: #d5d9de;
-  --accent: #2340ff;
+  --accent: #1d7fc4;
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
@@ -12,7 +12,7 @@
     --ink: #f6f7f9;
     --muted: #9aa1ab;
     --rule: #2c3036;
-    --accent: #5b73ff;
+    --accent: #8fd6ff;
     color-scheme: dark;
   }
 }
@@ -21,7 +21,7 @@
   --ink: #f6f7f9;
   --muted: #9aa1ab;
   --rule: #2c3036;
-  --accent: #5b73ff;
+  --accent: #8fd6ff;
   color-scheme: dark;
 }
 

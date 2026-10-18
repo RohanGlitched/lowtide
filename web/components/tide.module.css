@@ -1,7 +1,11 @@
 .tide {
+  --h: 240px;
   position: relative;
   margin: 0;
   width: 100%;
+}
+.compact {
+  --h: 120px;
 }
 .tide:focus-visible {
   outline: 2px solid var(--moonlight);
@@ -11,14 +15,11 @@
 .svg {
   display: block;
   width: 100%;
-  height: 280px;
+  height: var(--h);
   overflow: visible;
   /* A sideways drag reads prices; an up-and-down swipe still scrolls the page. */
   touch-action: pan-y;
   cursor: crosshair;
-}
-.compact .svg {
-  height: 120px;
 }
 .line {
   fill: none;
@@ -38,6 +39,30 @@
   stroke: rgba(243, 241, 230, 0.55);
   stroke-width: 1;
   stroke-dasharray: 3 4;
+}
+.runEdge {
+  stroke: rgba(143, 214, 255, 0.35);
+  stroke-width: 1;
+}
+/* Moonlight on the water at its lowest point. */
+.glint {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #eaf7ff;
+  box-shadow:
+    0 0 0 3px rgba(143, 214, 255, 0.25),
+    0 0 18px 6px rgba(143, 214, 255, 0.45);
+  translate: -50% -50%;
+  pointer-events: none;
+}
+.compact .glint {
+  width: 6px;
+  height: 6px;
+  box-shadow:
+    0 0 0 2px rgba(143, 214, 255, 0.25),
+    0 0 10px 3px rgba(143, 214, 255, 0.4);
 }
 .cursor {
   stroke: rgba(243, 241, 230, 0.7);
@@ -81,6 +106,37 @@
   color: var(--moonlight);
   font-variant-numeric: tabular-nums;
 }
+.low {
+  position: absolute;
+  z-index: 1;
+  display: grid;
+  gap: 1px;
+  justify-items: center;
+  text-align: center;
+  transform: translate(-50%, calc(-100% - 64px));
+  white-space: nowrap;
+  pointer-events: none;
+}
+.low::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 4px);
+  width: 1px;
+  height: 52px;
+  background: linear-gradient(180deg, var(--moonlight), rgba(143, 214, 255, 0.1));
+}
+.low span {
+  font-size: 12.5px;
+  color: var(--moonlight);
+}
+.low b {
+  font-family: var(--font-serif), serif;
+  font-size: 24px;
+  font-weight: 400;
+  color: #fff;
+  line-height: 1.1;
+}
 .unpub {
   position: absolute;
   top: 6px;
@@ -118,11 +174,11 @@
   font-size: 11px;
 }
 @media (max-width: 640px) {
-  .svg {
-    height: 200px;
+  .tide {
+    --h: 200px;
   }
-  .compact .svg {
-    height: 96px;
+  .compact {
+    --h: 96px;
   }
   .low b {
     font-size: 19px;

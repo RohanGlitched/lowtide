@@ -74,7 +74,7 @@ export default function TideChart({ slots, past = [], now, timeZone: tz, unit, r
     const ghostPts = cells.map((c, i) => (i >= lastLive && (c.before != null || i === lastLive) ? ([x(i), y(c.live ?? c.before!)] as [number, number]) : null)).filter((p): p is [number, number] => !!p);
     const line = smooth(livePts);
     const area = livePts.length ? `${line} L${livePts[livePts.length - 1][0]},${H} L${livePts[0][0]},${H} Z` : "";
-    const ghost = lastLive < 47 ? smooth(ghostPts) : "";
+    const ghost = lastLive < 47 && ghostPts.length > 1 ? smooth(ghostPts) : "";
     let lowI = -1;
     cells.forEach((c, i) => {
       if (c.live != null && (lowI < 0 || c.live < cells[lowI].live!)) lowI = i;
@@ -147,9 +147,9 @@ export default function TideChart({ slots, past = [], now, timeZone: tz, unit, r
             <stop offset="1" stopColor="#071224" stopOpacity="1" />
           </linearGradient>
           <linearGradient id={`b${uid}`} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="#8fd6ff" stopOpacity="0" />
-            <stop offset="0.6" stopColor="#8fd6ff" stopOpacity="0.06" />
-            <stop offset="1" stopColor="#8fd6ff" stopOpacity="0.16" />
+            <stop offset="0" stopColor="#8fd6ff" stopOpacity="0.02" />
+            <stop offset="0.5" stopColor="#8fd6ff" stopOpacity="0.12" />
+            <stop offset="1" stopColor="#8fd6ff" stopOpacity="0.3" />
           </linearGradient>
           <linearGradient id={`g${uid}`} x1="0" y1="0" x2="1" y2="0">
             <stop offset="0" stopColor="#8fd6ff" stopOpacity="0" />
@@ -162,6 +162,8 @@ export default function TideChart({ slots, past = [], now, timeZone: tz, unit, r
         {model.line && <path d={model.line} className={s.line} vectorEffect="non-scaling-stroke" />}
         {model.ghost && <path d={model.ghost} className={s.ghost} vectorEffect="non-scaling-stroke" />}
         {runX && <line x1={runX[0]} x2={runX[1]} y1={BOT + 6} y2={BOT + 6} stroke={`url(#g${uid})`} strokeWidth="3" vectorEffect="non-scaling-stroke" />}
+        {runX && <line x1={runX[0]} x2={runX[0]} y1={TOP - 10} y2={H} className={s.runEdge} vectorEffect="non-scaling-stroke" />}
+        {runX && <line x1={runX[1]} x2={runX[1]} y1={TOP - 10} y2={H} className={s.runEdge} vectorEffect="non-scaling-stroke" />}
         {/* now */}
         <line x1={0} x2={0} y1={TOP - 14} y2={H} className={s.now} vectorEffect="non-scaling-stroke" />
         {hover != null && hp != null && <line x1={model.x(hover)} x2={model.x(hover)} y1={0} y2={H} className={s.cursor} vectorEffect="non-scaling-stroke" />}
@@ -169,13 +171,13 @@ export default function TideChart({ slots, past = [], now, timeZone: tz, unit, r
 
       {/* HTML overlays keep their proportions while the water stretches. */}
       {hover != null && hp != null && h && (
-        <div className={s.tip} data-edge={tipX < 0.1 ? "start" : tipX > 0.9 ? "end" : undefined} style={{ left: `${tipX * 100}%`, top: `${(model.y(hp) / H) * 100}%` }}>
+        <div className={s.tip} data-edge={tipX < 0.1 ? "start" : tipX > 0.9 ? "end" : undefined} style={{ left: `${tipX * 100}%`, top: `calc(var(--h) * ${model.y(hp) / H})` }}>
           <b>{hhmm(h.start, tz)}</b> {hp.toFixed(1)}
           {u}/kWh{h.live == null ? " earlier today" : ""}
         </div>
       )}
       {!compact && model.lowI >= 0 && hover == null && (
-        <div className={s.low} style={{ left: `${(model.x(model.lowI) / W) * 100}%`, top: `${(model.y(model.cells[model.lowI].live!) / H) * 100}%` }}>
+        <div className={s.low} style={{ left: `${(model.x(model.lowI) / W) * 100}%`, top: `calc(var(--h) * ${model.y(model.cells[model.lowI].live!) / H})` }}>
           <span>Low tide</span>
           <b className="num">
             {hhmm(model.cells[model.lowI].start, tz)}, {model.cells[model.lowI].live!.toFixed(1)}
@@ -188,9 +190,24 @@ export default function TideChart({ slots, past = [], now, timeZone: tz, unit, r
           <span>{run.label}</span>
         </div>
       )}
+      {model.lowI >= 0 && (
+        <span
+          className={s.glint}
+          aria-hidden
+          style={{ left: `${(model.x(model.lowI) / W) * 100}%`, top: `calc(var(--h) * ${model.y(model.cells[model.lowI].live!) / H})` }}
+        />
+      )}
       {model.lastLive < 47 && model.lastLive >= 0 && (
         <div className={s.unpub} style={{ left: `${(model.x(model.lastLive) / W) * 100}%` }}>
-          <span>{compact ? "Earlier today" : "Tomorrow's prices aren't out yet: earlier today, dotted"}</span>
+          <span>
+            {model.ghost
+              ? compact
+                ? "Earlier today"
+                : "Tomorrow's prices aren't out yet: earlier today, dotted"
+              : compact
+                ? "Not published yet"
+                : "Prices after this aren't published yet"}
+          </span>
         </div>
       )}
       <div className={s.axis} aria-hidden>

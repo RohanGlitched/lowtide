@@ -33,11 +33,22 @@
   text-overflow: ellipsis;
 }
 .big {
+  position: relative;
+  width: fit-content;
   margin: 6px 0 4px;
   font-weight: 700;
   line-height: 1;
   letter-spacing: -0.02em;
   text-shadow: 0 0 18px rgba(255, 90, 40, 0.45);
+}
+.unlit {
+  position: absolute;
+  inset: 0;
+  color: rgba(255, 106, 51, 0.07);
+  text-shadow: none;
+}
+.lit {
+  position: relative;
 }
 .md .big {
   font-size: min(56px, 27cqw);

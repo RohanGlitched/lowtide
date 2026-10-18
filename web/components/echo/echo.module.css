@@ -542,3 +542,14 @@
     animation: none !important;
   }
 }
+/* On a phone: Talk and Mute share a row, the typed question takes the next. */
+@media (max-width: 640px) {
+  .stage > .controls {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .stage > .controls > .typed {
+    grid-column: 1 / -1;
+    order: 1;
+  }
+}
