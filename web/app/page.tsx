@@ -31,7 +31,7 @@ const TOOLS: [string, string][] = [
 
 const GH = "https://github.com/RohanGlitched/lowtide";
 const MEASURED: { value: string; label: string; note: string; href: string; link: string }[] = [
-  { value: "146", label: "automated tests", note: "Real days of British, Illinois and German prices, deadlines, both clock changes and sign-in.", href: `${GH}/actions`, link: "See them pass" },
+  { value: "147", label: "automated tests", note: "Real days of British, Illinois and German prices, deadlines, both clock changes and sign-in.", href: `${GH}/actions`, link: "See them pass" },
   { value: "1.0–1.3 s", label: "per model turn", note: "Amazon Nova Micro on Bedrock, timed on the live site from India to Sydney.", href: `${GH}#proof`, link: "How it was timed" },
   { value: "16", label: "price regions, live", note: "All 14 British Agile regions, northern Illinois and Germany.", href: "/tables", link: "See every region" },
   { value: "0", label: "passwords or keys stored", note: "Every AWS call signs in with its own role; the old keys were deleted.", href: `${GH}#runs-on-aws`, link: "How it runs" },

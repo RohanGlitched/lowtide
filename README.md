@@ -296,7 +296,7 @@ Requires Node.js 22.
 cd web
 npm install
 npm run dev          # builds the MCP App view, then starts Next.js
-npm test             # 146 tests: planner, deadlines, clocks, places, the phrase router, the tool handlers, the routes, SigV4, Polly, tonight's plan, retries, the origin check, the MCP protocol revisions, OAuth
+npm test             # 147 tests: planner, deadlines, clocks, places, the phrase router, the tool handlers, the routes, SigV4, Polly, tonight's plan, retries, the origin check, the MCP protocol revisions, OAuth
 node scripts/mcp-smoke.mjs http://localhost:3000
 PLAYWRIGHT=/path/to/node_modules/playwright node scripts/oauth-e2e.mjs http://localhost:3000   # OAuth end to end
 ```

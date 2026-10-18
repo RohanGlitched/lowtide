@@ -610,7 +610,9 @@ export function planAppliance(
   let earliest = args.start_after ? deadlineOrThrow(args.start_after, tz, now, 0, "start").at : undefined;
   if (earliest && deadline && earliest >= deadline.at) {
     // "After ten, done by seven", asked after ten at night: the window has already opened.
-    if (earliest - 86_400_000 <= now) earliest = now;
+    // (the start time came round within the last 12 hours, so its window is open now)
+    // A deadline counted from now ("in ten minutes") never moves; the answer says if the run can't make it.
+    if (deadline.relative || (now - (earliest - 86_400_000) < 12 * 3600_000 && earliest - 86_400_000 <= now)) earliest = now;
     // "Not before 10pm, done by 10pm": the start hasn't come yet, so the deadline is the next one after it.
     else deadline = { ...deadline, at: deadline.at + 86_400_000 * Math.ceil((earliest + minutes * 60_000 - deadline.at) / 86_400_000) };
   }

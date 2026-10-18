@@ -51,3 +51,15 @@ test("clock times still read as before", () => {
   assert.equal(at("22:00"), london(18, 22));
   assert.equal(resolveDeadline("in two hours", TZ, NOW)?.relative, true);
 });
+
+test("'not before 10pm, done by 10pm' plans the night, not 'it can't be done'", async () => {
+  const { planAppliance } = await import("../lib/mcp/tools");
+  const { findAppliance } = await import("../lib/appliances");
+  const slots = Array.from({ length: 96 }, (_, i) => ({ start: NOW - 3600_000 + i * 1800_000, end: NOW - 3600_000 + (i + 1) * 1800_000, price: 20 + (i % 48 < 20 ? 0 : 15), carbon: null }));
+  const tide = { region: { id: "GB-C", name: "London", country: "GB", currency: "GBP", unit: "p", tariff: "Agile", timeZone: TZ }, slots, mix: null, fetchedAt: NOW, sources: [] } as never;
+  const app = findAppliance("car")!;
+  const r = planAppliance(tide, app, { kwh: 30, minutes: 240 }, { start_after: "not before 10pm", finish_by: "10pm" }, NOW);
+  const text = r.content[0].text;
+  assert.doesNotMatch(text, /can't be done/);
+  assert.match(text, /10(:\d\d)? p\.m\.|11 p\.m\.|midnight|a\.m\./);
+});
