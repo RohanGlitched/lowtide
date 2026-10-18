@@ -37,7 +37,10 @@ export function nextClockTime(input: string, timeZone: string, now = Date.now())
 const WORDS: Record<string, number> = {
   one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12,
 };
-const MINUTE_WORDS: Record<string, number> = { "": 0, "o'clock": 0, oclock: 0, fifteen: 15, thirty: 30, "forty five": 45, "forty-five": 45 };
+const RELATIVE_WORDS: Record<string, number> = {
+  fifteen: 15, twenty: 20, "twenty five": 25, thirty: 30, forty: 40, "forty five": 45, fifty: 50, sixty: 60, ninety: 90,
+};
+const MINUTE_WORDS: Record<string, number> ={ "": 0, "o'clock": 0, oclock: 0, fifteen: 15, thirty: 30, "forty five": 45, "forty-five": 45 };
 
 export interface Deadline {
   /** the moment, unix ms */
@@ -60,9 +63,13 @@ export interface Deadline {
  */
 export function resolveDeadline(input: string, timeZone: string, now = Date.now(), minutes = 0): Deadline | null {
   let s = input.trim().toLowerCase().replace(/\s+/g, " ");
-  const rel = s.match(/^(?:in|within|after)\s+(?:the\s+next\s+)?(an?|one|half an|\d+(?:\.\d+)?|[a-z]+)\s*(minutes?|mins?|hours?|hrs?|h)$/);
+  // "in ten minutes", "within 2 hours", "ten minutes from now", "in 20 minutes' time", "90 mins"
+  const rel =
+    s.match(/^(?:in|within|after)\s+(?:the\s+next\s+)?(an?|one|half an|\d+(?:\.\d+)?|[a-z]+(?:[ -][a-z]+)?)\s*(minutes?|mins?|hours?|hrs?|h)(?:'?s? time)?$/) ??
+    s.match(/^(an?|one|half an|\d+(?:\.\d+)?|[a-z]+(?:[ -][a-z]+)?)\s*(minutes?|mins?|hours?|hrs?|h)\s+(?:from now|later|'?s? time)$/);
   if (rel) {
-    const n = rel[1] === "a" || rel[1] === "an" || rel[1] === "one" ? 1 : rel[1] === "half an" ? 0.5 : Number(rel[1]) || WORDS[rel[1]] || NaN;
+    const w = rel[1].replace("-", " ");
+    const n = w === "a" || w === "an" || w === "one" ? 1 : w === "half an" ? 0.5 : Number(w) || WORDS[w] || RELATIVE_WORDS[w] || NaN;
     if (!Number.isFinite(n) || n <= 0) return null;
     const unit = /^h/.test(rel[2]) ? 3600_000 : 60_000;
     return { at: now + Math.round(n * unit), ambiguous: false, relative: true };

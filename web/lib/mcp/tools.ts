@@ -185,8 +185,9 @@ export function registerLowtide(server: McpServer, ctx: Ctx) {
           ];
           const berthsApp: ViewData["berths"] = better ? [{ start: better.start, end: better.end, label: app.name, state: "best" }] : [];
           const viewApp = viewOf("now", tide, headlineApp, subApp, factsApp, berthsApp, now);
+          // When a later start is cheaper for this load, lead with that, not with "now is a good time".
           const spokenApp = better
-            ? `Now is ${verdict} to ${app.action}: about ${moneySpoken(nowRun.cost, tide.region)}. Wait until ${spokenTime(better.start, tz)} and it's ${moneySpoken(better.cost, tide.region)}, ${moneySpoken(nowRun.cost - better.cost, tide.region)} less.`
+            ? `It's cheaper to ${app.action} later: wait until ${spokenTime(better.start, tz)} and it's about ${moneySpoken(better.cost, tide.region)} instead of ${moneySpoken(nowRun.cost, tide.region)} now, ${moneySpoken(nowRun.cost - better.cost, tide.region)} less.`
             : `Now is ${verdict} to ${app.action}: about ${moneySpoken(nowRun.cost, tide.region)}, and it doesn't get much cheaper later.`;
           const r = result(spokenApp, viewApp);
           if (better) r.content.push({ type: "text" as const, text: `For schedule_run, pass start "${new Date(better.start).toISOString()}". Don't read this line aloud.` });
@@ -219,8 +220,8 @@ export function registerLowtide(server: McpServer, ctx: Ctx) {
           ),
         start_after: z.string().max(30).optional().describe("Only if the person said a start time: when it can't start before, in their words, e.g. 'ten', '22:00', 'after 10pm'"),
         goal: z.enum(["cheapest", "greenest", "balanced"]).optional().describe("Default cheapest"),
-        kwh: z.number().min(0.1).max(100).optional().describe("Energy needed, e.g. 20 for an EV top-up"),
-        minutes: z.number().int().min(15).max(720).optional(),
+        kwh: z.number().min(0.1).max(100).optional().describe("Only if the person said it: energy needed, e.g. 20 for an EV top-up"),
+        minutes: z.number().int().min(15).max(720).optional().describe("Only if the person said how long it runs; Lowtide knows each appliance's usual run"),
         place: placeArg,
       }),
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },

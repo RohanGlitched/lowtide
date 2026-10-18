@@ -73,6 +73,10 @@ test("a time the person pinned down is taken as said, never moved", () => {
   assert.deepEqual(resolveDeadline("in ten minutes", LON, afternoon, 150), { at: afternoon + 10 * 60_000, ambiguous: false, relative: true });
   assert.equal(resolveDeadline("in 2 hours", LON, afternoon)?.at, afternoon + 2 * 3600_000);
   assert.equal(resolveDeadline("in half an hour", LON, afternoon)?.at, afternoon + 30 * 60_000);
+  // what Nova actually sent on 18 Oct for "it has to be finished in ten minutes"
+  assert.equal(resolveDeadline("ten minutes from now", LON, afternoon)?.at, afternoon + 10 * 60_000);
+  assert.equal(resolveDeadline("in twenty minutes' time", LON, afternoon)?.at, afternoon + 20 * 60_000);
+  assert.equal(resolveDeadline("90 mins from now", LON, afternoon)?.at, afternoon + 90 * 60_000);
   assert.equal(resolveDeadline("teatime", LON, afternoon), null);
 });
 
@@ -115,6 +119,8 @@ test("a deadline too close for the run says it can't, and offers the earliest fi
     assert.ok(view(r).facts.some((f) => f.label === "Earliest finish" && f.value === "16:23, starting now"));
     assert.doesNotMatch(spoken(r), /tomorrow morning|instead of/);
   }
+  // the 18 Oct transcript: Nova also invented start_after "ten"; the deadline still wins and the answer is "can't"
+  assert.match(spoken(planAppliance(BEFORE, wash, WASH, { finish_by: "ten minutes from now", start_after: "ten" }, now)), /can't be done by 2:03 p\.m\./);
   // a pinned clock time offers tomorrow's; a relative one ("in ten minutes") doesn't
   assert.match(spoken(planAppliance(BEFORE, wash, WASH, { finish_by: "2pm" }, now)), /Or I can plan it for 2 p\.m\. tomorrow\.$/);
   assert.doesNotMatch(spoken(planAppliance(BEFORE, wash, WASH, { finish_by: "in ten minutes" }, now)), /tomorrow/);
