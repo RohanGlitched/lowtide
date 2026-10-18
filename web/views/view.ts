@@ -32,7 +32,9 @@ function centreOf(d: ViewData): ClockData["centre"] {
   if (best) return { time: best.start, above: "start at", below: best.label };
   const planned = d.berths[0];
   if (planned) return { time: planned.start, above: "next run", below: planned.label };
-  if (d.marks.low) return { time: d.marks.low.start, above: "cheapest", below: "hour" };
+  // the cheapest half hour; the one under way reads "now" (its start has already passed)
+  const low = d.marks.low;
+  if (low) return low.start <= d.now && d.now < low.end ? { time: d.now, above: "cheapest", below: "now" } : { time: low.start, above: "cheapest", below: "half hour" };
   return null;
 }
 

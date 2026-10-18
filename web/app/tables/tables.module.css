@@ -18,6 +18,14 @@
   font-size: 17px;
   color: var(--steel);
 }
+.head p.partial {
+  grid-column: 1 / -1;
+  max-width: 62em;
+  padding: 12px 16px;
+  border-left: 3px solid var(--cobalt);
+  background: color-mix(in srgb, var(--cobalt) 6%, transparent);
+  color: var(--graphite);
+}
 .down {
   color: var(--cobalt);
 }

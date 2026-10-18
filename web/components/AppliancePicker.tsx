@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import type { SceneData } from "@/lib/live";
 import { money } from "@/lib/format";
 import { hhmm } from "@/views/clock";
+import { pickPlan } from "@/lib/picker";
 import s from "./picker.module.css";
 import WhenNear from "./WhenNear";
 
@@ -19,47 +20,12 @@ const LOADS: Load[] = [
   { id: "water", name: "Hot water", kwh: 6, minutes: 120, perWeek: 7, icon: <WaterIcon /> },
 ];
 
-/** Cost of running `kwh` evenly over [start, start + minutes), or null where prices aren't published. */
-function cost(slots: SceneData["slots"], start: number, minutes: number, kwh: number) {
-  const end = start + minutes * 60_000;
-  let c = 0;
-  let covered = 0;
-  for (const x of slots) {
-    const a = Math.max(start, x.s);
-    const b = Math.min(end, x.e);
-    if (b > a) {
-      c += (kwh * (b - a)) / (end - start) * x.p;
-      covered += b - a;
-    }
-  }
-  return covered >= end - start - 1000 ? c : null;
-}
-
 export default function AppliancePicker({ scene }: { scene: SceneData }) {
   const [id, setId] = useState("dishwasher");
   const load = LOADS.find((l) => l.id === id)!;
   const tz = scene.timeZone;
 
-  const plan = useMemo(() => {
-    const now = scene.now;
-    const horizon = now + 24 * 3600_000;
-    let best: { start: number; c: number } | null = null;
-    let worst: { start: number; c: number } | null = null;
-    // A typical start: the average over every start time in the next 24 hours. Savings are quoted against this
-    // (running it whenever was convenient), not against the evening peak.
-    let sum = 0;
-    let n = 0;
-    for (let t = Math.ceil(now / 1800_000) * 1800_000; t + load.minutes * 60_000 <= horizon; t += 1800_000) {
-      const c = cost(scene.slots, t, load.minutes, load.kwh);
-      if (c == null) continue;
-      sum += c;
-      n++;
-      if (!best || c < best.c) best = { start: t, c };
-      if (!worst || c > worst.c) worst = { start: t, c };
-    }
-    const nowC = cost(scene.slots, now, load.minutes, load.kwh);
-    return { best, worst, nowC, typical: n ? sum / n : null };
-  }, [load, scene]);
+  const plan = useMemo(() => pickPlan(scene.slots, scene.now, load), [load, scene]);
 
   const highlight = useMemo(
     () => (plan.best ? { start: plan.best.start, end: plan.best.start + load.minutes * 60_000 } : null),
@@ -85,18 +51,18 @@ export default function AppliancePicker({ scene }: { scene: SceneData }) {
             timeZone={tz}
             unit={scene.unit}
             highlight={highlight}
-            label={`The next 24 hours in ${scene.region}; the ${load.name.toLowerCase()}'s cheapest stretch is cut in cobalt, starting ${plan.best ? hhmm(plan.best.start, tz) : "—"}.`}
+            label={`The next 24 hours in ${scene.region}; the ${load.name.toLowerCase()}'s cheapest stretch is cut in cobalt, starting ${plan.best ? (plan.startsNow ? "now" : hhmm(plan.best.start, tz)) : "—"}.`}
           />
           </WhenNear>
         </div>
         <dl className={s.facts}>
           <div>
             <dt>Start</dt>
-            <dd className={s.cheap}>{plan.best ? hhmm(plan.best.start, tz) : "—"}</dd>
+            <dd className={s.cheap}>{plan.best ? (plan.startsNow ? "Now" : hhmm(plan.best.start, tz)) : "—"}</dd>
           </div>
           <div>
             <dt>Switched on now</dt>
-            <dd className={s.dear}>{plan.nowC != null ? money(plan.nowC, scene) : "—"}</dd>
+            <dd className={plan.startsNow ? s.cheap : s.dear}>{plan.nowC != null ? money(plan.nowC, scene) : "—"}</dd>
           </div>
           <div>
             <dt>At the cheapest time</dt>

@@ -20,11 +20,12 @@ const TOOLS: [string, string][] = [
   ["plan_appliance", "The cheapest or greenest start for an appliance, optionally done by a deadline."],
   ["schedule_run", "Saves the plan for the household once the person says yes."],
   ["check_now", "Whether this half hour is a cheap or dear time, and when it drops."],
-  ["get_tide", "The next day of prices and grid carbon, with the cheapest and dearest hours."],
+  ["get_tide", "The next day of prices and grid carbon, with the cheapest and dearest half hours."],
   ["list_runs", "What the household has planned."],
   ["cancel_run", "Cancels a planned run."],
   ["get_savings", "Money and CO₂ saved by running at the cheap hours."],
   ["set_home", "Sets the postcode or city, which picks the tariff."],
+  ["get_tonight", "Tonight's plan, made ahead once tomorrow's prices are out (EventBridge Scheduler at 16:45 and 18:30 UK)."],
 ];
 
 export default async function Home() {
@@ -43,7 +44,10 @@ export default async function Home() {
       plan = planRun(tide.slots, { kwh: dish.kwh, minutes: dish.minutes, now, finishBy: london?.runs.find((r) => r.id === "dishwasher")?.end });
       answer = planResult(tide, dish, plan, now).content[0].text;
       const tz = tide.region.timeZone;
-      remind = `Saved. Run the dishwasher ${dayPart(plan.best.start, now, tz)} at ${spokenTime(plan.best.start, tz)}.`.replace(/\.\.$/, ".");
+      remind =
+        plan.now && plan.best.start === plan.now.start
+          ? "Saved. Start the dishwasher now."
+          : `Saved. Run the dishwasher ${dayPart(plan.best.start, now, tz)} at ${spokenTime(plan.best.start, tz)}.`.replace(/\.\.$/, ".");
     } catch {}
   }
   const echoData =
@@ -78,10 +82,18 @@ export default async function Home() {
                   <Clock data={echoData} theme="dark" label="Tonight's prices on the Echo Show with the dishwasher's start marked" />
                 </div>
                 <div className={s.screenText}>
-                  <p className={s.screenHead}>Run the dishwasher at {clock(plan.best.start, tide.region.timeZone)}</p>
+                  <p className={s.screenHead}>
+                    {plan.now && plan.best.start === plan.now.start ? "Run the dishwasher now" : `Run the dishwasher at ${clock(plan.best.start, tide.region.timeZone)}`}
+                  </p>
                   <p className={s.screenSub}>
                     {money(plan.best.cost, tide.region)}
-                    {plan.now && plan.best.start !== plan.now.start && plan.now.cost - plan.best.cost >= 0.5 ? ` instead of ${money(plan.now.cost, tide.region)} now` : ""}
+                    {plan.now && plan.best.start !== plan.now.start
+                      ? money(plan.now.cost, tide.region) !== money(plan.best.cost, tide.region) && plan.now.cost > plan.best.cost
+                        ? ` instead of ${money(plan.now.cost, tide.region)} now`
+                        : ", about the same as now"
+                      : plan.now
+                        ? ", as cheap as it gets today"
+                        : ""}
                   </p>
                 </div>
               </div>
@@ -137,7 +149,8 @@ export default async function Home() {
           <li>
             <h3>Alexa+ calls Lowtide</h3>
             <p>
-              <code>plan_appliance</code> with <code>finish_by: 07:00</code>, over Streamable HTTP.
+              <code>plan_appliance</code> with <code>finish_by: &quot;seven&quot;</code>, over Streamable HTTP. No a.m. or p.m., so Lowtide takes the next
+              seven the run can still make, and says it back.
             </p>
           </li>
           <li>
@@ -146,7 +159,7 @@ export default async function Home() {
           </li>
           <li>
             <h3>The Echo answers</h3>
-            <p>It says the time and the saving, and shows the day with the run marked (an MCP App).</p>
+            <p>It says the time, the deadline and the saving, and shows the day with the run marked (an MCP App).</p>
           </li>
         </ol>
         <dl className={s.tools}>
@@ -173,7 +186,7 @@ export default async function Home() {
         </div>
         <CopyField value={`${SITE_URL}/api/mcp`} label="Guest endpoint. Prices and plans; add a postcode or city to your question." />
         <p className={s.fine}>
-          For saved runs and savings, <Link href="/connect">make a household link</Link>. Free, no account, just a postcode or city.
+          For saved runs and savings, <Link href="/connect" prefetch={false}>make a household link</Link>. Free, no account, just a postcode or city.
         </p>
       </section>
 

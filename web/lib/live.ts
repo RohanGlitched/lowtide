@@ -1,12 +1,12 @@
 import { getTide, type Tide } from "./grid";
 import { ukTable, UK_REGIONS } from "./grid/uk";
-import { tideMarks, planRun, costRun, typicalCost, type Run } from "./plan";
+import { cheapAndDear, planRun, costRun, typicalCost, type Run } from "./plan";
 import { APPLIANCES } from "./appliances";
 /** A day's prices for a dial or chart. */
 export interface ChartData {
   slots: { s: number; e: number; p: number; c: number | null }[];
   now: number;
-  marks: { low: { start: number; end: number; avgPrice: number } | null; high: { start: number; end: number; avgPrice: number } | null };
+  marks: { low: { start: number; end: number; avgPrice: number; isNow?: boolean } | null; high: { start: number; end: number; avgPrice: number; isNow?: boolean } | null };
   berths: { start: number; end: number; label: string; state: "best" | "now" | "planned" | "done" | "alt" }[];
   unit: "p" | "¢" | "ct";
   timeZone: string;
@@ -22,7 +22,7 @@ export function chartOf(tide: Tide, hours = 24, berths: ChartData["berths"] = []
   return {
     slots: slots.map((s) => ({ s: s.start, e: s.end, p: s.price, c: s.carbon })),
     now,
-    marks: tideMarks(slots, 60),
+    marks: cheapAndDear(slots, now, hours),
     berths,
     unit: tide.region.unit,
     timeZone: tide.region.timeZone,
@@ -35,7 +35,7 @@ export async function homeData() {
   if (!london) return { london: null } as const;
   const now = Date.now();
   const day = london.slots.filter((s) => s.start < now + 24 * 3600_000);
-  const { low, high } = tideMarks(day, 60);
+  const { low, high } = cheapAndDear(day, now);
   const cur = day.find((s) => s.start <= now && now < s.end) ?? null;
 
   const dish = APPLIANCES.find((a) => a.id === "dishwasher")!;
@@ -56,7 +56,7 @@ export async function homeData() {
   return { london, low, high, cur, plan, spread, chart: chartOf(london, 24, plan ? [{ start: plan.best.start, end: plan.best.end, label: "dishwasher", state: "best" as const }] : []) } as const;
 }
 
-type ChartRunLike = { start: number; end: number; avgPrice: number };
+type ChartRunLike = { start: number; end: number; avgPrice: number; isNow?: boolean };
 
 export interface SceneRun {
   id: "dishwasher" | "washing-machine" | "ev" | "hot-water";
@@ -175,7 +175,7 @@ export async function tableData(): Promise<TableRow[]> {
   ]);
   const rows: TableRow[] = uk.map((r) => {
     const day = r.slots.filter((s) => s.start < now + 24 * 3600_000);
-    const { low, high } = tideMarks(day, 60);
+    const { low, high } = cheapAndDear(day, now);
     return {
       key: `GB-${r.letter}`,
       name: r.name,
