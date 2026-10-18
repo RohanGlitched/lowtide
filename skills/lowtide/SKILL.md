@@ -20,7 +20,7 @@ Remote MCP server, Streamable HTTP:
 
 | The person says | Call |
 |---|---|
-| "When should I run the dishwasher?" / "Charge the car by 7" | `plan_appliance` (appliance, optional `finish_by`, `start_after`, `goal`) |
+| "When should I run the dishwasher?" / "Charge the car by 7" | `plan_appliance` (appliance, optional `finish_by`, `start_after`, `goal`). Pass times in the person's words ("seven", "7am", "in two hours"): with no a.m. or p.m. Lowtide picks the next seven the run can still make |
 | "Yes, do that" (after a plan) | `schedule_run` with the `start` that `plan_appliance` returned |
 | "Is now a good time to put the dryer on?" | `check_now` |
 | "When is power cheap tonight?" | `get_tide` |
@@ -28,12 +28,14 @@ Remote MCP server, Streamable HTTP:
 | "Cancel the washing" | `cancel_run` |
 | "How much have I saved?" | `get_savings` |
 | "I've moved to Leeds" | `set_home` |
+| "What's the plan for tonight?" | `get_tonight` (planned ahead once tomorrow's prices are out) |
 
 On the guest endpoint, pass `place` (a UK postcode, "Chicago", or "Germany") with each question.
 
 ## How to answer
 
-- Lead with the time and the saving in one sentence: "Run the dishwasher at 1:30 tonight. It costs 11p instead of 39p now."
+- Lead with the time and the saving in one sentence, as the tool words it: "Run the dishwasher tonight at 1:30 a.m., done by 4:30 a.m., in time for 7 a.m. tomorrow morning. It costs about 11 pence, 28 pence less than starting now." (The numbers change with each day's prices.)
+- If the tool says the run can't be done by the deadline, say so and offer the earliest finish it gives; don't move the deadline yourself.
 - Then offer to save the run for the household (it counts toward their savings). Only call `schedule_run` after the person agrees. Lowtide can't send reminders, so never promise one: suggest the machine's delay-start button instead.
 - Say times the way people do ("one thirty a.m."), never ISO timestamps. Lines marked "Don't read this line aloud" are for you.
 - The tools return an MCP App chart; if your client renders it, don't read numbers off it aloud.
