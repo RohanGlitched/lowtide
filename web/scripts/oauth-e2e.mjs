@@ -213,7 +213,12 @@ try {
     headers: { authorization: `Bearer ${svcTok.access_token}`, "content-type": "application/json", accept: "application/json, text/event-stream" },
     body: JSON.stringify({ jsonrpc: "2.0", id: 9, method: "tools/call", params: { name: "list_runs", arguments: {} } }),
   });
-  check(raw.status === 403 && /insufficient_scope/.test(raw.headers.get("www-authenticate") ?? ""), `service token: a household tool is refused (HTTP ${raw.status}, ${raw.headers.get("www-authenticate")?.match(/error="[^"]+"/)?.[0]})`);
+  // Behind a Lambda Function URL the header arrives renamed (x-amzn-Remapped-WWW-Authenticate; see the README)
+  const challenge = (r) => r.headers.get("www-authenticate") ?? r.headers.get("x-amzn-remapped-www-authenticate") ?? "";
+  const which = (r) => (r.headers.get("www-authenticate") ? "WWW-Authenticate" : "x-amzn-Remapped-WWW-Authenticate");
+  check(raw.status === 403 && /insufficient_scope/.test(challenge(raw)), `service token: a household tool is refused (HTTP ${raw.status}, ${challenge(raw).match(/error="[^"]+"/)?.[0]} in ${which(raw)})`);
+  const bare = await fetch(account, { method: "POST", headers: { "content-type": "application/json", accept: "application/json, text/event-stream" }, body: "{}" });
+  check(bare.status === 401 && challenge(bare).includes(`resource_metadata="${base}/.well-known/oauth-protected-resource/api/mcp/account"`), `no token: HTTP ${bare.status} with resource_metadata in ${which(bare)}`);
   await cs.close();
 
   // 8: the guest endpoint, no token
