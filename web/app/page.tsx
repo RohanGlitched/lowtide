@@ -29,13 +29,14 @@ const TOOLS: [string, string][] = [
   ["set_home", "Sets the postcode or city, which picks the tariff."],
 ];
 
-const MEASURED: { value: string; label: string; note: string }[] = [
-  { value: "141", label: "tests, green in CI", note: "The planner against a day of real Agile, ComEd and EPEX prices, deadlines, both clock changes, OAuth, SigV4." },
-  { value: "1.0–1.3 s", label: "per model turn", note: "Amazon Nova Micro on Bedrock, timed on the live AWS stack from India to Sydney." },
-  { value: "16", label: "price regions", note: "All 14 British Agile regions, northern Illinois on ComEd and Germany on EPEX day-ahead." },
-  { value: "0", label: "access keys", note: "Every AWS call is signed with the function's own role. The old keys were deleted." },
-  { value: "33 of 33", label: "sign-in checks", note: "OAuth 2.1 end to end against production with the MCP SDK's own client." },
-  { value: "14", label: "friction-log entries", note: "Every snag hit building on Alexa+, MCP and AWS, written down for the next builder." },
+const GH = "https://github.com/RohanGlitched/lowtide";
+const MEASURED: { value: string; label: string; note: string; href: string; link: string }[] = [
+  { value: "141", label: "automated tests", note: "Real days of British, Illinois and German prices, deadlines, both clock changes and sign-in.", href: `${GH}/actions`, link: "See them pass" },
+  { value: "1.0–1.3 s", label: "per answer from the model", note: "Amazon Nova Micro on Bedrock, timed on the live site from India to Sydney.", href: `${GH}#proof`, link: "How it was timed" },
+  { value: "16", label: "price regions, live", note: "All 14 British Agile regions, northern Illinois and Germany.", href: "/tables", link: "See every region" },
+  { value: "0", label: "passwords or keys stored", note: "Every AWS call signs in with its own role; the old keys were deleted.", href: `${GH}#runs-on-aws`, link: "How it runs" },
+  { value: "Tested", label: "sign-in, end to end", note: "Any MCP client can sign in with OAuth 2.1; checked on the live site with the official client.", href: "/connect#account", link: "Try signing in" },
+  { value: "14", label: "lessons written down", note: "Every snag hit building on Alexa+, MCP and AWS, logged for the next builder.", href: `${GH}/blob/main/FRICTION.md`, link: "Read the log" },
 ];
 
 export default async function Home() {
@@ -199,8 +200,8 @@ export default async function Home() {
             Measured, not promised.
           </h2>
           <p>
-            Every claim on this page is checked by a test, timed on the live stack, or read from a published feed. The code and the
-            friction log are open.
+            Every claim on this page is checked by a test, timed on the live site, or read from a published feed. Each figure links to
+            its evidence.
           </p>
         </div>
         <ul className={s.measured}>
@@ -209,6 +210,9 @@ export default async function Home() {
               <strong>{m.value}</strong>
               <span>{m.label}</span>
               <p>{m.note}</p>
+              <a href={m.href} rel={m.href.startsWith("http") ? "noopener" : undefined}>
+                {m.link}
+              </a>
             </li>
           ))}
         </ul>
@@ -307,10 +311,10 @@ export default async function Home() {
             <p>Yes. Every number and every dial on this site is drawn from the published feeds within the last few minutes.</p>
           </details>
           <details>
-            <summary>Why is part of the dial frosted?</summary>
+            <summary>Why is part of the tide dotted?</summary>
             <p>
-              Octopus publishes tomorrow&apos;s Agile prices at about 4 p.m. UK time. Until then the dial shows the rest of today, and
-              earlier today&apos;s price for each half hour still to come, frosted, so the day reads whole without guessing.
+              Octopus publishes tomorrow&apos;s Agile prices at about 4 p.m. UK time. Until then the tide runs to the end of today, and a
+              dotted line shows earlier today&apos;s price for each half hour still to come, so the night reads whole without guessing.
             </p>
           </details>
           <details>

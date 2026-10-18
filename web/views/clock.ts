@@ -30,8 +30,8 @@ export interface ClockData {
 const NS = "http://www.w3.org/2000/svg";
 
 const THEMES = {
-  light: { cheap: "#2340ff", mid: "#a9afb8", dear: "#16181b", ring: "#d5d9de", text: "#16181b", muted: "#5d636b", pin: "#16181b", face: "#f6f7f9", past: "#cfd4db" },
-  dark: { cheap: "#5b73ff", mid: "#7d848e", dear: "#e9ebee", ring: "#2c3036", text: "#f6f7f9", muted: "#9aa1ab", pin: "#ffffff", face: "#1d2024", past: "#353a42" },
+  light: { cheap: "#1d7fc4", mid: "#a9afb8", dear: "#16181b", ring: "#d5d9de", text: "#16181b", muted: "#5d636b", pin: "#16181b", face: "#f6f7f9", past: "#cfd4db" },
+  dark: { cheap: "#8fd6ff", mid: "#7d848e", dear: "#e9ebee", ring: "#2c3036", text: "#f6f7f9", muted: "#9aa1ab", pin: "#ffffff", face: "#1d2024", past: "#353a42" },
 };
 export type ClockTheme = keyof typeof THEMES;
 

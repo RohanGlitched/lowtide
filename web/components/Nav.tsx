@@ -7,7 +7,7 @@ import s from "./chrome.module.css";
 const LINKS = [
   { href: "/#how", label: "How it works", match: "#how" },
   { href: "/tables", label: "Tides", match: "/tables" },
-  { href: "/connect", label: "For developers", match: "/connect" },
+  { href: "/connect", label: "Add to your assistant", match: "/connect" },
 ];
 
 /** The header's links, a live price chip, the main action, and a sheet on phones. */
@@ -56,7 +56,7 @@ export default function Nav({ price }: { price: string | null }) {
         <Link href="/echo" prefetch={false}>Ask Alexa on the Echo</Link>
         <Link href="/#how" prefetch={false}>How it works</Link>
         <Link href="/tables" prefetch={false}>Tides, region by region</Link>
-        <Link href="/connect" prefetch={false}>For developers</Link>
+        <Link href="/connect" prefetch={false}>Add to your assistant</Link>
         <a href="https://github.com/RohanGlitched/lowtide" rel="noopener">
           Source on GitHub
         </a>

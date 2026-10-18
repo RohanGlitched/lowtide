@@ -80,7 +80,7 @@
 .turn span {
   font-family: var(--font-mono), monospace;
   font-size: 12px;
-  color: var(--signal);
+  color: var(--moonlight);
 }
 @media (max-width: 1000px) {
   .turn {

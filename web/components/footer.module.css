@@ -106,9 +106,9 @@
   display: block;
   margin-bottom: 6px;
   font-family: var(--font-mono), monospace;
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 700;
-  color: var(--signal);
+  color: var(--moonlight);
 }
 .log p {
   margin: 0;
@@ -154,10 +154,19 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
-@media (max-width: 560px) {
-  .cols,
+@media (max-width: 640px) {
+  .cols {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px 18px;
+  }
   .log ol {
     grid-template-columns: minmax(0, 1fr);
+  }
+  .log li:nth-child(n + 3) {
+    display: none;
+  }
+  .about {
+    display: none;
   }
 }
 @media (prefers-reduced-motion: reduce) {

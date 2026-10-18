@@ -46,7 +46,7 @@ Asked on an evening in London (15 October 2026's prices): Amazon Nova Micro on A
 - **Remembers the household:** saved runs and money saved, behind a private household link (no account; a name is optional and never required).
 - **Real prices everywhere:** Octopus Agile for every British postcode (all 14 regions), ComEd day-ahead hourly prices for northern Illinois, EPEX day-ahead for Germany, and the National Energy System Operator's regional carbon forecast.
 
-## The day, machined
+## The night, as a tide
 
 <img src="docs/object.gif" alt="The ring re-cuts itself for Glasgow, Chicago and Berlin" width="600">
 

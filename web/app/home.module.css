@@ -14,7 +14,7 @@
 }
 .askText h2 {
   margin: 0;
-  font-size: clamp(32px, 3.3vw, 48px);
+  font-size: clamp(28px, 2.6vw, 38px);
   text-wrap: balance;
   color: #fff;
 }
@@ -187,30 +187,71 @@
 }
 
 /* Measured: the evidence as figures */
+/* The figures as an appliance's rating plate: an engraved metal plate, screwed on at the corners. */
 .measured {
+  position: relative;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 1px;
   margin: 0;
-  padding: 0;
+  padding: 18px;
   list-style: none;
-  border-radius: 22px;
-  overflow: hidden;
-  background: var(--rule);
+  border-radius: 20px;
+  background: linear-gradient(160deg, #262b37 0%, #1b1f29 55%, #161921 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 30px 60px -36px rgba(0, 0, 0, 0.9),
+    0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+.measured::before,
+.measured::after {
+  content: "";
+  position: absolute;
+  top: 10px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #5a6170, #262a33 70%);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.4);
+}
+.measured::before {
+  left: 10px;
+}
+.measured::after {
+  right: 10px;
 }
 .measured li {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 28px;
-  background: var(--ink);
+  padding: 22px 22px 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.measured li:nth-child(3n + 2),
+.measured li:nth-child(3n + 3) {
+  border-left: 1px solid rgba(255, 255, 255, 0.06);
+}
+.measured li:nth-last-child(-n + 3) {
+  border-bottom: 0;
 }
 .measured strong {
-  font-family: var(--font-serif), Georgia, serif;
-  font-size: clamp(36px, 3.4vw, 50px);
-  font-weight: 400;
+  font-family: var(--font-mono), monospace;
+  font-size: clamp(28px, 2.6vw, 38px);
+  font-weight: 700;
   line-height: 1;
-  color: #fff;
+  letter-spacing: -0.02em;
+  color: #e9edf7;
+}
+.measured a {
+  margin-top: auto;
+  padding-top: 8px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--moonlight);
+  text-decoration: none;
+}
+.measured a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 .measured li:nth-child(4) strong {
   color: var(--moonlight);
@@ -230,10 +271,21 @@
   .measured {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+  .measured li {
+    border-left: 0 !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+  }
+  .measured li:nth-child(even) {
+    border-left: 1px solid rgba(255, 255, 255, 0.06) !important;
+  }
 }
 @media (max-width: 560px) {
   .measured {
     grid-template-columns: minmax(0, 1fr);
+    padding: 10px;
+  }
+  .measured li:nth-child(even) {
+    border-left: 0 !important;
   }
 }
 
@@ -339,14 +391,14 @@
 
 /* Questions */
 .faqTitle {
-  margin: 0 0 24px;
-  font-size: clamp(32px, 3.3vw, 48px);
+  margin: 0 0 20px;
+  font-size: clamp(28px, 2.6vw, 38px);
   color: #fff;
 }
 .faq {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0 64px;
+  grid-template-columns: minmax(0, 1fr);
+  max-width: 820px;
 }
 .faq details {
   padding: 18px 0;

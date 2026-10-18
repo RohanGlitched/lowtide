@@ -94,7 +94,7 @@
 }
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(258px, 1fr));
   gap: 16px;
   margin: clamp(48px, 5vw, 72px) 0 0;
   padding: 0;
@@ -117,6 +117,9 @@
 }
 .item h2 {
   margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-family: var(--font-serif), Georgia, serif;
   font-size: 21px;
   font-weight: 400;

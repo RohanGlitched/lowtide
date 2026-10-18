@@ -2,7 +2,7 @@
   display: grid;
   grid-template-columns: minmax(0, 3fr) minmax(0, 8fr) minmax(0, 3fr);
   gap: 28px;
-  align-items: stretch;
+  align-items: center;
 }
 .side {
   position: relative;

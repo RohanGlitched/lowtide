@@ -10,25 +10,57 @@ import s from "./hero.module.css";
 function hhmm(t: number, tz: string) {
   return new Intl.DateTimeFormat("en-GB", { timeZone: tz, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date(t));
 }
-/** "2 a.m.", "1:30 a.m.", "midnight": how a person says a half hour. */
+/** "2 a.m.", "1:30 a.m.", "midnight": how a person says a half hour (no trailing full stop). */
 function spoken(t: number, tz: string) {
   const [h, m] = hhmm(t, tz).split(":").map(Number);
-  const h12 = h % 12 === 0 ? 12 : h % 12;
-  const ap = h < 12 ? "a.m." : "p.m.";
   if (h === 0 && m === 0) return "midnight";
   if (h === 12 && m === 0) return "noon";
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  const ap = h < 12 ? "a.m" : "p.m";
   return m === 0 ? `${h12} ${ap}` : `${h12}:${String(m).padStart(2, "0")} ${ap}`;
+}
+
+type Slot = SceneData["slots"][number];
+type Mode = "cheapest" | "greenest" | "now";
+const DISH = { kwh: 0.9, minutes: 180 };
+
+/** What a run starting at `start` costs (minor units) and emits (g), or null if prices don't cover it. */
+function costAt(slots: Slot[], start: number) {
+  const end = start + DISH.minutes * 60_000;
+  const perMs = DISH.kwh / (end - start);
+  let cost = 0;
+  let carbon: number | null = 0;
+  let covered = 0;
+  for (const x of slots) {
+    const a = Math.max(start, x.s);
+    const b = Math.min(end, x.e);
+    if (b <= a) continue;
+    cost += perMs * (b - a) * x.p;
+    carbon = carbon === null || x.c === null ? null : carbon + perMs * (b - a) * x.c;
+    covered += b - a;
+  }
+  return covered < end - start - 1000 ? null : { start, end, cost, carbon };
+}
+
+/** The greenest dishwasher start that still finishes by `deadline` (lowest grid carbon), from the same prices. */
+function greenest(slots: Slot[], now: number, deadline: number) {
+  let best: ReturnType<typeof costAt> = null;
+  const first = Math.ceil(now / 1800_000) * 1800_000;
+  for (let t = first; t + DISH.minutes * 60_000 <= deadline; t += 1800_000) {
+    const r = costAt(slots, t);
+    if (r && r.carbon !== null && (!best || r.carbon < best.carbon!)) best = r;
+  }
+  return best;
 }
 
 /** Cheapest and dearest half hour of the next 24 hours, the one under way included (lib/plan.ts cheapAndDear). */
 function marks(sc: SceneData) {
   const end = sc.now + 24 * 3600_000;
   const day = sc.slots.filter((x) => x.e > sc.now && x.s < end);
-  let low: { start: number; p: number; isNow: boolean } | null = null;
+  let low: { start: number; p: number } | null = null;
   let high: { start: number; p: number } | null = null;
   for (const x of day) {
-    const isNow = x.s <= sc.now && sc.now < x.e;
-    if (!low || x.p < low.p) low = { start: x.s, p: x.p, isNow };
+    if (!low || x.p < low.p) low = { start: x.s, p: x.p };
     if (!high || x.p > high.p) high = { start: x.s, p: x.p };
   }
   const cur = day.find((x) => x.s <= sc.now && sc.now < x.e) ?? null;
@@ -37,6 +69,7 @@ function marks(sc: SceneData) {
 
 export default function Hero({ places }: { places: { key: string; label: string; scene: SceneData }[] }) {
   const [key, setKey] = useState(places[0].key);
+  const [mode, setMode] = useState<Mode>("cheapest");
   const place = places.find((p) => p.key === key) ?? places[0];
   const sc = place.scene;
   const tz = sc.timeZone;
@@ -45,8 +78,23 @@ export default function Hero({ places }: { places: { key: string; label: string;
   const dish = sc.runs.find((r) => r.id === "dishwasher");
   const all = sc.runs.reduce((a, r) => a + r.cost, 0);
   const allTypical = sc.runs.reduce((a, r) => a + r.costTypical, 0);
-  const bars = day.slice(0, 48).map((x) => ({ p: x.p, on: !!dish && x.s >= dish.start && x.s < dish.end }));
-  const tonight = !!low && !low.isNow && low.start - sc.now < 14 * 3600_000 && Number(hhmm(low.start, tz).slice(0, 2)) < 9;
+
+  // The three keys re-plan the same dishwasher from the same prices.
+  const runs = useMemo(() => {
+    if (!dish) return null;
+    const cheapest = { start: dish.start, end: dish.end, cost: dish.cost };
+    const green = greenest(sc.slots, sc.now, dish.end > sc.now ? Math.max(dish.end, sc.now + 10 * 3600_000) : sc.now + 12 * 3600_000);
+    const now = costAt(sc.slots, sc.now);
+    return { cheapest, greenest: green, now };
+  }, [dish, sc]);
+  const pick = runs ? (mode === "greenest" ? runs.greenest : mode === "now" ? runs.now : runs.cheapest) ?? runs.cheapest : null;
+  const label = mode === "greenest" ? "greenest" : mode === "now" ? "start now" : "cheapest by morning";
+  const vs = dish ? dish.costTypical : 0;
+  const when = (t: number) => {
+    const h = Number(hhmm(t, tz).slice(0, 2));
+    return h >= 18 || h < 6 ? " tonight" : "";
+  };
+  const bars = day.slice(0, 48).map((x) => ({ p: x.p, on: !!pick && x.s >= pick.start - 900_000 && x.s < pick.end }));
 
   return (
     <section className={s.hero} aria-labelledby="hero-title">
@@ -57,19 +105,15 @@ export default function Hero({ places }: { places: { key: string; label: string;
         <div className={s.copy}>
           <p className={s.kicker}>
             <span className={s.pulse} aria-hidden />
-            Live {sc.tariff} prices for {place.label}, read at {hhmm(sc.now, tz)}
+            An Alexa+ add-on, on live {sc.tariff} prices for {place.label}
           </p>
           <h1 id="hero-title" className={`serif ${s.title}`} aria-live="polite">
             Power is cheapest at <em>low tide</em>.{" "}
-            {low ? (
-              low.isNow ? (
-                <>In {place.label}, that&apos;s right now.</>
-              ) : (
-                <>
-                  In {place.label}, that&apos;s {spoken(low.start, tz)}
-                  {tonight ? " tonight" : ""}.
-                </>
-              )
+            {dish ? (
+              <>
+                In {place.label}, run the dishwasher at {spoken(dish.start, tz)}
+                {when(dish.start)}.
+              </>
             ) : null}
           </h1>
           <p className={s.lede}>
@@ -93,29 +137,29 @@ export default function Hero({ places }: { places: { key: string; label: string;
           </div>
         </div>
 
-        {dish && (
-          <div className={s.panel} aria-label={`The dishwasher in ${place.label}: start at ${hhmm(dish.start, tz)}`}>
+        {dish && pick && (
+          <div className={s.panel}>
             <Lcd
               size="lg"
-              top="Dishwasher, eco 3 h"
-              topRight={cur ? `Now ${cur.p.toFixed(1)}${u}` : undefined}
-              big={hhmm(dish.start, tz)}
-              foot={dish.costTypical > dish.cost ? `${money(dish.cost, sc)}, not ${money(dish.costTypical, sc)}` : money(dish.cost, sc)}
-              footRight={`Done by ${hhmm(dish.end, tz)}`}
+              top={`Dishwasher, eco 3 h, ${label}`}
+              big={hhmm(pick.start, tz)}
+              foot={`${money(pick.cost, sc)}${vs > pick.cost + 0.5 ? `, not ${money(vs, sc)}` : vs < pick.cost - 0.5 ? `, ${money(pick.cost - vs, sc)} over a typical time` : ""}`}
+              footRight={`Ends ${hhmm(pick.end, tz)}`}
               bars={bars}
+              label={`The dishwasher in ${place.label}, ${label}: start at ${hhmm(pick.start, tz)}, ${money(pick.cost, sc)}`}
             />
-            <div className={s.keys} aria-hidden>
-              <span className={s.on}>
-                Cheapest<small>by morning</small>
-              </span>
-              <span>
-                Greenest<small>low carbon</small>
-              </span>
-              <span>
-                Done by 7<small>deadline</small>
-              </span>
+            <div className={s.keys} role="group" aria-label="Plan the dishwasher for">
+              <button type="button" aria-pressed={mode === "cheapest"} onClick={() => setMode("cheapest")}>
+                Cheapest<small>done by morning</small>
+              </button>
+              <button type="button" aria-pressed={mode === "greenest"} onClick={() => setMode("greenest")} disabled={!runs?.greenest} title={runs?.greenest ? undefined : "No carbon forecast is published here"}>
+                Greenest<small>{runs?.greenest ? "lowest carbon" : "no forecast here"}</small>
+              </button>
+              <button type="button" aria-pressed={mode === "now"} onClick={() => setMode("now")} disabled={!runs?.now}>
+                Start now<small>{cur ? `${cur.p.toFixed(1)}${u}/kWh` : "now"}</small>
+              </button>
             </div>
-            <p className={s.panelNote}>What Lowtide tells Alexa for a {place.label} kitchen, from the tide below.</p>
+            <p className={s.panelNote}>Press a key: the plan, the bars and the tide below re-cut from the same live prices. A typical time is the average start.</p>
           </div>
         )}
       </div>
@@ -128,8 +172,8 @@ export default function Hero({ places }: { places: { key: string; label: string;
           now={sc.now}
           timeZone={tz}
           unit={sc.unit}
-          run={dish ? { start: dish.start, end: dish.end, label: "dishwasher" } : null}
-          label={`The next 24 hours of electricity prices in ${place.label} as a tide: high water is dear, low water is cheap. Lowest at ${low ? hhmm(low.start, tz) : "unknown"}.`}
+          run={pick ? { start: pick.start, end: pick.end, label: "dishwasher" } : null}
+          label={`The next 24 hours of electricity prices in ${place.label} as a tide: high water is dear, low water is cheap. Cheapest half hour at ${low ? hhmm(low.start, tz) : "unknown"}.`}
         />
         <dl className={s.facts}>
           <div>
@@ -137,12 +181,12 @@ export default function Hero({ places }: { places: { key: string; label: string;
             <dd className="num">{cur ? `${cur.p.toFixed(1)}${u}` : "—"}</dd>
           </div>
           <div>
-            <dt>Low tide</dt>
-            <dd className={`num ${s.cheap}`}>{low ? (low.isNow ? "now" : hhmm(low.start, tz)) : "—"}</dd>
+            <dt>Cheapest half hour</dt>
+            <dd className={`num ${s.cheap}`}>{low ? hhmm(low.start, tz) : "—"}</dd>
           </div>
           <div>
-            <dt>High tide</dt>
-            <dd className={`num ${s.dear}`}>{high ? hhmm(high.start, tz) : "—"}</dd>
+            <dt>Dearest half hour</dt>
+            <dd className="num">{high ? hhmm(high.start, tz) : "—"}</dd>
           </div>
           <div>
             <dt>Tonight&apos;s {sc.runs.length} loads, planned</dt>

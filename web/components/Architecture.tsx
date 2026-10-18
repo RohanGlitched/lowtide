@@ -3,7 +3,7 @@ import s from "./architecture.module.css";
 /** How a question travels: the kitchen, the AWS stack in Sydney, and the public price feeds. */
 const AWS: { name: string; does: string; detail: string; accent?: boolean }[] = [
   { name: "AWS Lambda", does: "Lowtide itself", detail: "The MCP server, the website and the Echo, in one Next.js function. Nine tools, OAuth 2.1 sign-in.", accent: true },
-  { name: "Amazon CloudFront", does: "The front door", detail: "Caches the site; adds a secret origin header so nothing reaches the function around it." },
+  { name: "Amazon CloudFront", does: "The front door", detail: "Serves the site fast everywhere, and is the only way in: nothing can reach Lowtide around it." },
   { name: "Amazon Bedrock", does: "Understands the question", detail: "Amazon Nova Micro picks a Lowtide tool for each thing you say on the Echo." },
   { name: "Amazon Polly", does: "Says the answer", detail: "Neural voices for each region's Echo, cached so a repeated answer costs nothing." },
   { name: "Amazon S3", does: "Remembers the household", detail: "Postcode, planned runs and savings; every write checked against the last one." },
@@ -25,7 +25,7 @@ export default function Architecture() {
       <div className={s.cloud}>
         <div className={s.cloudHead}>
           <h3>On AWS</h3>
-          <span>ap-southeast-2, Sydney. No access key anywhere: each function signs with its own role.</span>
+          <span>In Sydney. No passwords or access keys stored anywhere: each part signs in with its own AWS role.</span>
         </div>
         <ul className={s.tiles}>
           {AWS.map((a) => (

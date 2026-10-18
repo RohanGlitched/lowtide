@@ -154,6 +154,7 @@
   gap: 6px;
 }
 .appText strong {
+  color: #16181b;
   font-family: var(--font-serif), sans-serif;
   font-size: 22px;
   font-weight: 500;

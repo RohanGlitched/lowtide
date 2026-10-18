@@ -730,7 +730,9 @@ export function planResult(tide: Tide, app: Appliance, plan: Plan, now: number, 
     const done = deadline ? `, done by ${spokenTime(b.end, tz)}, ${inTime}` : "";
     spoken = `${cap(app.action)} ${dayPart(b.start, now, tz)} at ${spokenTime(b.start, tz)}${why}${done}. ${cost}.`;
   }
-  if (plan.greenest && plan.goal === "cheapest" && plan.greenest.start !== b.start && b.carbon != null) {
+  // Only offer the cleanest start when it's a real alternative: not one that costs much more (an evening-peak
+  // "start now" is often the cleanest hour on the grid, and suggesting it reads as advice to pay the peak).
+  if (plan.greenest && plan.goal === "cheapest" && plan.greenest.start !== b.start && b.carbon != null && plan.greenest.cost <= b.cost * 1.15 + 1) {
     spoken += ` The cleanest start would be ${spokenTime(plan.greenest.start, tz)}.`;
   }
   // A greener pick that costs noticeably more than the cheapest start: say what the cheapest would have been.

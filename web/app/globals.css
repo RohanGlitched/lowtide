@@ -126,7 +126,7 @@ a {
 
 /* Sections: one rhythm for every page. */
 .section {
-  margin-top: clamp(96px, 10vw, 152px);
+  margin-top: clamp(80px, 8vw, 120px);
 }
 .sectionHead {
   display: grid;
@@ -137,7 +137,8 @@ a {
 }
 .sectionHead h2 {
   margin: 0;
-  font-size: clamp(32px, 3.3vw, 48px);
+  font-size: clamp(28px, 2.6vw, 38px);
+  line-height: 1.08;
   text-wrap: balance;
 }
 .sectionHead p {
@@ -159,14 +160,14 @@ a {
 
 /* A band: the sections that sit a little lower, closer to the water. */
 .band {
-  margin-top: clamp(96px, 10vw, 152px);
-  padding: clamp(72px, 8vw, 120px) 0;
+  margin-top: clamp(56px, 6vw, 88px);
+  padding: clamp(64px, 7vw, 104px) 0;
   background: linear-gradient(180deg, rgba(17, 26, 51, 0.55) 0%, rgba(7, 11, 23, 0.4) 100%);
   border-top: 1px solid var(--rule);
   border-bottom: 1px solid var(--rule);
 }
 .band + .section {
-  margin-top: clamp(96px, 10vw, 152px);
+  margin-top: clamp(80px, 8vw, 120px);
 }
 
 /* A surface on the night: a card with a faint rule. */

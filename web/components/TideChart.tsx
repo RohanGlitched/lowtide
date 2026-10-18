@@ -147,7 +147,7 @@ export default function TideChart({ slots, past = [], now, timeZone: tz, unit, r
           now
         </span>
         {model.ticks
-          .filter((t) => t.i > 2)
+          .filter((t) => t.i > (compact ? 6 : 3) && t.i < 46)
           .map((t) => (
             <span key={t.i} style={{ left: `${(model.x(t.i) / W) * 100}%` }}>
               {String(t.h).padStart(2, "0")}:00

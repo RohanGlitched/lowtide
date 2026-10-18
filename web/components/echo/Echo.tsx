@@ -61,6 +61,7 @@ export default function Echo() {
   const messages = useRef<Message[]>([]);
   const stopListening = useRef<(() => void) | null>(null);
   const logBox = useRef<HTMLOListElement>(null);
+  const turnSeq = useRef(0);
   const captionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const noted = useRef<string | null>(null);
   const probed = useRef(false);
@@ -171,7 +172,14 @@ export default function Echo() {
           .catch(() => {});
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
-        setSetupError(/fetch|network/i.test(msg) ? "Lowtide didn't answer. Check the connection and try again." : msg);
+        // Messages written for people (a place it can't find, a busy site) pass through; anything technical doesn't.
+        setSetupError(
+          /fetch|network/i.test(msg)
+            ? "Lowtide didn't answer. Check the connection and try again."
+            : /couldn't place|covers Britain|busy|try again|postcode/i.test(msg)
+              ? msg
+              : "Lowtide couldn't open the household just now. Try again in a moment.",
+        );
         setEditing(true);
         setPhase("idle");
       }
@@ -203,6 +211,9 @@ export default function Echo() {
       const c = conn.current;
       const text = utterance.trim();
       if (!c || !text) return;
+      // A new question may arrive while Alexa is still speaking: it interrupts her, and only the newest turn
+      // may put the Echo back to idle.
+      const turnNo = ++turnSeq.current;
       setError(null);
       stopSpeaking();
       say({ who: "you", text });
@@ -269,8 +280,10 @@ export default function Echo() {
         setError(e instanceof Error ? e.message : String(e));
         setCaption(null);
       } finally {
-        setPhase("idle");
-        captionTimer.current = setTimeout(() => setCaption((cur) => (cur?.who === "alexa" ? null : cur)), 7000);
+        if (turnSeq.current === turnNo) {
+          setPhase("idle");
+          captionTimer.current = setTimeout(() => setCaption((cur) => (cur?.who === "alexa" ? null : cur)), 7000);
+        }
       }
     },
     [home?.place, muted, show, tz, country, voice.configured],
@@ -330,7 +343,8 @@ export default function Echo() {
     return () => window.removeEventListener("keydown", onKey);
   }, [mic, talk]);
 
-  const busy = phase === "thinking" || phase === "connecting" || phase === "speaking";
+  // Speaking doesn't block: a typed question or a suggestion interrupts Alexa, the way talking over an Echo does.
+  const busy = phase === "thinking" || phase === "connecting";
 
   return (
     <div className={s.wrap}>
