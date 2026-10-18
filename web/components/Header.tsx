@@ -5,20 +5,20 @@ export default function Header() {
   return (
     <header className={s.header}>
       <div className={`shell ${s.bar}`}>
-        <Link href="/" className={s.brand} aria-label="Lowtide home">
+        <Link href="/" className={s.brand} aria-label="Lowtide home" prefetch={false}>
           <Mark />
           <span>Lowtide</span>
         </Link>
         <nav className={s.nav} aria-label="Main">
-          <Link href="/echo">
+          <Link href="/echo" prefetch={false}>
             <span className={s.long}>Try it on Echo</span>
             <span className={s.short}>Echo</span>
           </Link>
-          <Link href="/tables">
+          <Link href="/tables" prefetch={false}>
             <span className={s.long}>Today&apos;s tides</span>
             <span className={s.short}>Tides</span>
           </Link>
-          <Link href="/connect">
+          <Link href="/connect" prefetch={false}>
             <span className={s.long}>Add to Claude or ChatGPT</span>
             <span className={s.short}>Connect</span>
           </Link>

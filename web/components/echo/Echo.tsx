@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { CallToolResult } from "@modelcontextprotocol/client";
 import { callTool, connect, mountView, type Connection, type MountedView } from "@/lib/echo/host";
 import { canListen, listen, speakAloud, stopSpeaking, type Spoken } from "@/lib/echo/voice";
+import { busyMessage, fetchRetry } from "@/lib/echo/retry";
 import type { Message, ToolSpec, TurnResponse } from "@/lib/alexa/types";
 import s from "./echo.module.css";
 
@@ -62,6 +63,8 @@ export default function Echo() {
   const logBox = useRef<HTMLOListElement>(null);
   const captionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const noted = useRef<string | null>(null);
+  const probed = useRef(false);
+  const lastPlace = useRef(DEFAULT_PLACE);
 
   const [phase, setPhase] = useState<Phase>("connecting");
   const [home, setHome] = useState<Household | null>(null);
@@ -103,6 +106,7 @@ export default function Echo() {
       setPhase("connecting");
       setError(null);
       setSetupError(null);
+      lastPlace.current = place;
       try {
         let h: Household | null = null;
         if (!fresh) {
@@ -111,13 +115,14 @@ export default function Echo() {
           } catch {}
         }
         if (!h) {
-          const r = await fetch("/api/homes", {
+          // Retried with backoff when the site is busy (429/503): a few judges at once must not leave a black screen.
+          const r = await fetchRetry("/api/homes", {
             method: "POST",
             headers: { "content-type": "application/json" },
             body: JSON.stringify({ place, demo: true }),
           });
-          const j = await r.json();
-          if (!r.ok) throw new Error(j.error ?? "Couldn't set up the household.");
+          const j = (await r.json().catch(() => ({}))) as { error?: string; id: string; region: string; tariff: string; mcpUrl: string; demo?: boolean };
+          if (!r.ok) throw new Error(busyMessage(r.status) ?? j.error ?? "Couldn't set up the household.");
           h = { id: j.id, place, region: j.region, tariff: j.tariff, mcpUrl: j.mcpUrl, demo: j.demo };
           try {
             localStorage.setItem(HOME_KEY, JSON.stringify(h));
@@ -142,17 +147,31 @@ export default function Echo() {
         }
         await show("get_tide", {}, tide);
         setPhase("idle");
+        // Which model and voice this deployment has: asked once, after the first screen, so a page load doesn't
+        // fan out five requests at the same moment.
+        if (!probed.current) {
+          probed.current = true;
+          fetchRetry("/api/alexa", undefined, { tries: 3 })
+            .then((r) => (r.ok ? r.json() : null))
+            .then((j) => j && setEngine({ engine: j.engine, model: j.model }))
+            .catch(() => {});
+          fetchRetry("/api/speak", undefined, { tries: 3 })
+            .then((r) => (r.ok ? r.json() : null))
+            .then((j) => j && setVoice((v) => ({ ...v, configured: j.engine === "polly" })))
+            .catch(() => {});
+        }
         // The proactive card: tonight's plan, computed once a night after tomorrow's prices are out.
         setTonight(null);
         setTonightHeard(false);
-        fetch(`/api/tonight?home=${encodeURIComponent(h.id)}`)
+        fetchRetry(`/api/tonight?home=${encodeURIComponent(h.id)}`, undefined, { tries: 3 })
           .then((r) => (r.ok ? r.json() : null))
           .then((j) => {
             if (j?.card) setTonight(j.card as Tonight);
           })
           .catch(() => {});
       } catch (e) {
-        setSetupError(e instanceof Error ? e.message : String(e));
+        const msg = e instanceof Error ? e.message : String(e);
+        setSetupError(/fetch|network/i.test(msg) ? "Lowtide didn't answer. Check the connection and try again." : msg);
         setEditing(true);
         setPhase("idle");
       }
@@ -162,14 +181,6 @@ export default function Echo() {
 
   useEffect(() => {
     setMic(canListen());
-    fetch("/api/alexa")
-      .then((r) => r.json())
-      .then((j) => setEngine({ engine: j.engine, model: j.model }))
-      .catch(() => {});
-    fetch("/api/speak")
-      .then((r) => r.json())
-      .then((j) => setVoice((v) => ({ ...v, configured: j.engine === "polly" })))
-      .catch(() => {});
     setup(DEFAULT_PLACE, false);
     const mq = matchMedia("(prefers-color-scheme: dark)");
     const onTheme = () => view.current?.bridge.sendHostContextChange({ theme: theme() });
@@ -206,13 +217,13 @@ export default function Echo() {
       let finished = false;
       try {
         for (let step = 0; step < 6; step++) {
-          const r = await fetch("/api/alexa", {
+          const r = await fetchRetry("/api/alexa", {
             method: "POST",
             headers: { "content-type": "application/json" },
             body: JSON.stringify({ messages: messages.current, tools: specsOf(c), timeZone: tz, place: home?.place }),
           });
-          const turn = (await r.json()) as TurnResponse & { error?: string };
-          if (!r.ok) throw new Error(turn.error ?? "Alexa didn't answer.");
+          const turn = (await r.json().catch(() => ({}))) as TurnResponse & { error?: string };
+          if (!r.ok) throw new Error(busyMessage(r.status) ?? turn.error ?? "Alexa didn't answer.");
           // Say once per conversation why the simple router is answering, not on every step.
           if (turn.note && noted.current !== turn.note) {
             noted.current = turn.note;
@@ -335,12 +346,21 @@ export default function Echo() {
                 <span className={s.noticeText}>{tonight.headline.replace(/^Tonight is unusually cheap: /, "").replace(/^Tonight: /, "")}</span>
               </button>
             )}
-            <p className={s.caption} data-who={caption?.who ?? "alexa"} aria-live="polite" hidden={!(caption && (caption.text || phase === "listening"))}>
-              {caption ? (caption.who === "you" ? (caption.text ? `“${caption.text}”` : "Listening…") : caption.text) : ""}
-            </p>
+            {!home && setupError && phase !== "connecting" && (
+              <div className={s.bootError} role="alert">
+                <p>{setupError}</p>
+                <button type="button" onClick={() => setup(lastPlace.current, false)}>
+                  Retry
+                </button>
+              </div>
+            )}
             <span className={s.lightbar} aria-hidden />
           </div>
         </div>
+        {/* Below the screen, never over it: the view is what the person is meant to read. */}
+        <p className={s.caption} data-who={caption?.who ?? "alexa"} data-empty={caption && (caption.text || phase === "listening") ? undefined : "yes"} aria-live="polite">
+          {caption ? (caption.who === "you" ? (caption.text ? `“${caption.text}”` : "Listening…") : caption.text) : ""}
+        </p>
         <div className={s.controls}>
           <button
             type="button"
@@ -496,6 +516,15 @@ export default function Echo() {
                   {copied ? "Copied" : "Copy"}
                 </button>
               </p>
+            </>
+          ) : setupError && phase !== "connecting" ? (
+            <>
+              <p className={s.error} role="alert">
+                {setupError}
+              </p>
+              <button type="button" className={s.link} onClick={() => setup(lastPlace.current, false)}>
+                Retry
+              </button>
             </>
           ) : (
             <p className={s.muted}>Setting up…</p>

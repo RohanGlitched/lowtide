@@ -74,22 +74,55 @@
   color: #9aa1ab;
 }
 .caption {
-  position: absolute;
-  left: 4%;
-  right: 4%;
-  bottom: 6%;
-  margin: 0;
-  padding: 14px 20px;
+  /* below the screen, never over the view: a subtitle strip on the device's base */
+  position: relative;
+  margin: 30px 0 0;
+  min-height: calc(2 * 1.35em + 26px);
+  padding: 13px 20px;
   border-radius: 12px;
-  background: rgba(246, 247, 249, 0.96);
-  color: #16181b;
-  font-size: clamp(15px, 1.9vw, 24px);
-  line-height: 1.3;
-  box-shadow: 0 12px 30px -12px rgba(0, 0, 0, 0.6);
+  background: #16181b;
+  color: #f6f7f9;
+  font-size: clamp(15px, 1.5vw, 20px);
+  line-height: 1.35;
   animation: rise 200ms ease-out;
 }
 .caption[data-who="you"] {
-  color: #5d636b;
+  color: #b9bfc8;
+}
+.caption[data-empty="yes"] {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px rgba(22, 24, 27, 0.12);
+  animation: none;
+}
+.caption[data-empty="yes"]::before {
+  content: "Alexa's replies appear here as she speaks.";
+  color: #8a9099;
+}
+.bootError {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 14px;
+  padding: 24px;
+  text-align: center;
+  color: #e7e9ec;
+  font-size: clamp(15px, 1.8vw, 20px);
+}
+.bootError p {
+  margin: 0;
+  max-width: 28em;
+}
+.bootError button {
+  padding: 10px 22px;
+  border: 0;
+  border-radius: 999px;
+  background: #2340ff;
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
 }
 @keyframes rise {
   from {
@@ -147,7 +180,7 @@
   flex-wrap: wrap;
   gap: 10px 12px;
   align-items: center;
-  margin-top: 36px;
+  margin-top: 16px;
 }
 .talk {
   display: inline-flex;

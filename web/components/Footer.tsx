@@ -11,9 +11,9 @@ export default function Footer() {
           Octopus Energy or ComEd.
         </p>
         <nav className={s.footLinks} aria-label="Footer">
-          <Link href="/echo">Echo simulator</Link>
-          <Link href="/tables">Today&apos;s tides</Link>
-          <Link href="/connect">MCP endpoint</Link>
+          <Link href="/echo" prefetch={false}>Echo simulator</Link>
+          <Link href="/tables" prefetch={false}>Today&apos;s tides</Link>
+          <Link href="/connect" prefetch={false}>MCP endpoint</Link>
           <a href="https://github.com/RohanGlitched/lowtide">Source</a>
         </nav>
       </div>

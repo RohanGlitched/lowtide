@@ -1,6 +1,7 @@
 "use client";
 import { Client, StreamableHTTPClientTransport, type CallToolResult, type Tool } from "@modelcontextprotocol/client";
 import { AppBridge, PostMessageTransport, RESOURCE_MIME_TYPE, getToolUiResourceUri } from "@modelcontextprotocol/ext-apps/app-bridge";
+import { fetchRetry } from "./retry";
 
 const HOST = { name: "Lowtide Echo simulator", version: "1.0.0" };
 
@@ -15,13 +16,18 @@ export async function connect(url: string): Promise<Connection> {
   const client = new Client(HOST);
   // Lowtide serves stateless Streamable HTTP: there is no server-initiated stream to open, so answer the
   // client's optional GET locally instead of letting the browser log a 405.
+  // Every MCP request here is a stateless JSON-RPC POST, so a throttled one (429/503) is simply sent again.
   const quietFetch: typeof fetch = (input, init) =>
     (init?.method ?? "GET").toUpperCase() === "GET"
       ? Promise.resolve(new Response(null, { status: 405 }))
-      : fetch(input, init);
+      : fetchRetry(input, init, { tries: 4 });
   await client.connect(new StreamableHTTPClientTransport(new URL(url, location.href), { fetch: quietFetch }));
   const { tools } = await client.listTools();
-  return { client, tools, html: new Map() };
+  const conn: Connection = { client, tools, html: new Map() };
+  // Start reading the view's HTML now, alongside the first tool call, rather than after it.
+  const uri = tools.map((t) => getToolUiResourceUri(t)).find(Boolean);
+  if (uri) viewHtml(conn, uri).catch(() => {});
+  return conn;
 }
 
 export async function callTool(conn: Connection, name: string, args: Record<string, unknown>): Promise<CallToolResult> {

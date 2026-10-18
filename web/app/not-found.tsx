@@ -14,13 +14,13 @@ export default function NotFound() {
         server you can add to your own assistant.
       </p>
       <p style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-        <Link href="/echo" className="btn btn-primary">
+        <Link href="/echo" prefetch={false} className="btn btn-primary">
           Ask Alexa on the Echo
         </Link>
-        <Link href="/tables" className="btn btn-quiet">
+        <Link href="/tables" prefetch={false} className="btn btn-quiet">
           Today&apos;s tides
         </Link>
-        <Link href="/connect" className="btn btn-quiet">
+        <Link href="/connect" prefetch={false} className="btn btn-quiet">
           Add to Claude or ChatGPT
         </Link>
       </p>
