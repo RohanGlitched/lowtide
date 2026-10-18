@@ -12,7 +12,8 @@ export type LogEvent =
   | { evt: "speak"; voice: string; chars: number; ms: number; ok: boolean; cached?: "memory" | "store"; error?: string }
   | { evt: "tonight"; scope: "home" | "roll"; ms: number; ok: boolean; computed?: number; skipped?: number; night?: string; error?: string }
   | { evt: "schedule"; job: "tonight"; ms: number; ok: boolean; night?: string | null; planned?: number; skipped?: number; steps?: number; done?: boolean; error?: string }
-  | { evt: "warm"; warmed: number; failed: number; ms: number; error?: string };
+  | { evt: "warm"; warmed: number; failed: number; ms: number; error?: string }
+  | { evt: "oauth"; step: "token" | "revoke" | "register" | "consent" | "mcp"; ok: boolean; grant?: string; service?: boolean; reason?: string; error?: string };
 
 export function log(e: LogEvent): void {
   // quiet under `node --test` unless a test asks for the lines

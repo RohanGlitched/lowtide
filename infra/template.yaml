@@ -81,6 +81,15 @@ Parameters:
     Default: "true"
     AllowedValues: ["true", "false"]
     Description: EventBridge Scheduler runs tonight's plan at 16:45 and 18:30 London time (false = only the lazy roll)
+  McpAuth:
+    Type: String
+    Default: optional
+    AllowedValues: [optional, required]
+    Description: >
+      OAuth on /api/mcp. optional = no token is the guest server (judges' and connectors' links keep working) and a
+      bearer token is checked when sent; required = no token gets 401 with the protected resource metadata.
+      /api/mcp/account always requires a token; household links (/api/mcp/h/<id>) never do. Tokens are opaque,
+      hashed in HomesBucket under oauth/, so there is no signing key to configure.
 
 Conditions:
   UseLayer: !Equals [!Ref Adapter, layer]
@@ -196,6 +205,7 @@ Resources:
           POLLY_REGION: !Ref AWS::Region
           DAILY_MODEL_CAP: !Ref DailyModelCap
           POLLY_DAILY_CHARS: !Ref PollyDailyChars
+          MCP_AUTH: !Ref McpAuth
 
   FnUrl:
     Type: AWS::Lambda::Url
@@ -544,6 +554,11 @@ Outputs:
     Value: !Sub "https://${Cdn.DomainName}"
   McpUrl:
     Value: !Sub "https://${Cdn.DomainName}/api/mcp"
+  McpAccountUrl:
+    Description: The same MCP server behind OAuth 2.1 (401 + resource metadata without a token)
+    Value: !Sub "https://${Cdn.DomainName}/api/mcp/account"
+  OAuthMetadataUrl:
+    Value: !Sub "https://${Cdn.DomainName}/.well-known/oauth-authorization-server"
   DistributionId:
     Value: !Ref Cdn
   Bucket:

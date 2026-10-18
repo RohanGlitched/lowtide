@@ -180,15 +180,81 @@ python infra/deploy.py               # create or update the stack, upload assets
 
 ## Engineering notes
 
-- **MCP:** `mcp-handler` 2 with MCP SDK v2, stateless Streamable HTTP, one route for every protocol revision. 2026-07-28 is served natively: `server/discover` lists it, and requests carry the per-request `_meta` envelope and `Mcp-Method` header, with no `initialize` (that revision removed it). The 2025 revisions use `initialize`: 2025-11-25, 2025-06-18 and 2025-03-26 (the version Amazon's Alexa+ client sample sends). An `initialize` that asks for 2026-07-28 is answered with 2025-11-25, the newest revision that has `initialize`; [`web/test/protocol.test.ts`](web/test/protocol.test.ts) checks all three paths against the real handler. One endpoint per household (`/api/mcp/h/<id>`), plus a guest endpoint for questions that name a place. `mcp-handler` sends no CORS headers, so browser hosts like Countertop need `withCors()` in [`web/lib/mcp/handler.ts`](web/lib/mcp/handler.ts); the general fix is an open pull request upstream, [vercel-labs/mcp-handler#200](https://github.com/vercel-labs/mcp-handler/pull/200) (an opt-in `cors` option, 11 tests; not merged).
+- **MCP:** `mcp-handler` 2 with MCP SDK v2, stateless Streamable HTTP, one route for every protocol revision. 2026-07-28 is served natively: `server/discover` lists it, and requests carry the per-request `_meta` envelope and `Mcp-Method` header, with no `initialize` (that revision removed it). The 2025 revisions use `initialize`: 2025-11-25, 2025-06-18 and 2025-03-26 (the version Amazon's Alexa+ client sample sends). An `initialize` that asks for 2026-07-28 is answered with 2025-11-25, the newest revision that has `initialize`; [`web/test/protocol.test.ts`](web/test/protocol.test.ts) checks all three paths against the real handler. One endpoint per household (`/api/mcp/h/<id>`), a guest endpoint for questions that name a place, and `/api/mcp/account` for clients that sign in with OAuth. `mcp-handler` sends no CORS headers, so browser hosts like Countertop need `withCors()` in [`web/lib/mcp/handler.ts`](web/lib/mcp/handler.ts); the general fix is an open pull request upstream, [vercel-labs/mcp-handler#200](https://github.com/vercel-labs/mcp-handler/pull/200) (an opt-in `cors` option, 11 tests; not merged).
 - **MCP Apps:** the `ui://lowtide/tide-chart.html` resource is one self-contained HTML file (esbuild), using `@modelcontextprotocol/ext-apps`. The Echo simulator hosts it in an opaque-origin sandboxed iframe through `AppBridge`, the same protocol Claude and ChatGPT use.
 - **Prices:** Agile rates by region letter (postcode → grid supply point), NESO regional carbon by region id, ComEd's day-ahead feed parsed from Chicago wall-clock time, aWATTar EUR/MWh → ct/kWh. Feeds are cached two minutes and fail one at a time.
 - **Planner:** every half-hour start that finishes in time is priced by spreading the load evenly over the slots it covers (partial slots included); "balanced" normalises cost and carbon distance from each optimum. Negative prices count as a credit.
 - **Storage:** one JSON object per household in a private Amazon S3 bucket in Sydney, the same region as Bedrock, with all public access blocked. Every update is a read-modify-write guarded by S3's `If-Match` on the object's ETag, so two quick saves from two devices can't silently overwrite each other; a conflict re-reads and retries with backoff, and one that still conflicts says "try again" rather than overwriting. The store sits behind a small interface (`web/lib/storage.ts`) with Google Cloud Storage and Vercel Blob as alternatives; Lowtide started on Blob and moved to S3 when the Hobby account's shared monthly Blob allowance ran out during the submission period and took every household with it. On S3 the whole thing costs cents: small JSON objects and a few thousand requests a month.
-- **Households are capability links, not accounts (a deliberate choice).** A household is `/api/mcp/h/<id>`, ten random base-32 characters (about 50 bits), and holds only a place and its planned runs: no name required, no address, no payment details. Alexa+ account linking isn't open to outside developers for MCP integrations yet, and a link works in every MCP host today. The production path is the MCP specification's authorization flow (OAuth 2.1 with PKCE, Lowtide as a protected resource), with the energy supplier as the identity provider, so a household signs in once with the account it already has.
+- **Households are capability links, and also OAuth grants.** A household is `/api/mcp/h/<id>`, ten random base-32 characters (about 50 bits), and holds only a place and its planned runs: no name required, no address, no payment details. A link works in every MCP host today, so it stays. Next to it, the same server is an OAuth 2.1 protected resource with its own authorization server ([Sign in with OAuth](#sign-in-with-oauth-alexa-account-linking)): a client signs in at `/api/mcp/account`, the person picks or makes a household on a consent page, and the token is bound to that household. In production the energy supplier would be the identity provider, so a household signs in once with the account it already has.
 - **Savings are quoted against a typical start.** Every saving on the website compares the cheapest start with the average of every start time in the next 24 hours (`typicalCost` in `web/lib/plan.ts`), not with the evening peak, and the page says so. The voice tools compare with starting now, and say that too.
 - **Tonight's plan on a schedule:** EventBridge Scheduler targets the Lambda function directly with a fixed JSON Input; the Lambda Web Adapter passes any non-HTTP event to `POST /events` (`AWS_LWA_PASS_THROUGH_PATH`). That route accepts only an event carrying a random token that `deploy.py` generates on every deploy and that lives in just two places, the function's environment (`SCHEDULE_TOKEN`) and the schedules' Input, compared in constant time. A header check can't do this job: Next.js adds `x-forwarded-*` headers to every request it serves, the adapter's loopback call included, so the first version refused the real scheduled call (friction log 14). CloudFront returns 404 for `/events`, and the Function URL refuses every request without CloudFront's origin secret except `/events` itself, which the adapter calls on loopback and which still needs the token. Verified on 15 October 2026: invoked with the schedule's own Input, the function answered `{"ok":true,"night":null,…}` (at 13:03 BST tomorrow's prices weren't out yet, so the job waits for the next run) and CloudWatch logged `{"evt":"schedule","job":"tonight","ok":true,…}`. Every step is idempotent and guarded by If-Match, so the two runs, a retry and a visitor's lazy step never plan a household twice.
 - **Performance:** the 3D object renders on demand (static shadow map, 30 fps idle turn, paused off screen), compiles shaders asynchronously, and mounts in idle time.
+
+## Sign in with OAuth (Alexa+ account linking)
+
+Amazon's Alexa+ MCP Toolkit guidance asks an add-on server for OAuth: a service tier (`client_credentials`, scope `mcp:service`) and a user tier (`authorization_code` with PKCE). The MCP specification (2025-11-25 and 2026-07-28) asks for the same in its own words: Protected Resource Metadata, an authorization server with metadata, PKCE with S256, resource indicators and a `WWW-Authenticate` challenge. Lowtide does both, on the same Lambda function, with no new service and no key. It has been run end to end with the MCP TypeScript SDK's OAuth client, locally and in production; it has not yet been tested with a real Alexa+ client.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant C as MCP client (Claude, ChatGPT, the SDK, an Alexa+ add-on)
+    participant R as Lowtide MCP server<br/>/api/mcp/account
+    participant A as Lowtide authorization server
+    actor P as Person
+    C->>R: initialize (no token)
+    R-->>C: 401, WWW-Authenticate: Bearer resource_metadata=…
+    C->>R: GET /.well-known/oauth-protected-resource/api/mcp/account
+    C->>A: GET /.well-known/oauth-authorization-server
+    C->>A: POST /api/oauth/register (or a client ID metadata document)
+    C->>P: open /oauth/authorize (code_challenge S256, resource)
+    P->>A: "Let Claude plan your household's appliance runs?" New household or a pasted link, then Allow
+    A-->>C: redirect with code, state and iss
+    C->>A: POST /api/oauth/token (code + code_verifier)
+    A-->>C: access token (1 hour, bound to the household) + rotating refresh token
+    C->>R: tools/call plan_appliance, Authorization: Bearer …
+```
+
+| Endpoint | What it is |
+|---|---|
+| `/api/mcp/account` | The MCP server behind OAuth: no token gets `401` with `resource_metadata` and `scope="mcp:tools mcp:resources"` |
+| `/api/mcp` | Unchanged: no token is the guest server; a bearer token, if sent, is checked and used. `MCP_AUTH=required` (stack parameter `McpAuth`) makes it answer 401 too |
+| `/api/mcp/h/<id>` | Unchanged: the household's capability link, no OAuth |
+| `/.well-known/oauth-protected-resource[/api/mcp[/account]]` | RFC 9728 Protected Resource Metadata |
+| `/.well-known/oauth-authorization-server` | RFC 8414 metadata: S256 only, `client_id_metadata_document_supported`, `authorization_response_iss_parameter_supported` (RFC 9207) |
+| `/oauth/authorize` | The consent page: make a household from a postcode or paste an existing household link, then Allow or Don't allow |
+| `/api/oauth/token` | `authorization_code` (PKCE S256), `refresh_token` (rotating, with replay detection), `client_credentials` |
+| `/api/oauth/register` | RFC 7591 dynamic registration, open; public or confidential clients |
+| `/api/oauth/revoke` | RFC 7009 revocation: a refresh token ends the grant and its access tokens |
+
+**Scopes.** `mcp:service` (client_credentials only): initialize, tools/list and the guest tools; never a household, never a refresh token. `mcp:tools` and `mcp:resources` (authorization_code only): the household's tools and its `lowtide://household/tonight` resource. A service token that calls a household tool gets `403` with `error="insufficient_scope"`.
+
+**Design choices.**
+- **Opaque tokens, no signing key.** Every token, code and client secret is 256 random bits, and the households bucket stores only its SHA-256 (under `oauth/`). So there is no JWT key to keep in a stack parameter, an environment variable or the bucket, and revocation takes effect on the next request. The cost is one S3 read per MCP request that carries a token, a few milliseconds in-region.
+- **Single use by If-Match.** A code is spent and a refresh token rotated with S3's `If-Match` on the ETag, the same conditional write the households use, so two racing exchanges get one token set. A replayed code or a rotated-out refresh token revokes the whole grant.
+- **No sessions or cookies.** The consent form carries the original request and is checked again on submit. A household is chosen by making it there or by pasting its private link, so a forged form has nothing to ride on. The page can't be framed, and its error messages are codes, not text from the address.
+- **Client ID metadata documents.** A client may use the HTTPS URL of its metadata document as its `client_id`, the MCP spec's preferred registration from 2025-11-25 (dynamic registration is deprecated in 2026-07-28 but still served). Lowtide fetches the document only from public addresses, without redirects, within 5 seconds and 64 KB.
+
+### Alexa+ add-on authentication: conformance
+
+| Alexa+ MCP Toolkit guidance | Lowtide |
+|---|---|
+| Tier 1 `client_credentials`, scope `mcp:service`, no user data | ✓ `mcp:service` only; service tokens carry no household and are refused household tools (403) |
+| Tier 2 `authorization_code` + PKCE, user scopes `mcp:tools`, `mcp:resources` | ✓ S256 only (`plain` refused), bound to the household the person picks |
+| `expires_in` ≤ 3600 s | ✓ 3600 |
+| No `refresh_token` for client credentials | ✓ none issued |
+| `resource` required and checked against the MCP server URI | ✓ required for client_credentials and checked on every grant (`invalid_target` otherwise); defaults to `/api/mcp` at authorize |
+| Client authentication by HTTP Basic (or the body), never in the query | ✓ `client_secret_basic` and `client_secret_post`; query credentials are ignored |
+| Metadata with issuer, endpoints, `response_types_supported: ["code"]`, grants, `code_challenge_methods_supported: ["S256"]`, scopes | ✓ `/.well-known/oauth-authorization-server` |
+| Errors in RFC 6749 §5.2 form: `invalid_client` 401, `invalid_scope` and `invalid_request` 400, `access_denied` 403 | ✓ same codes and statuses (`invalid_client` 401 with a Basic challenge), `Cache-Control: no-store`; `access_denied` goes back on the redirect when the person says no |
+| Pre-registered client (Alexa+ doesn't use dynamic registration) | ✓ register once with the call below and enter the id and secret in the Alexa developer console |
+| Alexa+ doesn't need `WWW-Authenticate` on 401 | Sent anyway: the MCP spec needs it for Claude, ChatGPT and SDK clients, and a client that doesn't use it ignores it |
+
+Registering the Alexa+ service client (the secret is shown once and stored only as a hash):
+
+```bash
+curl -s https://d1soo7510nfzf4.cloudfront.net/api/oauth/register -H 'content-type: application/json' \
+  -d '{"client_name":"Alexa+","grant_types":["client_credentials"],"token_endpoint_auth_method":"client_secret_basic"}'
+```
 
 ## Proof
 
@@ -208,6 +274,8 @@ python infra/deploy.py               # create or update the stack, upload assets
 | A full Bedrock conversation (plan → schedule → savings) works in production | [`web/scripts/alexa-turn.mjs`](web/scripts/alexa-turn.mjs) |
 | The Echo flow works on desktop and phone with no console errors | [`web/scripts/e2e.cjs`](web/scripts/e2e.cjs) |
 | `schedule_run` asks through MCP elicitation when the client can show a form, saves nothing on "decline", and keeps the spoken yes for clients that can't (real SDK client, in-process) | [`web/test/elicit.test.ts`](web/test/elicit.test.ts), live: [`web/scripts/elicit-smoke.mjs`](web/scripts/elicit-smoke.mjs) |
+| OAuth: PKCE (the RFC 7636 vector), S256 only; codes are single use (a replay revokes the grant, two racing exchanges get one token set); refresh tokens rotate and a replayed one revokes the grant; revoking a refresh token ends its access tokens; client_credentials gives `mcp:service` only, no refresh token, resource required; tokens are bound to their household and to this origin; nothing is stored unhashed; metadata-document clients are fetched only from public addresses; `/api/mcp/account` answers 401 with `resource_metadata`, and service tokens get 403 for household tools | [`web/test/oauth.test.ts`](web/test/oauth.test.ts), 21 tests |
+| The MCP SDK's own OAuth client, against `next dev`: discovers the metadata, registers, is sent to the consent page (driven by Playwright: a new household, then a pasted existing one), exchanges the code, calls `tools/list`, `plan_appliance` and `schedule_run`, refreshes after a 401, and is locked out after revocation; a client_credentials client gets `mcp:service`; the capability link and the guest endpoint still work | [`web/scripts/oauth-e2e.mjs`](web/scripts/oauth-e2e.mjs) |
 | SigV4 matches botocore for Bedrock, S3 and Polly, with and without a session token; credentials come from the Lambda role on AWS | [`web/test/aws.test.ts`](web/test/aws.test.ts) |
 | `/api/speak` serves Polly audio only to the site's own pages, in the region's voice, cached by text, within per-visitor and daily caps, and fails over to the browser's voice | [`web/test/aws.test.ts`](web/test/aws.test.ts) (Polly replaced by a fake) |
 | Tonight's plan waits for tomorrow's prices, is computed once per household per night even when two instances race (If-Match), and the roll walks households a few at a time, skipping quiet ones; the scheduled job runs the roll to the end within its time budget, and `/events` refuses any event without this deploy's schedule token (missing, wrong or unconfigured) | [`web/test/aws.test.ts`](web/test/aws.test.ts) |
@@ -220,8 +288,9 @@ python infra/deploy.py               # create or update the stack, upload assets
 cd web
 npm install
 npm run dev          # builds the MCP App view, then starts Next.js
-npm test             # 120 tests: planner, deadlines, clocks, places, the phrase router, the tool handlers, the routes, SigV4, Polly, tonight's plan, retries, the origin check, the MCP protocol revisions
+npm test             # 141 tests: planner, deadlines, clocks, places, the phrase router, the tool handlers, the routes, SigV4, Polly, tonight's plan, retries, the origin check, the MCP protocol revisions, OAuth
 node scripts/mcp-smoke.mjs http://localhost:3000
+PLAYWRIGHT=/path/to/node_modules/playwright node scripts/oauth-e2e.mjs http://localhost:3000   # OAuth end to end
 ```
 
 Optional environment (see [`web/.env.example`](web/.env.example)): `S3_BUCKET` + `S3_REGION` with `AWS_ROLE_ARN` or `S3_ACCESS_KEY_ID` + `S3_SECRET_ACCESS_KEY` (households in a private Amazon S3 bucket next to Bedrock, written with `If-Match` on the ETag so two quick saves can't overwrite each other; a GCS bucket or `BLOB_READ_WRITE_TOKEN` also work; without any store they're stored in `web/.data`), `BEDROCK_ACCESS_KEY_ID` + `BEDROCK_SECRET_ACCESS_KEY` (the simulator's model, called with signed requests to `bedrock-runtime.<region>.amazonaws.com` and nowhere else; without them the phrase router answers), `BEDROCK_REGION` (default `ap-southeast-2`), `BEDROCK_MODEL`.
@@ -251,7 +320,7 @@ How Lowtide lines up with Amazon's Alexa+ add-on guidance (the MCP Toolkit overv
 | One intent per tool, clear descriptions, declare only what you honour | Nine single-purpose tools; every parameter is used; all four annotations on every tool | Yes |
 | Round trip under 500 ms | Warm read-only tools 0.3–0.5 s through CloudFront from India to Sydney; writes about 0.9 s (an S3 read plus a conditional write); a cold start is seconds, which the keep-warm schedule makes rare | Partly |
 | Elicitation when details are missing | `schedule_run` confirms through MCP elicitation (form) where the host supports it | Yes |
-| Authentication: Tier 1 `client_credentials` (scope `mcp:service`), Tier 2 `authorization_code` + PKCE | Not implemented. A household is a capability link (`/api/mcp/h/<id>`, about 50 bits) because outside developers can't register an Alexa+ add-on to complete either flow, and a link works in every MCP host today. The production path is OAuth 2.1 with PKCE with the energy supplier as the identity provider | No |
+| Authentication: Tier 1 `client_credentials` (scope `mcp:service`), Tier 2 `authorization_code` + PKCE | OAuth 2.1 at `/api/mcp/account`: authorization code with PKCE (S256 only) through a consent page that makes or picks a household, client credentials for `mcp:service` (no refresh token, `resource` required), rotating refresh tokens, revocation, client ID metadata documents and dynamic registration ([Sign in with OAuth](#sign-in-with-oauth-alexa-account-linking), [`web/test/oauth.test.ts`](web/test/oauth.test.ts)). Household capability links and the guest endpoint are unchanged. Not yet tested with a real Alexa+ client, because outside developers can't register an Alexa+ add-on | Yes, untested on Alexa+ |
 
 ## Feedback for the Amazon teams
 
