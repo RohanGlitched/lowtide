@@ -235,7 +235,7 @@
 }
 .typed {
   display: flex;
-  flex: 1 1 280px;
+  flex: 1 1 180px;
   min-width: 0;
   padding: 5px;
   gap: 6px;

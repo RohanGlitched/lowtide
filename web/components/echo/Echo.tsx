@@ -220,6 +220,8 @@ export default function Echo() {
       setError(null);
       stopSpeaking();
       say({ who: "you", text });
+      // Once the conversation starts, the notification has done its job.
+      setTonightHeard(true);
       setCaption({ who: "you", text });
       setPhase("thinking");
       if (captionTimer.current) clearTimeout(captionTimer.current);
