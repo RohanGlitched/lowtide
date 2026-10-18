@@ -82,8 +82,8 @@ export default function TideChart({ slots, past = [], now, timeZone: tz, unit, r
     // Every 2 hours on a wide tide (every 4 on phones, by CSS), every 6 on a compact one; none where "now" sits.
     const ticks = cells
       .map((c, i) => ({ i, h: hourOf(c.start, tz), min: new Date(c.start).getUTCMinutes() }))
-      .filter((t) => t.min === 0 && t.h % (compact ? 6 : 2) === 0 && x(t.i) / W > (compact ? 0.1 : 0.05) && t.i < 46)
-      .map((t) => ({ ...t, minor: !compact && t.h % 4 !== 0 }));
+      .filter((t) => t.min === 0 && t.h % (compact ? 6 : 2) === 0 && x(t.i) / W > (compact ? 0.1 : 0.07) && t.i < 46)
+      .map((t) => ({ ...t, minor: !compact && (t.h % 4 !== 0 || x(t.i) / W < 0.14) }));
     return { cells, x, y, line, area, ghost, lastLive, lowI, ticks, first, lo, hi };
   }, [slots, past, now, tz, H, TOP, BOT, compact]);
 
@@ -125,7 +125,7 @@ export default function TideChart({ slots, past = [], now, timeZone: tz, unit, r
       onBlur={() => setHover(null)}
     >
       <span id={`k${uid}`} className="srOnly">
-        Left and right arrows read each half hour; Home and End jump to the ends.
+        Left and right arrows read each half hour; Page Up and Page Down jump 4 hours; Home and End go to the ends.
       </span>
       <p className="srOnly" aria-live="polite">
         {reading}
@@ -185,7 +185,7 @@ export default function TideChart({ slots, past = [], now, timeZone: tz, unit, r
           </b>
         </div>
       )}
-      {!compact && runX && run && (
+      {!compact && runX && run && hover == null && (
         <div className={s.runTag} style={{ left: `${(runX[0] / W) * 100}%`, width: `${((runX[1] - runX[0]) / W) * 100}%` }}>
           <span>{run.label}</span>
         </div>

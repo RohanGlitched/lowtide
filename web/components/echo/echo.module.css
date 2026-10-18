@@ -87,6 +87,9 @@
   position: absolute;
   inset: 0;
 }
+.device[data-notify="yes"][data-phase="idle"] .view {
+  top: 48px;
+}
 .boot {
   position: absolute;
   inset: 0;
@@ -488,15 +491,21 @@
 }
 .notice {
   position: absolute;
-  top: 4%;
-  right: 3%;
-  max-width: min(46%, 420px);
-  display: grid;
-  gap: 2px;
-  padding: 12px 18px 13px;
+  z-index: 2;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 16px;
+  overflow: hidden;
   border: 0;
-  border-left: 3px solid var(--moonlight);
-  border-radius: 10px;
+  border-bottom: 1px solid rgba(143, 214, 255, 0.3);
+  border-radius: 0;
+  text-align: left;
+  white-space: nowrap;
   background: rgba(22, 24, 27, 0.92);
   color: #f6f7f9;
   text-align: left;
@@ -528,12 +537,8 @@
 }
 @media (max-width: 640px) {
   /* Along the bottom of the screen on a phone, clear of the dial. */
-  .notice {
-    top: auto;
-    bottom: 4%;
-    left: 3%;
-    right: 3%;
-    max-width: none;
+  .noticeKicker {
+    display: none;
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -552,4 +557,15 @@
     grid-column: 1 / -1;
     order: 1;
   }
+}
+.noticeText {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.noticeHear {
+  margin-left: auto;
+  flex: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--moonlight);
 }

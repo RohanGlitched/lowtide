@@ -364,6 +364,9 @@ export default function Echo() {
               <button type="button" className={s.notice} onClick={hearTonight} aria-label={`Notification: ${tonight.headline}. Press to hear it.`}>
                 <span className={s.noticeKicker}>{tonight.unusual ? "Tonight · unusually cheap" : "Tonight's plan"}</span>
                 <span className={s.noticeText}>{tonight.headline.replace(/^Tonight is unusually cheap: /, "").replace(/^Tonight: /, "")}</span>
+                <span className={s.noticeHear} aria-hidden>
+                  Hear it
+                </span>
               </button>
             )}
             {!home && setupError && phase !== "connecting" && (

@@ -36,14 +36,16 @@ export function TonightSection() {
   const { place } = usePlace();
   const sc = place.scene;
   if (!sc.runs.length) return null;
+  const h = Number(new Intl.DateTimeFormat("en-GB", { timeZone: sc.timeZone, hour: "2-digit", hourCycle: "h23" }).format(new Date(sc.now)));
+  const night = h >= 17 || h < 5;
   return (
     <section className="shell section" aria-labelledby="tonight-title">
       <div className="sectionHead">
         <h2 id="tonight-title" className="serif">
-          Tonight, already planned.
+          {night ? "Tonight, already planned." : "The next day, already planned."}
         </h2>
         <p>
-          {sc.runs.length === 4 ? "Four" : sc.runs.length} everyday loads in a {place.label} home, each placed in the cheapest stretch that still finishes by morning. The nightly
+          {sc.runs.length === 4 ? "Four" : sc.runs.length} everyday loads in a {place.label} home, each placed in the cheapest stretch that still finishes {night ? "by morning" : "within the next day"}. The nightly
           schedule does this for every household before anyone asks.
         </p>
       </div>

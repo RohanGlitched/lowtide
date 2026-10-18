@@ -24,6 +24,8 @@
   --lcd: #0d0f0c;
   --signal: #ff6a33;
   --signal-dim: #8b4a2d;
+  /* Dim display text that still has to be read: 5.3:1 on the LCD glass. */
+  --signal-text: #d06a3c;
   --dear: #f2a37f;
   --gutter: clamp(18px, 4.5vw, 72px);
   --max: 1296px;
@@ -107,7 +109,8 @@ a {
 .skip:focus {
   transform: none;
 }
-main:focus {
+main:focus,
+section[tabindex="-1"]:focus {
   outline: none;
 }
 

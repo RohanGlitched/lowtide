@@ -53,7 +53,7 @@
   align-items: center;
   gap: 10px;
   font-size: 12px;
-  color: var(--signal-dim);
+  color: var(--signal-text);
 }
 .bars li::before {
   content: counter(rank);
@@ -61,7 +61,8 @@
   text-align: right;
 }
 .barName {
-  white-space: nowrap;
+  white-space: normal;
+  line-height: 1.25;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -120,10 +121,8 @@
 }
 .meta {
   display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 2px 10px;
+  flex-direction: column;
+  gap: 4px;
   min-width: 0;
 }
 .meta h2 {
@@ -132,15 +131,16 @@
 }
 .item h2 {
   margin: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1.15;
+  min-height: 2.3em;
+  text-wrap: balance;
   font-family: var(--font-serif), Georgia, serif;
   font-size: 21px;
   font-weight: 400;
   color: #fff;
 }
 .tariff {
+  order: -1;
   margin: 0;
   font-size: 12.5px;
   color: var(--faint);

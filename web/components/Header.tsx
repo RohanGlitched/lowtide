@@ -6,7 +6,7 @@ import s from "./chrome.module.css";
 /** London's price this half hour, for the header's live chip; nothing if the feed is slow or down. */
 async function priceNow(): Promise<string | null> {
   try {
-    const tide = await Promise.race([getTide("SE1 7PB"), new Promise<null>((r) => setTimeout(() => r(null), 1500))]);
+    const tide = await Promise.race([getTide("SE1 7PB"), new Promise<null>((r) => setTimeout(() => r(null), 4000))]);
     if (!tide) return null;
     const now = Date.now();
     const cur = tide.slots.find((x) => x.start <= now && now < x.end);

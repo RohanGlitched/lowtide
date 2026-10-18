@@ -28,7 +28,7 @@
   /* The whole address, wrapping if it must: the host is what you're trusting, so none of it is hidden. */
   padding-block: 10px;
   line-height: 1.45;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 .row button {
   flex: none;

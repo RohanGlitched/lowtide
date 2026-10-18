@@ -28,9 +28,17 @@ export default function Nav({ price }: { price: string | null }) {
     }
     wasOpen.current = true;
     const close = () => setOpen(false);
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && close();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") return close();
+      if (e.key !== "Tab") return;
+      // Focus stays on the menu button and the sheet's links while the sheet is open.
+      const ring = [menuRef.current, ...Array.from(document.querySelectorAll<HTMLElement>("#sheet a"))].filter((x): x is HTMLElement => !!x);
+      const i = ring.indexOf(document.activeElement as HTMLElement);
+      e.preventDefault();
+      ring[(i + (e.shiftKey ? -1 : 1) + ring.length) % ring.length]?.focus();
+    };
     // While the sheet is open the page behind it neither scrolls nor takes focus.
-    const behind = [document.querySelector("main"), document.querySelector("footer")].filter((x): x is HTMLElement => !!x);
+    const behind = [document.querySelector("main"), document.querySelector("footer"), document.querySelector<HTMLElement>(".skip")].filter((x): x is HTMLElement => !!x);
     behind.forEach((x) => x.setAttribute("inert", ""));
     document.documentElement.style.overflow = "hidden";
     window.addEventListener("keydown", onKey);
@@ -74,12 +82,22 @@ export default function Nav({ price }: { price: string | null }) {
       </div>
       {/* Any link in the sheet closes it, including ones to a part of the page you're already on. */}
       <div id="sheet" className={s.sheet} data-open={open ? "yes" : undefined} hidden={!open} onClick={(e) => {
-          if (!(e.target as HTMLElement).closest("a")) return;
+          const a = (e.target as HTMLElement).closest("a");
+          if (!a) return;
           // Unlock the page first, so the link can scroll it.
           followed.current = true;
           document.documentElement.style.overflow = "";
           document.querySelectorAll("main, footer").forEach((x) => x.removeAttribute("inert"));
           setOpen(false);
+          // A link to a part of this page moves focus there too, once it has scrolled.
+          const id = new URL(a.href).hash.slice(1);
+          if (id && new URL(a.href).pathname === window.location.pathname)
+            setTimeout(() => {
+              const el = document.getElementById(id);
+              if (!el) return;
+              if (!el.hasAttribute("tabindex")) el.setAttribute("tabindex", "-1");
+              el.focus({ preventScroll: true });
+            }, 350);
         }}
       >
         <Link href="/" prefetch={false}>Tonight</Link>

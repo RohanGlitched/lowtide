@@ -25,7 +25,12 @@ export default function CopyField({ value, label }: { value: string; label: stri
       <span className={s.label}>{label}</span>
       <div className={s.row}>
         <code ref={ref} className={s.value}>
-          {value}
+          {value.split(/(?<=[/.])/).map((part, i) => (
+            <span key={i}>
+              {part}
+              <wbr />
+            </span>
+          ))}
         </code>
         <button type="button" onClick={copy} aria-label={`Copy ${label.toLowerCase()}`}>
           {copied === "yes" ? "Copied" : copied === "select" ? "Ctrl+C" : "Copy"}

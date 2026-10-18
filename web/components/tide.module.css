@@ -187,7 +187,7 @@
     display: none;
   }
   .runTag {
-    bottom: 32px;
+    display: none;
   }
   .unpub span {
     display: none;

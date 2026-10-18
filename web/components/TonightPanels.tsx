@@ -16,6 +16,8 @@ function hhmm(t: number, tz: string) {
 
 export default function TonightPanels({ scene, place }: { scene: SceneData; place: string }) {
   const tz = scene.timeZone;
+  const hour = Number(hhmm(scene.now, tz).slice(0, 2));
+  const night = hour >= 17 || hour < 5;
   const runs = [...scene.runs].sort((a, b) => a.start - b.start);
   if (!runs.length) return null;
   const yearly = runs.reduce((a, r) => a + Math.max(0, r.costTypical - r.cost) * (PER_WEEK[r.id] ?? 7) * 52, 0);
@@ -55,9 +57,9 @@ export default function TonightPanels({ scene, place }: { scene: SceneData; plac
         })}
       </ul>
       <p className={s.fine}>
-        {place} on {scene.tariff}, prices read at {hhmm(scene.now, tz)}. Each load finishes by morning. A typical time is the average of
+        {place} on {scene.tariff}, prices read at {hhmm(scene.now, tz)}. Each load finishes {night ? "by morning" : "within the next day"}. A typical time is the average of
         every start in the next 24 hours, so the yearly figures ({money(yearly, scene)} for all four) are what moving them saves over
-        running them whenever, not over the evening peak, if every night looked like tonight.
+        running them whenever, not over the evening peak, if every {night ? "night looked like tonight" : "day looked like this one"}.
       </p>
     </div>
   );
