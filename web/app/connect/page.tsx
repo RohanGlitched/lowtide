@@ -69,6 +69,17 @@ export default function Connect() {
         <CopyField value={`${SITE_URL}/api/mcp`} label="Guest endpoint" />
       </section>
 
+      <section className={s.block} id="account">
+        <h2>Or sign in, instead of pasting a link</h2>
+        <p>
+          The same server also speaks the MCP specification&apos;s OAuth 2.1 sign-in. Add the address below; your assistant
+          finds Lowtide&apos;s authorization server on its own, sends you to a Lowtide page to make or pick a household, and
+          keeps a token that lasts an hour at a time. Disconnecting the app ends it. Server-to-server clients (an Alexa+
+          add-on&apos;s service tier) can use the client credentials grant for the guest tools.
+        </p>
+        <CopyField value={`${SITE_URL}/api/mcp/account`} label="Sign-in endpoint" />
+      </section>
+
       <section className={s.block}>
         <h2>For agents: the Lowtide skill</h2>
         <p>

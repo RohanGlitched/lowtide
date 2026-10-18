@@ -29,7 +29,22 @@ const config: NextConfig = {
     if (!canonical) return [];
     return [
       { source: "/", destination: `${canonical}/`, permanent: false },
-      { source: "/:path((?!api/).+)", destination: `${canonical}/:path`, permanent: false },
+      // OAuth stays on the host the client discovered: the issuer, the consent page and the metadata must agree
+      { source: "/:path((?!api/|\\.well-known/|oauth/).+)", destination: `${canonical}/:path`, permanent: false },
+    ];
+  },
+  async headers() {
+    // the consent page may never be framed (clickjacking), and its address carries the request's state
+    return [
+      {
+        source: "/oauth/:path*",
+        headers: [
+          { key: "x-frame-options", value: "DENY" },
+          { key: "content-security-policy", value: "frame-ancestors 'none'" },
+          { key: "referrer-policy", value: "no-referrer" },
+          { key: "cache-control", value: "no-store" },
+        ],
+      },
     ];
   },
 };

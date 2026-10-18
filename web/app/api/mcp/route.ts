@@ -1,11 +1,14 @@
-import { lowtideHandler, preflight } from "@/lib/mcp/handler";
+import { preflight } from "@/lib/mcp/handler";
+import { authRequiredOnGuest, protectedMcp } from "@/lib/oauth/resource";
+import { MCP_PATH } from "@/lib/oauth/config";
 import { publicOrigin } from "@/lib/origin";
 import { COUNTERTOP_URL } from "@/lib/site";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
 
-const handler = lowtideHandler(null);
+/** The guest server without a token (unchanged), a household or service server with an OAuth access token. */
+const handler = (req: Request) => protectedMcp(req, { path: MCP_PATH, required: authRequiredOnGuest() });
 
 /** A person who opens the endpoint in a browser gets a page that says what it is; MCP clients get the protocol. */
 async function get(req: Request) {
@@ -16,7 +19,7 @@ async function get(req: Request) {
 <h1>This is Lowtide's MCP server</h1>
 <p>It speaks the Model Context Protocol over Streamable HTTP, so there is nothing to see here in a browser. Add this address to an assistant that supports remote MCP servers, such as Claude, ChatGPT or VS Code:</p>
 <p><code>${origin}/api/mcp</code></p>
-<p>Then ask: "When is electricity cheapest tonight in SE1 7PB?" For saved runs and savings, <a href="/connect">make a household link</a>. To try it on a simulated Echo Show, <a href="/echo">open the Echo</a>, or test it in <a href="${COUNTERTOP_URL}/?server=${origin}/api/mcp">Countertop</a>.</p>
+<p>Then ask: "When is electricity cheapest tonight in SE1 7PB?" For saved runs and savings, <a href="/connect">make a household link</a>, or add <code>${origin}/api/mcp/account</code> to sign in with OAuth. To try it on a simulated Echo Show, <a href="/echo">open the Echo</a>, or test it in <a href="${COUNTERTOP_URL}/?server=${origin}/api/mcp">Countertop</a>.</p>
 <p><a href="/">Lowtide home</a> · <a href="https://github.com/RohanGlitched/lowtide">Source</a></p>`;
     return new Response(html, { headers: { "content-type": "text/html; charset=utf-8" } });
   }
