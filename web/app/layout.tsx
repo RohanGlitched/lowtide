@@ -15,7 +15,7 @@ export const metadata: Metadata = {
   title: { default: "Lowtide: run it at low tide, with Alexa", template: "%s · Lowtide" },
   description:
     "Ask Alexa when to run the dishwasher. Lowtide reads every half-hourly electricity price and the grid's carbon forecast and picks the cheapest, cleanest time. An MCP server for Alexa+.",
-  openGraph: { type: "website", siteName: "Lowtide", images: [{ url: "/og.png", width: 1000, height: 620, alt: "Lowtide: tonight's electricity prices as a moonlit tide" }] },
+  openGraph: { type: "website", siteName: "Lowtide", images: [{ url: "/og.png", width: 1200, height: 630, alt: "Lowtide: power is cheapest at low tide. Ask Alexa when to run it." }] },
   twitter: { card: "summary_large_image", images: ["/og.png"] },
 };
 

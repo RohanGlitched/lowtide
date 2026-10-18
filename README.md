@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/cover.png" alt="Lowtide: ask Alexa when to run the dishwasher. Today's London electricity prices as a machined ring of 48 fins." width="100%">
+<img src="docs/cover.png" alt="Lowtide: power is cheapest at low tide. The dishwasher's display says start at 00:00 for 25p, not 30p, over tonight's London prices drawn as a moonlit tide with low tide at 02:00." width="100%">
 
 # Lowtide
 
@@ -33,7 +33,7 @@ But nobody reads a price table while plugging in the car or loading the dishwash
 
 ## What it does
 
-<img src="docs/screens/echo-scheduled.png" alt="Simulated Echo Show: Alexa schedules the dishwasher for 01:00 and shows the day's prices on a dial" width="100%">
+<img src="docs/screens/echo-scheduled.png" alt="Simulated Echo Show: Alexa has saved the dishwasher for 00:00, done by 03:00, 25p, and shows the day's prices on a dial" width="100%">
 
 > **You:** Alexa, when should I run the dishwasher? It needs to be done by seven.
 > **Alexa:** Run the dishwasher tonight at 1 a.m., done by 4 a.m., in time for 7 a.m. tomorrow morning. It costs about 23 pence, 7 pence less than starting now. Would you like to save it?
@@ -48,7 +48,7 @@ Asked on an evening in London (15 October 2026's prices): Amazon Nova Micro on A
 
 ## The night, as a tide
 
-<img src="docs/object.gif" alt="The ring re-cuts itself for Glasgow, Chicago and Berlin" width="600">
+<img src="docs/tide.gif" alt="The home page for London, Glasgow, Cardiff, Chicago and Berlin: each place's headline, dishwasher display and tide redrawn from its own live prices" width="100%">
 
 The website draws the night as a tide: the next 24 hours of half-hourly prices as a moonlit water surface, high water when power is dear and low tide when it is cheap, with the dishwasher's cheapest run lit and the low tide labelled; point anywhere for that half hour's price. It is SVG rendered on the server, so it is on screen with the first paint. The answers are shown the way an appliance would show them: orange LCD readouts and delay-start knobs for the dishwasher, the washing, the hot water and the car. Switch city and the tide re-draws from that region's live prices. Before Octopus publishes tomorrow's prices (about 4 p.m. UK time) a British night is published only to 23:00; the rest is drawn as a dotted line from earlier today's price for each half hour (the same Octopus request), never as water, and the page says so.
 
@@ -64,17 +64,17 @@ The website draws the night as a tide: the next 24 hours of half-hourly prices a
 
 | | |
 |---|---|
-| <img src="docs/screens/home-hero.png" alt="Home: live headline, the appliance LCD and tonight's tide"> | <img src="docs/screens/home-glasgow.png" alt="The same tide for Glasgow"> |
-| **Home.** The headline is live data; the ring is the next 24 hours in London. | **Glasgow.** Every region gets a different object every day. |
-| <img src="docs/screens/home-pick-car.png" alt="Choose what to move: the car's cheapest window cut in cobalt"> | <img src="docs/screens/home-ask.png" alt="Echo Show mock with the dishwasher plan"> |
-| **Choose what to move.** Pick a load; cobalt marks when it should run, with the saving. | **Ask, and it answers twice.** The live answer for London, spoken and drawn. |
-| <img src="docs/screens/echo-plan.png" alt="Echo simulator mid-conversation"> | <img src="docs/screens/tables.png" alt="Today's prices for 16 regions as dials"> |
-| **Echo simulator.** Bedrock picks the tool; the MCP App view renders on the screen. | **Today, region by region.** 14 Agile regions, Illinois and Germany. |
+| <img src="docs/screens/home-hero.png" alt="Home: the live headline, the dishwasher's display with Cheapest, Greenest and Start now keys, and tonight's tide"> | <img src="docs/screens/home-glasgow.png" alt="The same page for Glasgow, from Glasgow's own Agile prices"> |
+| **Home.** The headline, the display and the tide are tonight's London prices. The keys re-plan the run. | **Glasgow.** Every place gets its own night, and the link keeps it (`?place=glasgow`). |
+| <img src="docs/screens/home-tonight.png" alt="Four appliance panels: dishwasher, car, washing machine and hot water, each with its start time, cost and a delay-start knob"> | <img src="docs/screens/connect.png" alt="Add Lowtide to your assistant: the guest endpoint, a household link and a preview of the answer in a conversation"> |
+| **Tonight, already planned.** Four loads, each with the delay start to set and what it saves a year. | **Add it to any assistant.** A guest endpoint with no account, or a household of your own. |
+| <img src="docs/screens/tables.png" alt="Today's tides: the 14 British regions ranked cheapest first, then a tide for every region"> | <img src="docs/screens/architecture.png" alt="How it runs on AWS: Lambda with CloudFront, Bedrock, Polly, S3, EventBridge Scheduler and CloudWatch"> |
+| **Today, region by region.** 14 Agile regions ranked live, plus Illinois and Germany. | **On AWS.** One Lambda function behind CloudFront, no stored keys. |
 
 <p align="center">
-  <img src="docs/screens/phone-home.png" alt="Phone: home" width="250">
-  <img src="docs/screens/phone-object.png" alt="Phone: the object" width="250">
-  <img src="docs/screens/phone-echo.png" alt="Phone: Echo simulator" width="250">
+  <img src="docs/screens/phone-home.png" alt="Phone: the home page" width="250">
+  <img src="docs/screens/phone-tables.png" alt="Phone: today's tides" width="250">
+  <img src="docs/screens/phone-echo.png" alt="Phone: the Echo simulator" width="250">
 </p>
 
 ## How it works
@@ -133,7 +133,7 @@ Every tool returns a **voice-ready sentence** first (times said the way people s
 - **Readable across a kitchen.** The view has a fullscreen layout for device screens (sized from the screen, nothing scrolls) and an inline one for chat hosts.
 - **Never stuck.** If Bedrock is unavailable or the daily budget is spent, the simulator falls back to a deterministic phrase router that calls the same tools, and the tools' own sentences are spoken. The page says which one is answering, from a real probe, not from whether a key is set.
 - **A real voice.** Replies are spoken by Amazon Polly's neural voices, chosen by tariff region: Amy (British English) for Agile, Joanna (American English) for ComEd, Vicki (German) for EPEX. Plain text only, no SSML, so nothing in a tool result can change how it is said; capped per visitor and per day in characters, cached by a hash of the sentence. If Polly is unreachable the browser's own speech takes over, and the page labels whichever voice actually spoke.
-- **Proactive, on a schedule.** An Echo shows a waiting notification as a yellow light. Lowtide's version: Octopus publishes tomorrow's prices at about 4 p.m. UK time, and Amazon EventBridge Scheduler runs tonight's plan at 16:45 and again at 18:30 London time, planning the coming night for every saved household, once, and storing it with the household (If-Match, like every write); the Echo pulses yellow and shows "Tonight is unusually cheap: tumble dryer at 02:00" until you hear it. The 18:30 run catches a late publication or households the first run had no time for. If a schedule is ever missed, the lazy roll still covers it: the first request after the prices are out plans that household, and each request takes one short, bounded step through the others.
+- **Proactive, on a schedule.** An Echo shows a waiting notification with its light bar. Lowtide's version: Octopus publishes tomorrow's prices at about 4 p.m. UK time, and Amazon EventBridge Scheduler runs tonight's plan at 16:45 and again at 18:30 London time, planning the coming night for every saved household, once, and storing it with the household (If-Match, like every write); the Echo's light bar pulses and a bar across the top of its screen says "Tonight is unusually cheap: tumble dryer at 02:00" until you hear it or start talking. The 18:30 run catches a late publication or households the first run had no time for. If a schedule is ever missed, the lazy roll still covers it: the first request after the prices are out plans that household, and each request takes one short, bounded step through the others.
 - **A chain of models.** The server asks for Amazon Nova Micro first, the cheapest Bedrock model with tool use, through the Asia Pacific inference profile in Sydney; if the account can't call it (model access, an organisation policy, a region rule), it tries Nova Lite and remembers what worked. Nova's `<thinking>` text is stripped, so Alexa never reads it aloud.
 - **Signed requests, no SDK.** Bedrock, S3 and Polly are all called with SigV4-signed requests from one small signer in `node:crypto` ([`web/lib/aws/sigv4.ts`](web/lib/aws/sigv4.ts), checked in tests against botocore's signatures). On AWS the credentials are the Lambda function's own role (temporary, with a session token, nothing stored anywhere); its policy allows `InvokeModel` on Nova Micro and Nova Lite, get, put and list on the households bucket, and `SynthesizeSpeech`. No access key exists for Lowtide or Countertop anywhere: the first deployment, on Vercel, used two single-purpose IAM users (the organisation denies the OIDC provider that keyless access from Vercel would need); that copy now only redirects every path to AWS, and both users' access keys were deleted on 18 October 2026.
 - **Bounded cost.** The model route answers only its own pages, checks every message shape, and caps calls at 40 per visitor per 10 minutes and 250 per visitor per day (per server instance), plus 1,500 a day in all (a count shared through the S3 store, synced every 20 calls and on every call once 80% is spent). The same-origin check stops casual reuse but is not authentication, so the caps are the real guard.
@@ -155,6 +155,10 @@ flowchart LR
     EB["Amazon EventBridge Scheduler<br/>16:45 and 18:30 London time,<br/>keep-warm every 5 minutes"] -- "invoke, with the deploy's token<br/>(Web Adapter → POST /events)" --> L
     IAM["IAM roles<br/>least privilege, no keys"] -.-> L
 ```
+
+The CloudWatch dashboard on the live stack: the nightly schedule planning every saved household, MCP tool calls, requests and Bedrock latency.
+
+<img src="docs/cloudwatch/dashboard.png" alt="CloudWatch: EventBridge Scheduler runs with households planned, MCP tool calls, requests and errors, and Bedrock latency, over the last three days" width="100%">
 
 | AWS service | What it does for Lowtide | Why this one |
 |---|---|---|
