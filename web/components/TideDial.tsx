@@ -195,13 +195,13 @@ export default function TideDial({ slots, past = [], now, timeZone: tz, unit, ru
         <circle cx={C} cy={C} r={HUB} fill="url(#td-hub)" />
         <circle cx={C} cy={C} r={HUB} fill="none" stroke="#c9ced6" strokeWidth="2" />
         <circle cx={C} cy={C} r={HUB - 10} fill="none" stroke="#ffffff" strokeWidth="2" />
-        <text x={C} y={C - 70} textAnchor="middle" className={s.above}>
+        <text x={C} y={size === "card" ? C - 92 : C - 70} textAnchor="middle" className={s.above}>
           {readout.above}
         </text>
-        <text x={C} y={C + 34} textAnchor="middle" className={`${s.big} ${h ? "" : s.bigRest}`}>
+        <text x={C} y={size === "card" ? C + 50 : C + 34} textAnchor="middle" className={`${s.big} ${h ? "" : s.bigRest}`}>
           {readout.big}
         </text>
-        <text x={C} y={C + 90} textAnchor="middle" className={s.below}>
+        <text x={C} y={size === "card" ? C + 118 : C + 90} textAnchor="middle" className={s.below}>
           {readout.below}
         </text>
       </svg>

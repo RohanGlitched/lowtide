@@ -14,14 +14,15 @@
 }
 .askText h2 {
   margin: 0;
-  font-size: clamp(40px, 4.4vw, 68px);
+  font-size: clamp(30px, 3vw, 44px);
+  line-height: 1.04;
   text-wrap: balance;
   color: #fff;
 }
 .askSub {
   margin: 20px 0 0;
   max-width: 30em;
-  font-size: 19px;
+  font-size: 17px;
   color: #9aa1ab;
 }
 .script {
@@ -32,8 +33,8 @@
   list-style: none;
 }
 .script li {
-  font-size: 17.5px;
-  line-height: 1.45;
+  font-size: 16px;
+  line-height: 1.5;
 }
 .script li[data-who="you"] {
   color: #9aa1ab;
@@ -81,7 +82,7 @@
 .screenHead {
   margin: 0;
   font-family: var(--font-display), sans-serif;
-  font-size: clamp(22px, 2.9vw, 46px);
+  font-size: clamp(20px, 2.4vw, 38px);
   font-weight: 500;
   line-height: 1.02;
   letter-spacing: -0.03em;
@@ -135,7 +136,7 @@
 .steps h3 {
   margin: 0 0 8px;
   font-family: var(--font-display), sans-serif;
-  font-size: 25px;
+  font-size: 21px;
   font-weight: 500;
   letter-spacing: -0.02em;
   color: #fff;
@@ -207,7 +208,7 @@
 }
 .measured strong {
   font-family: var(--font-display), sans-serif;
-  font-size: clamp(40px, 4.2vw, 62px);
+  font-size: clamp(30px, 2.8vw, 40px);
   font-weight: 500;
   letter-spacing: -0.04em;
   line-height: 1;
@@ -255,7 +256,7 @@
 .ways h3 {
   margin: 0;
   font-family: var(--font-display), sans-serif;
-  font-size: 28px;
+  font-size: 23px;
   font-weight: 500;
   letter-spacing: -0.025em;
 }
@@ -298,7 +299,7 @@
 .pays strong {
   display: block;
   font-family: var(--font-display), sans-serif;
-  font-size: clamp(30px, 2.8vw, 42px);
+  font-size: clamp(24px, 2.2vw, 32px);
   font-weight: 500;
   letter-spacing: -0.035em;
   line-height: 1.05;
@@ -313,7 +314,7 @@
   max-width: 46em;
   margin: 44px 0 0;
   font-family: var(--font-display), sans-serif;
-  font-size: clamp(22px, 2vw, 28px);
+  font-size: clamp(19px, 1.6vw, 23px);
   font-weight: 500;
   letter-spacing: -0.02em;
   line-height: 1.3;
@@ -340,8 +341,8 @@
 
 /* Questions */
 .faqTitle {
-  margin: 0 0 28px;
-  font-size: clamp(40px, 4.6vw, 72px);
+  margin: 0 0 24px;
+  font-size: clamp(30px, 3vw, 44px);
 }
 .faq {
   display: grid;
@@ -355,7 +356,7 @@
 .faq summary {
   cursor: pointer;
   list-style: none;
-  font-size: 20px;
+  font-size: 17.5px;
   font-weight: 600;
 }
 .faq summary::-webkit-details-marker {

@@ -1,11 +1,15 @@
 .wrap {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: clamp(40px, 5vw, 64px);
+}
+.top {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
   gap: 48px;
   align-items: start;
 }
 @media (max-width: 1080px) {
-  .wrap {
+  .top {
     grid-template-columns: minmax(0, 1fr);
     gap: 32px;
   }
@@ -21,8 +25,9 @@
   border-radius: clamp(14px, 2vw, 26px);
   background: linear-gradient(180deg, #202328 0%, #111316 100%);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.1),
-    0 26px 34px -24px rgba(22, 24, 27, 0.5);
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    0 0 0 1px #2c3036,
+    0 60px 110px -50px rgba(35, 64, 255, 0.5);
 }
 .device::after {
   /* fabric speaker body, its lower edge just showing */
@@ -80,7 +85,8 @@
   min-height: calc(2 * 1.35em + 26px);
   padding: 13px 20px;
   border-radius: 12px;
-  background: #16181b;
+  background: var(--night-2);
+  box-shadow: inset 0 0 0 1px var(--night-rule);
   color: #f6f7f9;
   font-size: clamp(15px, 1.5vw, 20px);
   line-height: 1.35;
@@ -91,12 +97,12 @@
 }
 .caption[data-empty="yes"] {
   background: transparent;
-  box-shadow: inset 0 0 0 1px rgba(22, 24, 27, 0.12);
+  box-shadow: inset 0 0 0 1px var(--night-rule);
   animation: none;
 }
 .caption[data-empty="yes"]::before {
   content: "Alexa's replies appear here as she speaks.";
-  color: #8a9099;
+  color: #6c737d;
 }
 .bootError {
   position: absolute;
@@ -198,7 +204,8 @@
   cursor: pointer;
 }
 .talk[data-active="true"] {
-  background: var(--graphite);
+  background: #fff;
+  color: var(--night);
 }
 .talk:disabled {
   opacity: 0.5;
@@ -211,8 +218,8 @@
   padding: 5px;
   gap: 6px;
   border-radius: 999px;
-  background: var(--paper);
-  box-shadow: inset 0 0 0 1.5px var(--graphite);
+  background: var(--night-2);
+  box-shadow: inset 0 0 0 1.5px #3a3f47;
 }
 .typed input {
   flex: 1;
@@ -221,9 +228,12 @@
   padding: 0 14px;
   border: 0;
   background: transparent;
-  color: var(--graphite);
+  color: #fff;
   font: inherit;
   font-size: 17px;
+}
+.typed input::placeholder {
+  color: #6c737d;
 }
 .typed input:focus-visible {
   outline: none;
@@ -236,8 +246,8 @@
   padding: 0 18px;
   border: 0;
   border-radius: 999px;
-  background: var(--graphite);
-  color: #fff;
+  background: #e9ebee;
+  color: var(--night);
   font: inherit;
   font-size: 15px;
   font-weight: 600;
@@ -253,67 +263,105 @@
   border: 0;
   border-radius: 999px;
   background: transparent;
-  color: var(--steel);
+  color: #9aa1ab;
   font: inherit;
   font-size: 15px;
   font-weight: 600;
   cursor: pointer;
+  box-shadow: inset 0 0 0 1.5px #3a3f47;
 }
 .mute:hover {
-  color: var(--graphite);
+  color: #fff;
 }
 .error {
   margin: 14px 0 0;
-  color: var(--cobalt);
+  color: #8fa0ff;
   font-size: 16px;
   font-weight: 600;
 }
 
-/* ---------- side panel ---------- */
-.side {
-  display: grid;
-  gap: 36px;
-  min-width: 0;
-}
+/* ---------- try saying ---------- */
+.try h2,
 .block h2 {
-  margin: 0 0 12px;
+  margin: 0 0 14px;
   font-family: var(--font-display), sans-serif;
   font-size: 24px;
   font-weight: 500;
   letter-spacing: -0.02em;
+  color: #fff;
 }
 .suggest {
   display: grid;
-  gap: 6px;
+  gap: 8px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 .suggest button {
   width: 100%;
-  min-height: 44px;
-  padding: 10px 16px;
+  min-height: 46px;
+  padding: 11px 16px;
   border: 0;
   border-radius: 12px;
-  background: var(--paper);
-  box-shadow: inset 0 0 0 1px var(--rule);
-  color: var(--graphite);
+  background: var(--night-2);
+  box-shadow: inset 0 0 0 1px var(--night-rule);
+  color: #e9ebee;
   font: inherit;
-  font-size: 16px;
+  font-size: 15.5px;
   text-align: left;
   cursor: pointer;
+  transition: box-shadow 140ms ease, background-color 140ms ease;
 }
 .suggest button:hover:not(:disabled) {
-  box-shadow: inset 0 0 0 1.5px var(--cobalt);
+  background: #1c2025;
+  box-shadow: inset 0 0 0 1.5px var(--cobalt-soft);
 }
 .suggest button:disabled {
-  opacity: 0.5;
+  opacity: 0.45;
   cursor: default;
+}
+.tryNote {
+  margin: 14px 0 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: #7f8690;
+}
+
+/* ---------- the panels under the device ---------- */
+.panels {
+  display: grid;
+  grid-template-columns: minmax(0, 6fr) minmax(0, 3fr) minmax(0, 3fr);
+  gap: 16px;
+  align-items: stretch;
+}
+.block {
+  min-width: 0;
+  padding: 24px;
+  border-radius: 20px;
+  background: var(--night-2);
+  box-shadow: inset 0 0 0 1px var(--night-rule);
+  color: #c9ced6;
+}
+@media (max-width: 1080px) {
+  .panels {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .convo {
+    grid-column: 1 / -1;
+  }
+}
+@media (max-width: 640px) {
+  .panels {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .block {
+    padding: 18px;
+  }
 }
 .log {
   display: grid;
   gap: 10px;
-  max-height: 320px;
+  max-height: 360px;
   margin: 0;
   padding: 0;
   overflow-y: auto;
@@ -322,33 +370,36 @@
   line-height: 1.4;
 }
 .log li[data-who="you"] {
-  color: var(--steel);
+  color: #9aa1ab;
 }
 .log li[data-who="you"]::before {
   content: "You  ";
   font-weight: 700;
-  color: var(--graphite);
+  color: #fff;
   white-space: pre;
+}
+.log li[data-who="alexa"] {
+  color: #e9ebee;
 }
 .log li[data-who="alexa"]::before {
   content: "Alexa  ";
   font-weight: 700;
-  color: var(--cobalt);
+  color: var(--cobalt-soft);
   white-space: pre;
 }
 .log li[data-who="tool"] code {
   display: inline-block;
   padding: 3px 10px;
   border-radius: 999px;
-  background: var(--graphite);
-  color: #fff;
-  font-family: inherit;
-  font-size: 13px;
+  background: #23272d;
+  color: #aab6ff;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 12.5px;
   font-weight: 600;
   overflow-wrap: anywhere;
 }
 .log li[data-who="note"] {
-  color: var(--cobalt);
+  color: #8fa0ff;
   font-size: 14px;
 }
 .end {
@@ -357,23 +408,27 @@
 .engine {
   margin: 12px 0 0;
   font-size: 13.5px;
-  color: var(--steel);
+  color: #7f8690;
 }
 .home {
   margin: 0 0 6px;
   font-size: 16px;
+  color: #e9ebee;
+}
+.home strong {
+  color: #fff;
 }
 .muted {
   margin: 0 0 8px;
   font-size: 14px;
-  color: var(--steel);
+  color: #8a919b;
   line-height: 1.45;
 }
 .link {
   padding: 0;
   border: 0;
   background: none;
-  color: var(--cobalt);
+  color: #8fa0ff;
   font: inherit;
   font-size: 15px;
   font-weight: 600;
@@ -384,7 +439,7 @@
 .mcp {
   margin: 14px 0 0;
   font-size: 14px;
-  color: var(--steel);
+  color: #8a919b;
 }
 .mcp code {
   display: block;
@@ -392,7 +447,7 @@
   font-family: inherit;
   font-size: 14px;
   font-weight: 600;
-  color: var(--graphite);
+  color: #e9ebee;
   overflow-wrap: anywhere;
 }
 .srOnly {
@@ -454,6 +509,7 @@
   margin: 0 0 6px;
   font-size: 16px;
   line-height: 1.45;
+  color: #fff;
 }
 @media (max-width: 640px) {
   .notice {

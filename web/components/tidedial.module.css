@@ -86,7 +86,14 @@
   outline: none;
 }
 .card .hour {
-  font-size: 34px;
+  font-size: 44px;
+}
+.card .above,
+.card .below {
+  font-size: 42px;
+}
+.card .big {
+  font-size: 148px;
 }
 @media (prefers-reduced-motion: reduce) {
   .fin {

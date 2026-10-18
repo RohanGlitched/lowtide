@@ -334,6 +334,7 @@ export default function Echo() {
 
   return (
     <div className={s.wrap}>
+      <div className={s.top}>
       <section className={s.stage} aria-label="Simulated Echo Show">
         <div className={s.device} data-phase={phase} data-notify={tonight && !tonightHeard ? "yes" : undefined}>
           <span className={s.camera} aria-hidden />
@@ -402,21 +403,23 @@ export default function Echo() {
         )}
       </section>
 
-      <aside className={s.side}>
-        <div className={s.block}>
-          <h2>Try saying</h2>
-          <ul className={s.suggest}>
-            {SUGGESTIONS.map((q) => (
-              <li key={q}>
-                <button type="button" onClick={() => !busy && ask(q)} disabled={busy}>
-                  {q}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
+      <aside className={s.try}>
+        <h2>Try saying</h2>
+        <ul className={s.suggest}>
+          {SUGGESTIONS.map((q) => (
+            <li key={q}>
+              <button type="button" onClick={() => !busy && ask(q)} disabled={busy}>
+                {q}
+              </button>
+            </li>
+          ))}
+        </ul>
+        <p className={s.tryNote}>Every answer is priced live, so the time and the saving change through the day.</p>
+      </aside>
+      </div>
 
-        <div className={s.block}>
+      <div className={s.panels}>
+        <div className={`${s.block} ${s.convo}`}>
           <h2>Conversation</h2>
           {log.length === 0 ? (
             <p className={s.muted}>Your requests, Alexa&apos;s replies and each Lowtide tool call appear here.</p>
@@ -530,7 +533,7 @@ export default function Echo() {
             <p className={s.muted}>Setting up…</p>
           )}
         </div>
-      </aside>
+      </div>
     </div>
   );
 }

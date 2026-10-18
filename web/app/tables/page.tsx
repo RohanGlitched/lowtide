@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import Clock from "@/components/Clock";
+import Link from "next/link";
+import TideDial from "@/components/TideDial";
 import { tableData } from "@/lib/live";
 import { clock } from "@/lib/grid/time";
 import { rate } from "@/lib/format";
@@ -14,70 +15,117 @@ export const metadata: Metadata = {
 export default async function Tables() {
   const rows = await tableData();
   const generated = Date.now();
-  // Before Octopus publishes tomorrow (about 16:00 UK), Agile only runs to 23:00 tonight: say why the rings are short.
+  // Before Octopus publishes tomorrow (about 16:00 UK), Agile only runs to 23:00 tonight: say why part of each dial is frosted.
   const gbEnds = rows.filter((r) => r.key.startsWith("GB-") && r.chart?.slots.length).map((r) => r.chart!.slots[r.chart!.slots.length - 1].e);
   const partial = gbEnds.length > 0 && Math.max(...gbEnds) - generated < 20 * 3600_000;
   const partialEnd = partial ? clock(Math.max(...gbEnds), "Europe/London") : "";
+  // Britain's 14 regions share a unit and a clock, so they can be ranked against each other.
+  const gb = rows.filter((r) => r.key.startsWith("GB-") && r.now != null).sort((a, b) => a.now! - b.now!);
+  const gbLo = gb.length ? gb[0].now! : 0;
+  const gbHi = gb.length ? gb[gb.length - 1].now! : 1;
+
   return (
-    <main className={`shell ${s.main}`}>
-      <div className={s.head}>
-        <h1 className="display">Today, region by region.</h1>
-        <p>
-          Every region gets a different day. Each dial is its next 24 hours, one fin per half hour (taller costs more, cobalt is
-          the cheapest quarter), with the cheapest half hour in the middle: &ldquo;cheapest now&rdquo; when it&apos;s the one under way,
-          so it is on the same basis as the price now. Read from the published feeds at {clock(generated, "Europe/London")} London time.
-        </p>
+    <main>
+      <section className={`shell ${s.main}`} aria-labelledby="tides-title">
+        <div className="sectionHead">
+          <h1 id="tides-title" className={`display ${s.title}`}>
+            Today, region by region.
+          </h1>
+          <p>
+            Every region gets a different day. Each dial is its next 24 hours, one fin per half hour: longer costs more, cobalt is
+            the cheapest quarter. Point at a fin for its price. Read from the published feeds at {clock(generated, "Europe/London")}{" "}
+            London time.
+          </p>
+        </div>
+
+        {gb.length > 1 && (
+          <div className={s.rank}>
+            <div className={s.rankHead}>
+              <h2>Right now, cheapest first</h2>
+              <p>
+                This half hour&apos;s Agile price in each British region. The same tariff costs {rate(gbHi - gbLo, { unit: "p" })} more in{" "}
+                {gb[gb.length - 1].name} than in {gb[0].name}.
+              </p>
+            </div>
+            <ol className={s.bars}>
+              {gb.map((r, i) => (
+                <li key={r.key}>
+                  <span className={s.barName}>{r.name}</span>
+                  <span className={s.barTrack}>
+                    <span
+                      className={`${s.bar} ${i === 0 ? s.barLow : i === gb.length - 1 ? s.barHigh : ""}`}
+                      style={{ width: `${30 + ((r.now! - gbLo) / Math.max(0.01, gbHi - gbLo)) * 70}%` }}
+                    />
+                  </span>
+                  <span className={s.barValue}>{rate(r.now!, { unit: "p" })}</span>
+                </li>
+              ))}
+            </ol>
+          </div>
+        )}
+
         {partial && (
           <p className={s.partial}>
-            Tomorrow&apos;s Agile prices come out at about 4 p.m. UK time. Until then the British dials only reach {partialEnd}{" "}
-            tonight, so their rings aren&apos;t full yet.
+            Tomorrow&apos;s Agile prices come out at about 4 p.m. UK time. Until then the British dials are published to {partialEnd}, and
+            the rest of each dial shows earlier today&apos;s price for that half hour, frosted.
           </p>
         )}
-      </div>
-      {rows.length === 0 ? (
-        <p className={s.down}>The price feeds didn&apos;t answer just now. Refresh in a minute.</p>
-      ) : (
-        <ul className={s.grid}>
-          {rows.map((r) => (
-            <li key={r.key} className={s.item}>
-              <div className={s.dial}>
-                {r.chart && (
-                  <Clock
-                    data={{
-                      slots: r.chart.slots,
-                      now: r.chart.now,
-                      unit: r.unit,
-                      timeZone: r.timeZone,
-                      berths: [],
-                      centre: r.low
-                        ? { time: r.low.isNow ? r.chart.now : r.low.start, above: r.low.isNow ? "cheapest now" : "cheapest", below: rate(r.low.avgPrice, { unit: r.unit }) }
-                        : null,
-                    }}
-                    labels={false}
-                    label={`${r.name}: cheapest ${r.low ? (r.low.isNow ? "now" : `at ${clock(r.low.start, r.timeZone)}`) : "—"}`}
-                  />
-                )}
-              </div>
-              <h2>{r.name}</h2>
-              <p className={s.tariff}>{r.tariff}</p>
-              <dl className={s.marks}>
-                <div>
-                  <dt>Dearest</dt>
-                  <dd>{r.high ? `${clock(r.high.start, r.timeZone)}, ${rate(r.high.avgPrice, { unit: r.unit })}` : "—"}</dd>
-                </div>
-                <div>
-                  <dt>Now</dt>
-                  <dd>{r.now != null ? rate(r.now, { unit: r.unit }) : "—"}</dd>
-                </div>
-              </dl>
-            </li>
-          ))}
-        </ul>
-      )}
-      <p className={s.foot}>
-        Times are local to each region. Agile prices include VAT; ComEd and German prices are the wholesale energy part of the
-        bill, before delivery charges and taxes.
-      </p>
+      </section>
+
+      <section className="shell" aria-label="Every region">
+        {rows.length === 0 ? (
+          <p className={s.down}>The price feeds didn&apos;t answer just now. Refresh in a minute.</p>
+        ) : (
+          <ul className={s.grid}>
+            {rows.map((r) => {
+              const u = r.unit === "ct" ? " ct" : r.unit;
+              return (
+                <li key={r.key} className={s.item}>
+                  {r.chart && (
+                    <TideDial
+                      size="card"
+                      slots={r.chart.slots}
+                      past={r.chart.past}
+                      now={r.chart.now}
+                      timeZone={r.timeZone}
+                      unit={r.unit}
+                      label={`${r.name}: cheapest ${r.low ? (r.low.isNow ? "now" : `at ${clock(r.low.start, r.timeZone)}`) : "unknown"}`}
+                      rest={
+                        r.low
+                          ? { above: r.low.isNow ? "Cheapest" : "Cheapest at", big: r.low.isNow ? "Now" : clock(r.low.start, r.timeZone), below: `${r.low.avgPrice.toFixed(1)}${u} per kWh` }
+                          : { above: "Prices", big: "—", below: "not published yet" }
+                      }
+                    />
+                  )}
+                  <div className={s.meta}>
+                    <h2>{r.name}</h2>
+                    <p className={s.tariff}>{r.tariff}</p>
+                    <dl className={s.marks}>
+                      <div>
+                        <dt>Now</dt>
+                        <dd>{r.now != null ? rate(r.now, { unit: r.unit }) : "—"}</dd>
+                      </div>
+                      <div>
+                        <dt>Dearest</dt>
+                        <dd>{r.high ? `${clock(r.high.start, r.timeZone)}, ${rate(r.high.avgPrice, { unit: r.unit })}` : "—"}</dd>
+                      </div>
+                    </dl>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        <div className={s.foot}>
+          <p>
+            Times are local to each region. Agile prices include VAT; ComEd and German prices are the wholesale energy part of the
+            bill, before delivery charges and taxes.
+          </p>
+          <Link href="/echo" prefetch={false} className="btn btn-primary">
+            Ask Alexa for your postcode
+          </Link>
+        </div>
+      </section>
     </main>
   );
 }

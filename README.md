@@ -50,7 +50,7 @@ Asked on an evening in London (15 October 2026's prices): Amazon Nova Micro on A
 
 <img src="docs/object.gif" alt="The ring re-cuts itself for Glasgow, Chicago and Berlin" width="600">
 
-The website turns each day into an object: a studio-lit ring of up to 48 aluminium fins (three.js), one per half hour, height = price. The cheapest quarter is anodised cobalt, the dearest graphite, and a polished pin stands at "now". Switch city and it re-cuts itself from that region's live prices. The Echo's screen shows the same object from above. Before Octopus publishes tomorrow's prices (about 4 p.m. UK time) a British ring only reaches 23:00 tonight, and the page says so rather than pretending it is a full day.
+The website turns each day into a dial: 48 fins on a turned aluminium face, one per half hour, length = price, drawn as SVG on the server so it is on screen with the first paint (no WebGL, no loading). The cheapest quarter is cobalt, the dearest graphite, a pin stands at "now" and a cobalt arc on the rim marks the dishwasher's cheapest run; point at a fin and the hub reads it out. Switch city and it re-cuts itself from that region's live prices. The Echo's screen and the MCP App view draw the same dial. Before Octopus publishes tomorrow's prices (about 4 p.m. UK time) a British day is published only to 23:00, so the dial fills the rest with earlier today's price for each half hour, frosted, from the same Octopus request; it says so rather than pretending tomorrow is known.
 
 ## Try it in one minute
 
@@ -64,7 +64,7 @@ The website turns each day into an object: a studio-lit ring of up to 48 alumini
 
 | | |
 |---|---|
-| <img src="docs/screens/home-hero.png" alt="Home: live headline and the 3D object"> | <img src="docs/screens/home-glasgow.png" alt="The same object re-cut for Glasgow"> |
+| <img src="docs/screens/home-hero.png" alt="Home: live headline and the tide dial"> | <img src="docs/screens/home-glasgow.png" alt="The same dial re-cut for Glasgow"> |
 | **Home.** The headline is live data; the ring is the next 24 hours in London. | **Glasgow.** Every region gets a different object every day. |
 | <img src="docs/screens/home-pick-car.png" alt="Choose what to move: the car's cheapest window cut in cobalt"> | <img src="docs/screens/home-ask.png" alt="Echo Show mock with the dishwasher plan"> |
 | **Choose what to move.** Pick a load; cobalt marks when it should run, with the saving. | **Ask, and it answers twice.** The live answer for London, spoken and drawn. |
@@ -188,7 +188,7 @@ python infra/deploy.py               # create or update the stack, upload assets
 - **Households are capability links, and also OAuth grants.** A household is `/api/mcp/h/<id>`, ten random base-32 characters (about 50 bits), and holds only a place and its planned runs: no name required, no address, no payment details. A link works in every MCP host today, so it stays. Next to it, the same server is an OAuth 2.1 protected resource with its own authorization server ([Sign in with OAuth](#sign-in-with-oauth-alexa-account-linking)): a client signs in at `/api/mcp/account`, the person picks or makes a household on a consent page, and the token is bound to that household. In production the energy supplier would be the identity provider, so a household signs in once with the account it already has.
 - **Savings are quoted against a typical start.** Every saving on the website compares the cheapest start with the average of every start time in the next 24 hours (`typicalCost` in `web/lib/plan.ts`), not with the evening peak, and the page says so. The voice tools compare with starting now, and say that too.
 - **Tonight's plan on a schedule:** EventBridge Scheduler targets the Lambda function directly with a fixed JSON Input; the Lambda Web Adapter passes any non-HTTP event to `POST /events` (`AWS_LWA_PASS_THROUGH_PATH`). That route accepts only an event carrying a random token that `deploy.py` generates on every deploy and that lives in just two places, the function's environment (`SCHEDULE_TOKEN`) and the schedules' Input, compared in constant time. A header check can't do this job: Next.js adds `x-forwarded-*` headers to every request it serves, the adapter's loopback call included, so the first version refused the real scheduled call (friction log 14). CloudFront returns 404 for `/events`, and the Function URL refuses every request without CloudFront's origin secret except `/events` itself, which the adapter calls on loopback and which still needs the token. Verified on 15 October 2026: invoked with the schedule's own Input, the function answered `{"ok":true,"night":null,…}` (at 13:03 BST tomorrow's prices weren't out yet, so the job waits for the next run) and CloudWatch logged `{"evt":"schedule","job":"tonight","ok":true,…}`. Every step is idempotent and guarded by If-Match, so the two runs, a retry and a visitor's lazy step never plan a household twice.
-- **Performance:** the 3D object renders on demand (static shadow map, 30 fps idle turn, paused off screen), compiles shaders asynchronously, and mounts in idle time.
+- **Performance:** every dial is SVG rendered on the server, so the home page paints complete with no client-side 3D: the three.js object was removed on 18 Oct after it took 5 to 11 seconds to appear on ordinary laptops.
 
 ## Sign in with OAuth (Alexa+ account linking)
 
