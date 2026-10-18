@@ -39,12 +39,16 @@ export function fallbackTurn(messages: Message[]): TurnResponse {
 type Call = { name: string; input: Record<string, unknown> } | { say: string };
 
 const ENERGY = /\b(cheap|cheapest|dear|expensive|price|prices|tariff|tide|electricity|power|energy|grid|kwh|unit rate)\b/;
-const TIME = /(\d{1,2}(?:[:.]\d{2})?\s*(?:a\.?m\.?|p\.?m\.?)?|noon|midnight)/.source;
+const TIME =
+  /(in (?:an?|\d+|half an|one|two|three|four|five|ten|twenty|thirty|forty|fifty) (?:minutes?|mins?|hours?)|(?:half )?(?:\d{1,2}(?:[:.]\d{2})?|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)(?: thirty)?\s*(?:a\.?m\.?|p\.?m\.?)?(?: tomorrow)?|noon|midnight)/.source;
 
 function route(u: string, history: Message[]): Call | null {
   const appliance = findAppliance(u);
   const tidy = (t?: string) => t?.trim();
-  const time = tidy(u.match(new RegExp(`\\b(?:by|before|until)\\s+${TIME}`))?.[1]);
+  const time = tidy(
+    u.match(new RegExp(`\\b(?:by|before|until)\\s+${TIME}`))?.[1] ??
+      u.match(/\b(?:finished|done|ready|over)\s+((?:in|within) (?:an?|\d+|half an|[a-z]+) (?:minutes?|mins?|hours?))\b/)?.[1],
+  );
   const after = tidy(u.match(new RegExp(`\\b(?:after|from|not before)\\s+${TIME}`))?.[1]);
   const goal = /\b(green(est|er)?|clean(est|er)?|carbon|planet|co2)\b/.test(u) ? "greenest" : undefined;
   const refusal = /\b(no|nope|not|don'?t|cancel|forget|stop|never ?mind|leave it)\b/.test(u);

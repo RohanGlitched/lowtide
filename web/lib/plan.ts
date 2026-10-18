@@ -102,10 +102,9 @@ export function planRun(
   }
 
   const nowRun = earliest - now < 60_000 ? costRun(slots, now, opts.minutes, opts.kwh) : null;
-  // Asked for the cheapest time, never send someone to wait for a start that costs the same or more than
-  // starting now: within half a penny (or cent) of now, now wins. Greener goals may cost more than now;
-  // planResult says so out loud.
-  if (nowRun && (goal === "cheapest" || !greenest) && nowRun.cost - best.cost < 0.5) best = nowRun;
+  // Asked for the cheapest time, never send someone to wait for a start that saves less than a penny (or cent)
+  // on starting now: then now wins. Greener goals may cost more than now; planResult says so out loud.
+  if (nowRun && (goal === "cheapest" || !greenest) && nowRun.cost - best.cost < 1) best = nowRun;
   return {
     best,
     now: nowRun,
@@ -146,6 +145,27 @@ export function tideMarks(slots: Slot[], minutes = 60): { low: Run | null; high:
   if (!runs.length) return { low: null, high: null };
   const sorted = [...runs].sort((a, b) => a.cost - b.cost || a.start - b.start);
   return { low: sorted[0], high: sorted[sorted.length - 1] };
+}
+
+export type Mark = Run & { isNow: boolean };
+
+/**
+ * The cheapest and dearest half hour still to come in the next `hours`, the half hour under way included (as
+ * `isNow`). Everything a person sees next to "now" uses this, so "cheapest" is on the same basis as the current
+ * half-hour price and can never read dearer than it: when this half hour is the cheapest, the answer is "now".
+ * (A rolling hourly mean that starts in the current slot used to show "cheapest 13:30, 26.8p" beside "now 25.6p".)
+ */
+export function cheapAndDear(slots: Slot[], now: number, hours = 24): { low: Mark | null; high: Mark | null } {
+  const end = now + hours * 3600_000;
+  const live = slots.filter((s) => s.end > now && s.start < end);
+  if (!live.length) return { low: null, high: null };
+  const marks: Mark[] = live.map((s) => ({ start: s.start, end: s.end, cost: s.price, carbon: s.carbon, avgPrice: s.price, isNow: s.start <= now && now < s.end }));
+  const sorted = [...marks].sort((a, b) => a.avgPrice - b.avgPrice || a.start - b.start);
+  // A tie with the current half hour is "now": never send someone to wait for the same price.
+  const lowest = sorted[0];
+  const cur = marks.find((m) => m.isNow);
+  const low = cur && cur.avgPrice <= lowest.avgPrice ? cur : lowest;
+  return { low, high: sorted[sorted.length - 1] };
 }
 
 const round = (n: number) => Math.round(n * 100) / 100;

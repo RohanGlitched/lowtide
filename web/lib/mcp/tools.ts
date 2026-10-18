@@ -4,9 +4,9 @@ import { registerAppResource, registerAppTool, RESOURCE_MIME_TYPE } from "@model
 import { getTide, type Region, type Slot, type Tide } from "../grid";
 import { clock, dayPart, spokenTime } from "../grid/time";
 import { APPLIANCES, findAppliance, type Appliance } from "../appliances";
-import { costRun, planRun, tideMarks, type Goal, type Plan, type Run } from "../plan";
+import { cheapAndDear, costRun, planRun, type Goal, type Mark, type Plan, type Run } from "../plan";
 import { duration, grams, money, moneySpoken, rate } from "../format";
-import { nextClockTime } from "../when";
+import { nextClockTime, resolveDeadline, type Deadline } from "../when";
 import { loadHome, updateHome, type HomeState, type ScheduledRun } from "../store";
 import { VIEW_HTML } from "../generated/view";
 import { tonightForHome, tonightForPlace, type TonightPlan } from "../tonight";
@@ -59,8 +59,18 @@ function logged<F extends (...args: never[]) => unknown>(name: string, ctx: Ctx,
 }
 
 export function registerLowtide(server: McpServer, ctx: Ctx) {
-  const appTool = ((srv: McpServer, name: string, config: unknown, cb: (...args: never[]) => unknown) =>
-    registerAppTool(srv as never, name, config as never, logged(name, ctx, cb) as never)) as unknown as typeof registerAppTool;
+  // Every view tool also carries Alexa+'s status strings (_meta.ui.invoking / invoked, from Amazon's MCP Toolkit
+  // client-lifecycle sample), on its definition and on each successful result. Hosts that don't know them ignore them.
+  const appTool = ((srv: McpServer, name: string, config: { _meta?: { ui?: Record<string, unknown> } }, cb: (...args: never[]) => unknown) => {
+    const status = STATUS[name];
+    const meta = status ? { ...config._meta, ui: { ...config._meta?.ui, ...status } } : config._meta;
+    const withStatus = (async (...args: never[]) => {
+      const out = (await cb(...args)) as { isError?: boolean; _meta?: Record<string, unknown> } | undefined;
+      if (out && status && !out.isError && !("resultType" in out) && !("inputRequests" in out)) out._meta = { ...out._meta, ui: { resourceUri: VIEW_URI, ...status } };
+      return out;
+    }) as typeof cb;
+    return registerAppTool(srv as never, name, { ...config, _meta: meta } as never, logged(name, ctx, withStatus) as never);
+  }) as unknown as typeof registerAppTool;
   registerAppResource(server, "Lowtide day dial", VIEW_URI, { mimeType: RESOURCE_MIME_TYPE, description: "The next 24 hours of electricity prices on a dial" }, async () => ({
     contents: [
       {
@@ -95,23 +105,29 @@ export function registerLowtide(server: McpServer, ctx: Ctx) {
       const from = after ? nextClockTimeOrThrow(after, tz, now) : null;
       // "Tonight" starts at the asked hour, or now if that hour has already begun.
       const window = from && from - now < 20 * 3600_000 ? tide.slots.filter((s) => s.end > from) : tide.slots;
-      const { low, high } = tideMarks(window.length >= 2 ? window : tide.slots, 60);
+      // Half hour against half hour, so "cheapest" is never dearer than "now"; when this half hour is the cheapest, it says now.
+      const { low, high } = cheapAndDear(window.length >= 1 ? window : tide.slots, now, 48);
       const cur = currentSlot(tide.slots, now);
-      const headline = low ? `Cheapest at ${clock(low.start, tz)} ${shortDay(low.start, now, tz)}` : "Prices are flat for now";
+      const when = (m: Mark) => (m.isNow ? "now" : clock(m.start, tz));
+      const headline = low ? (low.isNow ? "Cheapest right now" : `Cheapest at ${clock(low.start, tz)} ${shortDay(low.start, now, tz)}`) : "Prices are flat for now";
       const sub = low && high
-        ? `${rate(low.avgPrice, tide.region)} then, against ${rate(high.avgPrice, tide.region)} at ${clock(high.start, tz)}${cur ? `. Now: ${rate(cur.price, tide.region)}` : ""}.`
+        ? `${rate(low.avgPrice, tide.region)} ${low.isNow ? "this half hour" : "then"}, against ${rate(high.avgPrice, tide.region)} at ${clock(high.start, tz)}${cur && !low.isNow ? `. Now: ${rate(cur.price, tide.region)}` : ""}.`
         : "";
       const facts = [
         ...(cur ? [{ label: "Now", value: rate(cur.price, tide.region) }] : []),
-        ...(low ? [{ label: "Cheapest hour", value: `${clock(low.start, tz)}, ${rate(low.avgPrice, tide.region)}` }] : []),
-        ...(high ? [{ label: "Dearest hour", value: `${clock(high.start, tz)}, ${rate(high.avgPrice, tide.region)}` }] : []),
+        ...(low ? [{ label: "Cheapest half hour", value: `${when(low)}, ${rate(low.avgPrice, tide.region)}` }] : []),
+        ...(high ? [{ label: "Dearest half hour", value: `${when(high)}, ${rate(high.avgPrice, tide.region)}` }] : []),
         ...greenFact(tide),
       ];
       const view = viewOf("tide", tide, headline, sub, facts, [], now);
       const spoken = low && high
-        ? `Electricity in ${spokenPlace(tide.region)} is cheapest ${dayPart(low.start, now, tz)} around ${spokenTime(low.start, tz)}, at ${spokenRate(low.avgPrice, tide.region)} a unit, and dearest around ${spokenTime(high.start, tz)} at ${spokenRate(high.avgPrice, tide.region)}.${cur ? ` Right now it's ${spokenRate(cur.price, tide.region)}.` : ""}`
+        ? low.isNow
+          ? `Electricity in ${spokenPlace(tide.region)} is cheapest right now, at ${spokenRate(low.avgPrice, tide.region)} a unit, and dearest around ${spokenTime(high.start, tz)} at ${spokenRate(high.avgPrice, tide.region)}.`
+          : `Electricity in ${spokenPlace(tide.region)} is cheapest ${dayPart(low.start, now, tz)} around ${spokenTime(low.start, tz)}, at ${spokenRate(low.avgPrice, tide.region)} a unit, and dearest around ${spokenTime(high.start, tz)} at ${spokenRate(high.avgPrice, tide.region)}.${cur ? ` Right now it's ${spokenRate(cur.price, tide.region)}.` : ""}`
         : "Prices are flat at the moment.";
-      return result(spoken, view);
+      // Before the next day's prices are out, say how far the published day reaches.
+      const last = tide.slots[tide.slots.length - 1]?.end ?? now;
+      return result(last - now < 12 * 3600_000 ? `${spoken} Prices after ${spokenTime(last, tz)} aren't out yet; tomorrow's come out ${publishedWhen(tide.region)}.` : spoken, view);
     },
   );
 
@@ -194,8 +210,14 @@ export function registerLowtide(server: McpServer, ctx: Ctx) {
         ". Does not schedule anything; call schedule_run if the person agrees.",
       inputSchema: z.object({
         appliance: z.string().min(2).max(40).describe("e.g. dishwasher, washing machine, tumble dryer, car, hot water"),
-        finish_by: z.string().max(30).optional().describe("Local clock time it must be done by, e.g. '07:00' or '7am'"),
-        start_after: z.string().max(30).optional().describe("Local clock time it can't start before, e.g. '22:00'"),
+        finish_by: z
+          .string()
+          .max(30)
+          .optional()
+          .describe(
+            "When it must be done by, in the person's own words: 'seven', '7am', '7 p.m.', '19:00', 'in two hours', '7am tomorrow'. Don't add a.m. or p.m. if they didn't say it: Lowtide picks the next seven the run can still make.",
+          ),
+        start_after: z.string().max(30).optional().describe("Only if the person said a start time: when it can't start before, in their words, e.g. 'ten', '22:00', 'after 10pm'"),
         goal: z.enum(["cheapest", "greenest", "balanced"]).optional().describe("Default cheapest"),
         kwh: z.number().min(0.1).max(100).optional().describe("Energy needed, e.g. 20 for an EV top-up"),
         minutes: z.number().int().min(15).max(720).optional(),
@@ -210,14 +232,7 @@ export function registerLowtide(server: McpServer, ctx: Ctx) {
       const now = Date.now();
       const app = applianceOrThrow(args.appliance);
       const { kwh, minutes } = loadFor(app, state, args.kwh, args.minutes);
-      let finishBy = args.finish_by ? nextClockTimeOrThrow(args.finish_by, tz, now) : undefined;
-      let earliest = args.start_after ? nextClockTimeOrThrow(args.start_after, tz, now) : undefined;
-      // "Done by seven", asked at half past six, means tomorrow morning, not in thirty minutes.
-      if (finishBy && !/^\d{4}-/.test(args.finish_by!) && finishBy - now < minutes * 60_000) finishBy += 86_400_000;
-      // "After ten, done by seven", asked after ten at night: the window has already opened.
-      if (earliest && finishBy && earliest >= finishBy) earliest = Math.max(now, earliest - 86_400_000);
-      const plan = planRun(tide.slots, { kwh, minutes, goal: (args.goal as Goal) ?? "cheapest", finishBy, earliest, now });
-      return planResult(tide, app, plan, now);
+      return planAppliance(tide, app, { kwh, minutes }, { finish_by: args.finish_by, start_after: args.start_after, goal: args.goal as Goal | undefined }, now);
     },
   );
 
@@ -458,7 +473,7 @@ export function registerLowtide(server: McpServer, ctx: Ctx) {
       const { tide } = await tideFor(ctx, place);
       const tz = tide.region.timeZone;
       if (!plan) {
-        const when = tide.region.country === "GB" ? "around 4 p.m." : tide.region.country === "DE" ? "early in the afternoon, German time" : "in the evening, Chicago time";
+        const when = publishedWhen(tide.region);
         const view = viewOf("tide", tide, "Tonight's plan isn't ready yet", `Tomorrow's prices come out ${when}${when.endsWith(".") ? "" : "."}`, [], [], now);
         return result(`Tonight's plan isn't ready yet: tomorrow's prices come out ${when}. Ask me again then.`, view);
       }
@@ -491,6 +506,18 @@ export function registerLowtide(server: McpServer, ctx: Ctx) {
 }
 
 /* ---------- helpers ---------- */
+
+/** What an Alexa+ device shows while a tool runs and once it has answered (_meta.ui.invoking / invoked). */
+export const STATUS: Record<string, { invoking: string; invoked: string }> = {
+  get_tide: { invoking: "Reading today's electricity prices…", invoked: "Prices for the next day" },
+  check_now: { invoking: "Checking this half hour's price…", invoked: "Checked the price now" },
+  plan_appliance: { invoking: "Pricing every start time…", invoked: "Found the best start" },
+  schedule_run: { invoking: "Saving the run…", invoked: "Run saved" },
+  list_runs: { invoking: "Looking up your planned runs…", invoked: "Your planned runs" },
+  cancel_run: { invoking: "Cancelling the run…", invoked: "Run cancelled" },
+  get_savings: { invoking: "Adding up your savings…", invoked: "Your savings" },
+  get_tonight: { invoking: "Reading tonight's plan…", invoked: "Tonight's plan" },
+};
 
 /** The one-question form schedule_run shows on hosts that support MCP elicitation (form mode). */
 const SAVE_FORM = {
@@ -554,6 +581,79 @@ function loadFor(app: Appliance, state: HomeState | null, kwh?: number, minutes?
   return { kwh: k, minutes: m };
 }
 
+function deadlineOrThrow(s: string, tz: string, now: number, minutes: number): Deadline {
+  const d = resolveDeadline(s, tz, now, minutes);
+  if (d === null) throw new Error(`I couldn't read "${s}" as a time. Try something like 7am, seven or in two hours.`);
+  return d;
+}
+
+/**
+ * plan_appliance's answer for one load. "Done by seven" with no a.m. or p.m. is the next seven the run can still
+ * make (7 p.m. asked at 2 p.m. for a three-hour dishwasher; 7 a.m. tomorrow asked at 6:30 p.m.). A time the person
+ * pinned down ("7am", "19:00", "in ten minutes") is never moved: if the run can't make it, the answer says so and
+ * offers the earliest finish.
+ */
+export function planAppliance(
+  tide: Tide,
+  app: Appliance,
+  load: { kwh: number; minutes: number },
+  args: { finish_by?: string; start_after?: string; goal?: Goal },
+  now: number,
+) {
+  const tz = tide.region.timeZone;
+  const { kwh, minutes } = load;
+  const deadline = args.finish_by ? deadlineOrThrow(args.finish_by, tz, now, minutes) : undefined;
+  const finishBy = deadline?.at;
+  let earliest = args.start_after ? deadlineOrThrow(args.start_after, tz, now, 0).at : undefined;
+  // "After ten, done by seven", asked after ten at night: the window has already opened.
+  if (earliest && finishBy && earliest >= finishBy) earliest = Math.max(now, earliest - 86_400_000);
+  if (deadline && finishBy! - Math.max(now, earliest ?? now) < minutes * 60_000 && !(earliest && earliest > now)) {
+    return tooLateResult(tide, app, kwh, minutes, deadline, now);
+  }
+  const plan = planRun(tide.slots, { kwh, minutes, goal: args.goal ?? "cheapest", finishBy, earliest, now });
+  return planResult(tide, app, plan, now, deadline);
+}
+
+/** When the next day's prices come out, as Alexa would say it. */
+export function publishedWhen(region: Pick<Region, "country">): string {
+  return region.country === "GB" ? "around 4 p.m." : region.country === "DE" ? "early in the afternoon, German time" : "in the evening, Chicago time";
+}
+
+/** "3 hours", "2 and a half hours", "45 minutes", "1 hour 15 minutes". */
+export function spokenDuration(minutes: number): string {
+  const h = Math.floor(minutes / 60);
+  const m = Math.round(minutes % 60);
+  if (!h) return `${m} minutes`;
+  if (m === 30) return `${h} and a half hours`;
+  const hours = `${h} ${h === 1 ? "hour" : "hours"}`;
+  return m ? `${hours} ${m} minutes` : hours;
+}
+
+/**
+ * The deadline can't be met even starting now: say so, and offer the earliest finish (starting now) instead of
+ * quietly moving the deadline to tomorrow.
+ */
+export function tooLateResult(tide: Tide, app: Appliance, kwh: number, minutes: number, deadline: Deadline, now: number) {
+  const tz = tide.region.timeZone;
+  const end = now + minutes * 60_000;
+  const nowRun = costRun(tide.slots, now, minutes, kwh);
+  const headline = `Can't be done by ${clock(deadline.at, tz)}`;
+  const sub = `It takes ${duration(minutes)}: starting now, it's done at ${clock(end, tz)}${nowRun ? `, for ${money(nowRun.cost, tide.region)}` : ""}.`;
+  const facts = [
+    { label: "Deadline", value: `${clock(deadline.at, tz)} ${shortDay(deadline.at, now, tz)}` },
+    { label: "Earliest finish", value: `${clock(end, tz)}, starting now` },
+    ...(nowRun ? [{ label: "If started now", value: money(nowRun.cost, tide.region) }] : []),
+    { label: "Load", value: `${kwh} kWh over ${duration(minutes)}` },
+  ];
+  const berths: ViewData["berths"] = [{ start: now, end, label: app.name, state: "now" }];
+  const view = viewOf("plan", tide, headline, sub, facts, berths, now);
+  let spoken = `The ${app.name} takes ${spokenDuration(minutes)}, so it can't be done by ${spokenTime(deadline.at, tz)}. Starting now, it would finish at ${spokenTime(end, tz)}${nowRun ? `, for about ${moneySpoken(nowRun.cost, tide.region)}` : ""}.`;
+  if (!deadline.relative && !deadline.ambiguous) spoken += ` Or I can plan it for ${spokenTime(deadline.at, tz)} tomorrow.`;
+  const r = result(spoken, view);
+  r.content.push({ type: "text" as const, text: `If they want it started now, for schedule_run pass start "${new Date(now).toISOString()}" and minutes ${minutes}. Don't read this line aloud.` });
+  return r;
+}
+
 function nextClockTimeOrThrow(s: string, tz: string, now: number): number {
   const t = nextClockTime(s, tz, now);
   if (t === null) throw new Error(`I couldn't read "${s}" as a time. Try something like 07:00.`);
@@ -578,7 +678,7 @@ function carbonCut(nowRun: Run | null, pick: Run): number | null {
   return Math.max(0, Math.round((1 - pick.carbon / nowRun.carbon) * 100));
 }
 
-export function planResult(tide: Tide, app: Appliance, plan: Plan, now: number) {
+export function planResult(tide: Tide, app: Appliance, plan: Plan, now: number, deadline?: Deadline) {
   const tz = tide.region.timeZone;
   const b = plan.best;
   const startsNow = b.start - now < 5 * 60_000;
@@ -592,14 +692,15 @@ export function planResult(tide: Tide, app: Appliance, plan: Plan, now: number) 
   const vsNow =
     !plan.now || startsNow
       ? `, ${m(b.cost)}`
-      : vsNowCost >= 0.5
+      : vsNowCost >= 0.5 && m(b.cost) !== m(plan.now.cost)
         ? `, ${m(b.cost)} instead of ${m(plan.now.cost)} now${green && cut !== null ? `, ${cut >= 1 ? `${cut}%` : "a little"} less CO₂` : ""}`
-        : vsNowCost <= -0.5
+        : vsNowCost <= -0.5 && m(b.cost) !== m(plan.now.cost)
           ? `, ${m(b.cost)}: ${m(-vsNowCost)} more than now${cut !== null ? ` for ${cut >= 1 ? `${cut}%` : "a little"} less CO₂` : ""}`
           : `, ${m(b.cost)}, about the same as now`;
-  const sub = `${duration(plan.minutes)}, done by ${clock(b.end, tz)}${vsNow}.`;
+  const sub = `${duration(plan.minutes)}, done by ${clock(b.end, tz)}${deadline ? ` (deadline ${clock(deadline.at, tz)})` : ""}${vsNow}.`;
   const facts = [
     { label: "Start", value: `${clock(b.start, tz)} ${dayPart(b.start, now, tz)}` },
+    ...(deadline ? [{ label: "Done by", value: `${clock(b.end, tz)}, deadline ${clock(deadline.at, tz)} ${shortDay(deadline.at, now, tz)}` }] : []),
     { label: "Cost", value: `${money(b.cost, tide.region)} (${rate(b.avgPrice, tide.region)})` },
     ...(plan.now ? [{ label: "If started now", value: money(plan.now.cost, tide.region) }] : []),
     ...(b.carbon != null && plan.now?.carbon != null ? [{ label: "CO₂", value: `${grams(b.carbon)} vs ${grams(plan.now.carbon)}` }] : []),
@@ -612,17 +713,21 @@ export function planResult(tide: Tide, app: Appliance, plan: Plan, now: number) 
   const view = viewOf("plan", tide, headline, sub, facts, berths, now);
   const say = (x: number) => moneySpoken(x, tide.region);
   const less = cut === null ? "" : cut >= 1 ? `${cut}% less carbon` : "a little less carbon";
+  // The deadline, said back, so "done by seven" is visibly honoured.
+  const inTime = deadline ? `in time for ${spokenTime(deadline.at, tz)} ${dayPart(deadline.at, now, tz)}` : "";
   let spoken: string;
   if (startsNow) {
     const why = !green ? "the cheapest" : plan.goal === "greenest" ? "the cleanest" : "the best balance of price and carbon";
     spoken = `Now's ${why} time to ${app.action}: about ${say(b.cost)}.`;
+    if (deadline) spoken += ` It'll be done by ${spokenTime(b.end, tz)}, ${inTime}.`;
   } else {
     const why = !green ? "" : plan.goal === "greenest" ? ", the cleanest start" : ", the best balance of price and carbon";
     let cost = `It costs about ${say(b.cost)}`;
     if (vsNowCost >= 1) cost += `, ${say(vsNowCost)} less than starting now${green && cut !== null ? `, with ${less}` : ""}`;
     else if (vsNowCost <= -1) cost += `, about ${say(-vsNowCost)} more than starting now${cut !== null ? `, but ${less}` : ""}`;
     else if (plan.now && green && cut !== null) cost += `, about the same as starting now, with ${less}`;
-    spoken = `${cap(app.action)} ${dayPart(b.start, now, tz)} at ${spokenTime(b.start, tz)}${why}. ${cost}.`;
+    const done = deadline ? `, done by ${spokenTime(b.end, tz)}, ${inTime}` : "";
+    spoken = `${cap(app.action)} ${dayPart(b.start, now, tz)} at ${spokenTime(b.start, tz)}${why}${done}. ${cost}.`;
   }
   if (plan.greenest && plan.goal === "cheapest" && plan.greenest.start !== b.start && b.carbon != null) {
     spoken += ` The cleanest start would be ${spokenTime(plan.greenest.start, tz)}.`;
@@ -633,6 +738,9 @@ export function planResult(tide: Tide, app: Appliance, plan: Plan, now: number) 
     if (!(at === "now" && vsNowCost <= -1)) spoken += ` The cheapest start is ${at}, ${say(b.cost - plan.cheapest.cost)} less.`;
   }
   if (plan.goal !== "cheapest" && !plan.greenest) spoken += " There's no carbon forecast here, so I went by price.";
+  // Before the next day's prices are out (Agile: about 4 p.m.), the plan can only use what's published.
+  const short = deadline ? deadline.at > plan.horizonEnd + 60_000 : plan.horizonEnd - now < 12 * 3600_000;
+  if (short) spoken += ` Prices after ${spokenTime(plan.horizonEnd, tz)} aren't out yet; tomorrow's come out ${publishedWhen(tide.region)}.`;
   const r = result(spoken, view);
   r.content.push({ type: "text" as const, text: `For schedule_run, pass start "${new Date(b.start).toISOString()}" and minutes ${plan.minutes}. Don't read this line aloud.` });
   return r;
@@ -661,7 +769,7 @@ function viewOf(
 ): ViewData {
   const horizon = Math.max(now + 24 * 3600_000, ...berths.map((b) => b.end + 3600_000));
   const slots = tide.slots.filter((s) => s.start < horizon).map((s) => ({ s: s.start, e: s.end, p: s.price, c: s.carbon }));
-  const { low, high } = tideMarks(tide.slots.filter((s) => s.start < horizon), 60);
+  const { low, high } = cheapAndDear(tide.slots.filter((s) => s.start < horizon), now, 48);
   const r = tide.region;
   return {
     kind,

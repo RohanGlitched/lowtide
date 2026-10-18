@@ -75,7 +75,7 @@ test("under the cheapest goal the car goes earlier and cheaper, or starts now wh
   const later = Date.UTC(2026, 9, 15, 10, 40);
   const full = planRun(GB.slots, { kwh: 30, minutes: 245, goal: "cheapest", now: later });
   assert.equal(full.best.start, later);
-  assert.match(spokenOf(GB, car, full, later), /^Now's the cheapest time to charge the car: about £6\.13\.$/);
+  assert.match(spokenOf(GB, car, full, later), /^Now's the cheapest time to charge the car: about £6\.13\.( Prices after 11 p\.m\. aren't out yet; tomorrow's come out around 4 p\.m\.)?$/);
 });
 
 test("greenest says what the cleaner start costs over now and over the cheapest", () => {
