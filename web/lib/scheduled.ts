@@ -28,10 +28,46 @@ export function scheduledGuard(body: unknown, expected: string = process.env.SCH
   return null;
 }
 
+/** The five-minute keep-warm event (KeepWarmSchedule in infra/template.yaml). */
+export const WARM_EVENT = { source: "lowtide.schedule", job: "warm" } as const;
+
 /** Whether a parsed body is the schedule's event (the Input in infra/template.yaml). */
 export function isScheduleEvent(body: unknown): boolean {
   const b = body as Record<string, unknown> | null;
   return Boolean(b && typeof b === "object" && b.source === SCHEDULE_EVENT.source && b.job === SCHEDULE_EVENT.job);
+}
+
+/** Whether a parsed body is the keep-warm event. */
+export function isWarmEvent(body: unknown): boolean {
+  const b = body as Record<string, unknown> | null;
+  return Boolean(b && typeof b === "object" && b.source === WARM_EVENT.source && b.job === WARM_EVENT.job);
+}
+
+/**
+ * Keep-warm: the schedule wakes one instance every five minutes, and this refreshes what the first visitor would
+ * otherwise wait for (the home page's places, every British region for /tables, and the demo household's two
+ * weeks of history). Each fetch is cached in the instance, so the next page render or Echo set-up is warm.
+ */
+export async function runWarm(
+  warmers: (() => Promise<unknown>)[],
+  budgetMs = 12_000,
+): Promise<{ warmed: number; failed: number; ms: number }> {
+  const t0 = Date.now();
+  const timeout = new Promise<"late">((r) => setTimeout(() => r("late"), budgetMs));
+  const settled = await Promise.all(
+    warmers.map((w) =>
+      Promise.race([
+        w().then(
+          () => true,
+          () => false,
+        ),
+        timeout.then(() => false),
+      ]),
+    ),
+  );
+  const out = { warmed: settled.filter(Boolean).length, failed: settled.filter((x) => !x).length, ms: Date.now() - t0 };
+  log({ evt: "warm", ...out });
+  return out;
 }
 
 export interface ScheduledSummary {

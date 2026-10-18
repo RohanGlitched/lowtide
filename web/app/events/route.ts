@@ -1,4 +1,7 @@
-import { isScheduleEvent, runScheduledTonight, scheduledGuard } from "@/lib/scheduled";
+import { isScheduleEvent, isWarmEvent, runScheduledTonight, runWarm, scheduledGuard } from "@/lib/scheduled";
+import { getTide } from "@/lib/grid";
+import { SCENE_PLACES, tableData } from "@/lib/live";
+import { seedHistory } from "@/lib/seed";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,8 +24,13 @@ export async function POST(req: Request) {
   } catch {
     return refuse(400, "Bad event.");
   }
-  if (!isScheduleEvent(body)) return refuse(400, "Unknown event.");
+  const warm = isWarmEvent(body);
+  if (!warm && !isScheduleEvent(body)) return refuse(400, "Unknown event.");
   if (scheduledGuard(body)) return refuse(403, "Not available.");
+  if (warm) {
+    const summary = await runWarm([...SCENE_PLACES.map((p) => () => getTide(p.place)), () => tableData(), () => seedHistory("SE1 7PB")]);
+    return Response.json({ ok: true, ...summary }, { headers: { "cache-control": "no-store" } });
+  }
   try {
     const summary = await runScheduledTonight();
     return Response.json({ ok: true, ...summary }, { headers: { "cache-control": "no-store" } });

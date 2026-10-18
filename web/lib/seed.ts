@@ -7,6 +7,7 @@ import type { ScheduledRun } from "./store";
 
 const TZ = "Europe/London";
 const DAY = 86400_000;
+const HOUR = 3600_000;
 
 /** Wall-clock time `daysAgo` days back, at hh:mm London time. */
 function at(daysAgo: number, hh: number, mm: number, now: number): number {
@@ -21,10 +22,13 @@ function at(daysAgo: number, hh: number, mm: number, now: number): number {
  */
 export async function seedHistory(postcode: string, now = Date.now()): Promise<ScheduledRun[]> {
   const letter = await regionLetter(postcode);
-  const from = now - 15 * DAY;
+  // The window is anchored to the hour so every demo household made within that hour shares one cached fetch
+  // (two weeks of Agile rates and carbon from Sydney cost seconds on a cold instance; a cache hit costs nothing).
+  const to = Math.floor(now / HOUR) * HOUR;
+  const from = to - 15 * DAY;
   const [rates, carbon] = await Promise.all([
-    agileRates(letter, from, now),
-    carbonForecast(UK_REGIONS[letter].carbonId, from, now).catch(() => []),
+    agileRates(letter, from, to),
+    carbonForecast(UK_REGIONS[letter].carbonId, from, to).catch(() => []),
   ]);
   const co2 = new Map(carbon.map((c) => [Date.parse(c.from.replace(/Z?$/, "Z")), c.intensity.actual ?? c.intensity.forecast]));
   const slots: Slot[] = rates.map((r) => ({ ...r, carbon: co2.get(r.start) ?? null }));

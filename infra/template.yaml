@@ -43,8 +43,10 @@ Parameters:
     Default: 1024
   MaxConcurrency:
     Type: Number
-    Default: 5
-    Description: Reserved concurrency (caps spend if the URL is hammered); 0 = don't reserve any
+    Default: 25
+    Description: >
+      Reserved concurrency: room for a few judges at once (one Echo page load is about five requests), and a cap on
+      spend if the site is hammered; 0 = don't reserve any. The account allows 400, of which 100 must stay unreserved.
   Observability:
     Type: String
     Default: "true"
@@ -59,6 +61,21 @@ Parameters:
     NoEcho: true
     Default: ""
     Description: Random per-deploy token the schedule sends and /events checks (deploy.py generates it)
+  OriginSecret:
+    Type: String
+    NoEcho: true
+    Default: ""
+    Description: Secret CloudFront sends to the function in x-lowtide-origin (infra/deploy.py generates it once and keeps it)
+  OriginCheck:
+    Type: String
+    Default: "off"
+    AllowedValues: ["on", "off"]
+    Description: on = the function refuses requests without the CloudFront secret, so its URL can't be used to skip CloudFront
+  KeepWarm:
+    Type: String
+    Default: "true"
+    AllowedValues: ["true", "false"]
+    Description: EventBridge Scheduler wakes the function every 5 minutes and refreshes the price feeds (free tier sized)
   NightlySchedule:
     Type: String
     Default: "true"
@@ -73,6 +90,8 @@ Conditions:
   WithEmail: !Not [!Equals [!Ref AlarmEmail, ""]]
   HasModel: !Not [!Equals [!Ref BedrockModel, ""]]
   WithSchedule: !Equals [!Ref NightlySchedule, "true"]
+  WithWarm: !Equals [!Ref KeepWarm, "true"]
+  WithScheduler: !Or [!Condition WithSchedule, !Condition WithWarm]
 
 Resources:
   # site/_next/static/* (immutable, hashed) and nothing else; households stay in HomesBucket
@@ -165,6 +184,8 @@ Resources:
           # non-HTTP invocations (the nightly schedule) arrive as a POST from 127.0.0.1 to this path
           AWS_LWA_PASS_THROUGH_PATH: /events
           SCHEDULE_TOKEN: !Ref ScheduleToken
+          ORIGIN_SECRET: !Ref OriginSecret
+          ORIGIN_CHECK: !Ref OriginCheck
           PORT: "8080"
           NODE_ENV: production
           NEXT_TELEMETRY_DISABLED: "1"
@@ -206,7 +227,7 @@ Resources:
   # the fallback. Named lowtide-* (and the role lowtide-web-*) to fit the deploy user's scoped permissions.
   SchedulerRole:
     Type: AWS::IAM::Role
-    Condition: WithSchedule
+    Condition: WithScheduler
     Properties:
       RoleName: !Sub "${AWS::StackName}-scheduler"
       AssumeRolePolicyDocument:
@@ -259,6 +280,24 @@ Resources:
         RoleArn: !GetAtt SchedulerRole.Arn
         Input: !Sub '{"source":"lowtide.schedule","job":"tonight","token":"${ScheduleToken}"}'
         RetryPolicy: { MaximumRetryAttempts: 2, MaximumEventAgeInSeconds: 3600 }
+
+  # Keeps one instance warm and its price feeds fresh, so the first visitor after a quiet spell doesn't pay a cold
+  # start plus a dozen feed fetches from Sydney (about 8,600 invocations a month, well inside the free tier).
+  KeepWarmSchedule:
+    Type: AWS::Scheduler::Schedule
+    Condition: WithWarm
+    Properties:
+      Name: !Sub "${AWS::StackName}-warm"
+      GroupName: default
+      Description: Wake the function and refresh the price feeds every five minutes
+      ScheduleExpression: rate(5 minutes)
+      FlexibleTimeWindow: { Mode: "OFF" }
+      State: ENABLED
+      Target:
+        Arn: !GetAtt Fn.Arn
+        RoleArn: !GetAtt SchedulerRole.Arn
+        Input: !Sub '{"source":"lowtide.schedule","job":"warm","token":"${ScheduleToken}"}'
+        RetryPolicy: { MaximumRetryAttempts: 0, MaximumEventAgeInSeconds: 300 }
 
   AlarmTopic:
     Type: AWS::SNS::Topic
@@ -405,7 +444,8 @@ Resources:
       FunctionCode: |
         function handler(event) {
           var r = event.request;
-          // /events is the scheduler's pass-through route inside the function: never reachable from outside
+          // /events is the scheduler's pass-through route inside the function: CloudFront never forwards it (the
+          // function itself also refuses it without the schedule token, and refuses its own URL without the origin secret)
           if (r.uri === '/events' || r.uri.indexOf('/events/') === 0) {
             return { statusCode: 404, statusDescription: 'Not Found' };
           }
@@ -444,6 +484,9 @@ Resources:
           - Id: app
             DomainName: !Select [2, !Split ["/", !GetAtt FnUrl.FunctionUrl]]
             CustomOriginConfig: { OriginProtocolPolicy: https-only, OriginSSLProtocols: [TLSv1.2], OriginReadTimeout: 30, OriginKeepaliveTimeout: 5 }
+            # proves a request came through CloudFront (web/middleware.ts refuses the Function URL without it)
+            OriginCustomHeaders:
+              - { HeaderName: x-lowtide-origin, HeaderValue: !Ref OriginSecret }
           - Id: static
             DomainName: !GetAtt Bucket.RegionalDomainName
             OriginPath: /site

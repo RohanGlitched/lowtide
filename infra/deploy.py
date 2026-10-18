@@ -3,7 +3,7 @@
   python infra/deploy.py --dry-run                 # build, package, validate the template; no AWS calls
   python infra/deploy.py [--stack lowtide-web] [--region ap-southeast-2] [--adapter layer|bridge]
                          [--site-url URL] [--countertop-url URL] [--concurrency N] [--alarm-email ADDRESS]
-                         [--no-observability] [--no-schedule] [--skip-build]
+                         [--no-observability] [--no-schedule] [--no-warm] [--origin-check on|off] [--skip-build]
 
 Credentials come from the standard boto3 chain (AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY / AWS_SESSION_TOKEN,
 or AWS_PROFILE). Nothing here reads a key file. Everything is created in ap-southeast-2.
@@ -17,11 +17,17 @@ Steps:
   5. on the first deploy the CloudFront address only exists after step 3, so the app is rebuilt with it and
      updated once more; later deploys read it from the stack
   6. smoke-test /api/health and the MCP endpoint through CloudFront, check /events is closed to the
-     public, and print every URL
+     public and the Function URL refuses calls that skip CloudFront, and print every URL
+
+CloudFront sends a secret header (x-lowtide-origin) to the function, and the function refuses requests without
+it, so the Function URL can't be used to go around CloudFront. The secret is generated on the first deploy that
+adds it, never printed, and kept on later deploys (UsePreviousValue). On that first deploy the check is turned on
+only after CloudFront has the header everywhere (a second, parameter-only stack update in the same run).
 
 The stack includes two Amazon EventBridge Scheduler schedules (16:45 and 18:30 London time) that run tonight's
-plan for every household, and a named role for them (lowtide-web-scheduler), hence CAPABILITY_NAMED_IAM.
---no-schedule leaves them out; the lazy roll on ordinary requests still plans tonight.
+plan for every household, a five-minute keep-warm schedule, and a named role for them (lowtide-web-scheduler),
+hence CAPABILITY_NAMED_IAM. --no-schedule leaves the nightly ones out (the lazy roll on ordinary requests still
+plans tonight); --no-warm leaves out the keep-warm one.
 """
 from __future__ import annotations
 
@@ -245,11 +251,21 @@ def stack_outputs(cf, stack: str) -> dict | None:
     return {o["OutputKey"]: o["OutputValue"] for o in s.get("Outputs", [])}
 
 
+def stack_params(cf, stack: str) -> set[str]:
+    """Names of the parameters the deployed stack has (values of NoEcho ones can't be read back, only kept)."""
+    from botocore.exceptions import ClientError
+    try:
+        return {p["ParameterKey"] for p in cf.describe_stacks(StackName=stack)["Stacks"][0].get("Parameters", [])}
+    except ClientError:
+        return set()
+
+
 def deploy_stack(cf, stack: str, params: dict) -> bool:
-    """Creates or updates the stack and waits. Returns True if it was created now."""
+    """Creates or updates the stack and waits. Returns True if it was created now. A value of None keeps the
+    value the stack already has (UsePreviousValue), which is how the origin secret survives every deploy."""
     from botocore.exceptions import ClientError
     body = (INFRA / "template.yaml").read_text(encoding="utf8")
-    p = [{"ParameterKey": k, "ParameterValue": str(v)} for k, v in params.items()]
+    p = [{"ParameterKey": k, "UsePreviousValue": True} if v is None else {"ParameterKey": k, "ParameterValue": str(v)} for k, v in params.items()]
     try:
         s = cf.describe_stacks(StackName=stack)["Stacks"][0]
         if s["StackStatus"] == "ROLLBACK_COMPLETE":
@@ -300,6 +316,18 @@ def upload_code(s3, bucket: str, zip_path: Path) -> str:
     return key
 
 
+def smoke_direct(function_url: str):
+    """The Function URL must refuse a request that didn't come through CloudFront."""
+    url = function_url.rstrip("/") + "/api/health"
+    try:
+        with urllib.request.urlopen(urllib.request.Request(url), timeout=30) as r:
+            print(f"GET <function URL>/api/health → {r.status} (expected 403: the origin check is off)")
+    except urllib.error.HTTPError as e:
+        print(f"GET <function URL>/api/health → {e.code} ({'refused without the CloudFront secret, as intended' if e.code == 403 else 'unexpected'})")
+    except Exception as e:
+        print(f"direct Function URL check failed: {e}")
+
+
 def smoke(site: str):
     """Plain HTTPS checks through CloudFront (no AWS API)."""
     def get(path, **kw):
@@ -346,10 +374,12 @@ def main():
     ap.add_argument("--site-url", help="public URL baked into the build (default: the stack's CloudFront URL)")
     ap.add_argument("--countertop-url", help="Countertop's URL for links (default: the countertop-web stack's, else Vercel)")
     ap.add_argument("--homes-bucket", default="lowtide-homes-0415")
-    ap.add_argument("--concurrency", type=int, default=5, help="reserved concurrency; 0 = none")
+    ap.add_argument("--concurrency", type=int, default=25, help="reserved concurrency; 0 = none (the account allows 400, 100 must stay unreserved)")
     ap.add_argument("--alarm-email", default="")
     ap.add_argument("--no-observability", action="store_true", help="skip metric filters and the dashboard")
     ap.add_argument("--no-schedule", action="store_true", help="skip the EventBridge Scheduler schedules (the lazy roll still plans tonight)")
+    ap.add_argument("--no-warm", action="store_true", help="skip the five-minute keep-warm schedule")
+    ap.add_argument("--origin-check", choices=["on", "off"], help="refuse requests without the CloudFront secret (default: on)")
     a = ap.parse_args()
     if a.region != REGION:
         raise SystemExit(f"the organisation allows only {REGION}")
@@ -377,10 +407,19 @@ def main():
     code_bucket = f"{a.stack}-deploy-{account}-{a.region}"
     ensure_bucket(s3, code_bucket, a.region)
 
+    # The CloudFront-to-function secret is made once and kept. On the deploy that first adds it, the function
+    # doesn't require it yet; once the stack update (and with it CloudFront) is complete, a parameter-only update
+    # turns the check on.
+    had_secret = "OriginSecret" in stack_params(cf, a.stack)
+    secret = None if had_secret else secrets.token_urlsafe(32)  # never printed
+    want_check = a.origin_check or "on"
+    first_check = want_check if had_secret else "off"
+
     def params(code_key):
         return {"CodeBucket": code_bucket, "CodeKey": code_key, "HomesBucket": a.homes_bucket, "Adapter": a.adapter,
                 "MaxConcurrency": a.concurrency, "AlarmEmail": a.alarm_email, "Observability": "false" if a.no_observability else "true",
-                "NightlySchedule": "false" if a.no_schedule else "true", "ScheduleToken": SCHEDULE_TOKEN}
+                "NightlySchedule": "false" if a.no_schedule else "true", "KeepWarm": "false" if a.no_warm else "true",
+                "ScheduleToken": SCHEDULE_TOKEN, "OriginSecret": secret, "OriginCheck": first_check}
 
     for round_ in (1, 2):
         if not a.skip_build or round_ == 2:
@@ -397,12 +436,21 @@ def main():
         site, existing = out["SiteUrl"], out
         print(f"rebuilding with the CloudFront address {site}")
 
+    if first_check != want_check:
+        print(f"CloudFront now sends the origin secret everywhere: turning the origin check {want_check}")
+        keep = {k: None for k in stack_params(cf, a.stack)}
+        keep["OriginCheck"] = want_check
+        deploy_stack(cf, a.stack, keep)
+        out = stack_outputs(cf, a.stack)
+    print("origin check:", want_check)
+
     sess.client("cloudfront").create_invalidation(
         DistributionId=out["DistributionId"],
         InvalidationBatch={"Paths": {"Quantity": 1, "Items": ["/*"]}, "CallerReference": str(time.time())},
     )
     print(json.dumps(out, indent=1))
     smoke(out["SiteUrl"])
+    smoke_direct(out["FunctionUrl"])
     print("\nlive at", out["SiteUrl"], "· MCP", out["McpUrl"])
 
 
