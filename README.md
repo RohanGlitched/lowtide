@@ -17,7 +17,7 @@ and plans the dishwasher, the washing, the hot water and the car for the cheapes
 [![CI](https://github.com/RohanGlitched/lowtide/actions/workflows/ci.yml/badge.svg)](https://github.com/RohanGlitched/lowtide/actions/workflows/ci.yml)
 [![MIT](https://img.shields.io/badge/license-MIT-5d636b)](LICENSE)
 
-[**Try it on the Echo**](https://d1soo7510nfzf4.cloudfront.net/echo) · [**Watch the demo (2:54)**](https://youtu.be/LOHfsCr-m8Y) · [Add it to Claude or ChatGPT](https://d1soo7510nfzf4.cloudfront.net/connect) · [Today's prices, region by region](https://d1soo7510nfzf4.cloudfront.net/tables)
+[**Try it on the Echo**](https://d1soo7510nfzf4.cloudfront.net/echo) · [**Watch the demo (2:43)**](https://youtu.be/z6bqUpNZ0Uc) · [Add it to Claude or ChatGPT](https://d1soo7510nfzf4.cloudfront.net/connect) · [Today's prices, region by region](https://d1soo7510nfzf4.cloudfront.net/tables)
 
 </div>
 
