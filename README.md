@@ -33,14 +33,14 @@ But nobody reads a price table while plugging in the car or loading the dishwash
 
 ## What it does
 
-<img src="docs/screens/echo-scheduled.png" alt="Simulated Echo Show: Alexa has saved the dishwasher for 00:00, done by 03:00, 25p, and shows the day's prices on a dial" width="100%">
+<img src="docs/screens/echo-scheduled.png" alt="Simulated Echo Show: asked when to charge the car, Alexa has saved it for 23:00, £8.41, 70p less than starting now, and shows the day's prices on a dial" width="100%">
 
 > **You:** Alexa, when should I run the dishwasher? It needs to be done by seven.<br>
 > **Alexa:** Run the dishwasher tonight at midnight, done by 3 a.m., in time for 7 a.m. tomorrow morning. It costs about 25 pence, 6 pence less than starting now. Would you like to save it?<br>
 > **You:** Yes please.<br>
 > **Alexa:** The dishwasher is saved for midnight tonight. That saves 6 pence.
 
-Asked on an evening in London (18 October 2026's prices, the exchange in the screenshot above): Amazon Nova Micro on Amazon Bedrock, calling Lowtide's MCP tools, with the live Agile rates. Every answer is priced from that day's published prices, so the hour and the pence change daily. "Seven" with no a.m. or p.m. means the next seven the run can still make: asked at 2 p.m., the same question plans for 7 p.m. today, and says so. Before about 4 p.m. UK time Octopus hasn't published tomorrow's prices, so an overnight deadline is planned from what is published and Alexa says tomorrow's prices aren't out yet. The answer comes back twice: **a sentence to speak**, and **an MCP App view for the Echo Show screen**, the next 24 hours on a dial with the run marked on the rim.
+Asked on an evening in London (18 October 2026's prices; the exchange in the demo video, while the screenshot above is the same evening's car): Amazon Nova Micro on Amazon Bedrock, calling Lowtide's MCP tools, with the live Agile rates. Every answer is priced from that day's published prices, so the hour and the pence change daily. "Seven" with no a.m. or p.m. means the next seven the run can still make: asked at 2 p.m., the same question plans for 7 p.m. today, and says so. Before about 4 p.m. UK time Octopus hasn't published tomorrow's prices, so an overnight deadline is planned from what is published and Alexa says tomorrow's prices aren't out yet. The answer comes back twice: **a sentence to speak**, and **an MCP App view for the Echo Show screen**, the next 24 hours on a dial with the run marked on the rim.
 
 - **Plans any shiftable load** (dishwasher, washing machine, tumble dryer, EV, immersion heater, home battery), with a deadline ("done by seven"), an earliest start ("not before ten"), and a goal: cheapest, greenest, or both.
 - **Remembers the household:** saved runs and money saved, behind a private household link (no account; a name is optional and never required).
