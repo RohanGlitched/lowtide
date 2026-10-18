@@ -77,6 +77,8 @@ test("a time the person pinned down is taken as said, never moved", () => {
   assert.equal(resolveDeadline("ten minutes from now", LON, afternoon)?.at, afternoon + 10 * 60_000);
   assert.equal(resolveDeadline("in twenty minutes' time", LON, afternoon)?.at, afternoon + 20 * 60_000);
   assert.equal(resolveDeadline("90 mins from now", LON, afternoon)?.at, afternoon + 90 * 60_000);
+  assert.equal(resolveDeadline("ten minutes", LON, afternoon)?.at, afternoon + 10 * 60_000); // and its second try
+  assert.equal(resolveDeadline("2 hours", LON, afternoon)?.at, afternoon + 2 * 3600_000);
   assert.equal(resolveDeadline("teatime", LON, afternoon), null);
 });
 

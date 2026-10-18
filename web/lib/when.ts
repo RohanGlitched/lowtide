@@ -66,7 +66,8 @@ export function resolveDeadline(input: string, timeZone: string, now = Date.now(
   // "in ten minutes", "within 2 hours", "ten minutes from now", "in 20 minutes' time", "90 mins"
   const rel =
     s.match(/^(?:in|within|after)\s+(?:the\s+next\s+)?(an?|one|half an|\d+(?:\.\d+)?|[a-z]+(?:[ -][a-z]+)?)\s*(minutes?|mins?|hours?|hrs?|h)(?:'?s? time)?$/) ??
-    s.match(/^(an?|one|half an|\d+(?:\.\d+)?|[a-z]+(?:[ -][a-z]+)?)\s*(minutes?|mins?|hours?|hrs?|h)\s+(?:from now|later|'?s? time)$/);
+    // a bare duration given as a deadline ("ten minutes", "2 hours") also counts from now
+    s.match(/^(an?|one|half an|\d+(?:\.\d+)?|[a-z]+(?:[ -][a-z]+)?)\s*(minutes?|mins?|hours?|hrs?|h)(?:\s+(?:from now|later|'?s? time))?$/);
   if (rel) {
     const w = rel[1].replace("-", " ");
     const n = w === "a" || w === "an" || w === "one" ? 1 : w === "half an" ? 0.5 : Number(w) || WORDS[w] || RELATIVE_WORDS[w] || NaN;
