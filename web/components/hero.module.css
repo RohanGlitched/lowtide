@@ -1,56 +1,158 @@
 .hero {
-  padding-top: clamp(16px, 3vw, 40px);
+  position: relative;
+  padding-top: clamp(24px, 4vw, 56px);
+  /* The studio's light falls from the upper right, behind the object. */
+  background: radial-gradient(1100px 700px at 74% 30%, #f7f8fa 0%, rgba(247, 248, 250, 0) 70%);
 }
 .grid {
   display: grid;
-  grid-template-columns: minmax(0, 11fr) minmax(0, 13fr);
-  gap: 24px 32px;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  gap: 24px 40px;
   align-items: center;
 }
 .copy {
   position: relative;
   z-index: 1;
-  padding-bottom: 24px;
+}
+.live {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 26px;
+  padding: 7px 14px 7px 12px;
+  border-radius: 999px;
+  background: var(--paper);
+  box-shadow: inset 0 0 0 1px var(--rule);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--steel);
+}
+.pulse {
+  position: relative;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--cobalt);
+}
+.pulse::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 1.5px solid var(--cobalt);
+  opacity: 0;
+  animation: pulse 2.4s ease-out infinite;
+}
+@keyframes pulse {
+  0% {
+    transform: scale(0.5);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
 }
 .title {
   margin: 0;
-  font-size: clamp(44px, 5.2vw, 84px);
+  font-size: clamp(46px, 5.6vw, 92px);
   text-wrap: balance;
 }
 .lede {
-  max-width: 28em;
-  margin: 26px 0 0;
-  font-size: clamp(17px, 1.45vw, 20px);
-  line-height: 1.5;
+  max-width: 27em;
+  margin: 28px 0 0;
+  font-size: clamp(17px, 1.4vw, 20px);
+  line-height: 1.55;
   color: var(--steel);
 }
 .ctas {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
-  margin-top: 34px;
+  margin-top: 36px;
+}
+
+/* The stage: the dial, and the legend at its foot. */
+.stage {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 22px;
 }
 .object {
-  position: relative;
-  height: clamp(420px, 46vw, 680px);
-  margin-right: calc(-1 * var(--gutter));
+  width: min(100%, 660px);
 }
-.objectWait {
-  width: 100%;
-  height: 100%;
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px 20px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--steel);
 }
-.below {
-  margin-top: 8px;
+.legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.legend i {
+  width: 10px;
+  height: 14px;
+  border-radius: 2px;
+}
+.kCheap {
+  background: var(--cobalt);
+}
+.kDear {
+  background: var(--graphite);
+}
+.kPast {
+  background: #d3d8de;
+  box-shadow: inset 0 0 0 1px #c3c9d1;
+}
+.kRun {
+  width: 18px !important;
+  height: 5px !important;
+  border-radius: 3px !important;
+  background: var(--cobalt);
+}
+.drag {
+  color: #8a9099;
+}
+
+/* The plate: a machined strip under the object with the place switch and the day's numbers. */
+.plateWrap {
+  margin-top: clamp(28px, 3vw, 44px);
+}
+.plate {
+  border-radius: 22px;
+  background: linear-gradient(180deg, #f8f9fb 0%, #f1f3f6 100%);
+  box-shadow:
+    inset 0 1px 0 #fff,
+    0 1px 0 rgba(22, 24, 27, 0.06),
+    0 18px 40px -24px rgba(22, 24, 27, 0.22);
+}
+.plateTop {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px 28px;
+  padding: 18px 22px;
+  border-bottom: 1px solid var(--rule);
 }
 .switch {
   display: flex;
-  width: fit-content;
   max-width: 100%;
-  gap: 4px;
+  gap: 2px;
   padding: 4px;
   border-radius: 999px;
-  background: var(--paper);
-  box-shadow: inset 0 0 0 1px var(--rule);
+  background: var(--studio);
+  box-shadow: inset 0 1px 2px rgba(22, 24, 27, 0.08);
   overflow-x: auto;
   scrollbar-width: none;
 }
@@ -59,10 +161,7 @@
 }
 .switch button {
   flex: none;
-  white-space: nowrap;
-}
-.switch button {
-  min-height: 40px;
+  min-height: 38px;
   padding: 0 16px;
   border: 0;
   border-radius: 999px;
@@ -71,71 +170,107 @@
   font: inherit;
   font-size: 15px;
   font-weight: 600;
+  white-space: nowrap;
   cursor: pointer;
+  transition: background-color 140ms ease, color 140ms ease;
+}
+.switch button:hover {
+  background: rgba(255, 255, 255, 0.7);
 }
 .switch button[aria-pressed="true"] {
   background: var(--graphite);
   color: #fff;
+  box-shadow: 0 2px 6px rgba(22, 24, 27, 0.25);
 }
 .caption {
-  max-width: 52em;
-  margin: 16px 0 0;
-  font-size: 15px;
+  flex: 1 1 340px;
+  max-width: 44em;
+  margin: 0;
+  font-size: 14.5px;
+  line-height: 1.5;
   color: var(--steel);
 }
 .spec {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0;
-  margin: 36px 0 0;
-  border-top: 1.5px solid var(--graphite);
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  margin: 0;
 }
-.spec div {
-  padding: 18px 20px 4px 0;
+.spec > div {
+  padding: 22px 22px 24px;
   min-width: 0;
 }
-.spec div + div {
-  padding-left: 20px;
+.spec > div + div {
   border-left: 1px solid var(--rule);
 }
 .spec dt {
-  font-size: 15px;
+  font-size: 14px;
   color: var(--steel);
 }
 .spec dd {
-  margin: 6px 0 0;
+  margin: 6px 0 4px;
   font-family: var(--font-display), sans-serif;
-  font-size: clamp(36px, 3.6vw, 56px);
+  font-size: clamp(32px, 3.2vw, 48px);
   font-weight: 500;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.035em;
   line-height: 1;
 }
-.spec div:nth-child(1) dd,
-.spec div:nth-child(3) dd {
+.spec dd.cobalt {
   color: var(--cobalt);
 }
 .spec span {
   display: block;
-  margin-top: 8px;
-  font-size: 15px;
+  font-size: 13.5px;
+  line-height: 1.4;
   color: var(--steel);
 }
-@media (max-width: 960px) {
+
+@media (max-width: 1100px) {
+  .spec {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .spec > div:nth-child(4) {
+    border-left: 0;
+  }
+  .spec > div:nth-child(n + 4) {
+    border-top: 1px solid var(--rule);
+  }
+}
+@media (max-width: 900px) {
   .grid {
     grid-template-columns: minmax(0, 1fr);
   }
-  .object {
-    height: min(96vw, 520px);
-    margin: 0 calc(-1 * var(--gutter));
-  }
+}
+@media (max-width: 640px) {
   .spec {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  .spec div:nth-child(3) {
-    padding-left: 0;
+  .spec > div:nth-child(n) {
+    border-left: 0;
+    border-top: 1px solid var(--rule);
+  }
+  .spec > div:nth-child(1),
+  .spec > div:nth-child(2) {
+    border-top: 0;
+  }
+  .spec > div:nth-child(even) {
+    border-left: 1px solid var(--rule);
+  }
+  .spec > div:last-child {
+    grid-column: 1 / -1;
     border-left: 0;
   }
-  .spec div:nth-child(n + 3) {
-    border-top: 1px solid var(--rule);
+  .spec > div {
+    padding: 18px 16px 20px;
+  }
+  .plateTop {
+    padding: 14px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pulse::after {
+    animation: none;
+  }
+  .switch button {
+    transition: none;
   }
 }

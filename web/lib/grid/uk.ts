@@ -1,6 +1,8 @@
 import type { FuelShare, Region, Slot, Tide } from "./types";
 import { getJson, HALF_HOUR } from "./http";
 
+const DAY = 24 * 3600_000;
+
 const OCTOPUS = "https://api.octopus.energy/v1";
 const CARBON = "https://api.carbonintensity.org.uk";
 
@@ -106,10 +108,13 @@ export async function ukTide(place: string, letterHint?: string): Promise<Tide> 
   const info = UK_REGIONS[letter];
   if (!info) throw new Error(`Unknown British electricity region ${letter}.`);
   const from = Math.floor(Date.now() / HALF_HOUR) * HALF_HOUR;
-  const [rates, carbon] = await Promise.all([
-    agileRates(letter, from),
+  // One request covers the last 24 hours too: those half hours only draw the ring's faded fins, they never plan.
+  const [all, carbon] = await Promise.all([
+    agileRates(letter, from - DAY),
     carbonForecast(info.carbonId, from).catch(() => [] as CarbonPoint[]),
   ]);
+  const rates = all.filter((r) => r.start >= from);
+  const history = all.filter((r) => r.start < from);
   const byStart = new Map(carbon.map((c) => [Date.parse(c.from.replace(/Z?$/, "Z")), c.intensity.forecast]));
   const slots: Slot[] = rates.map((r) => ({ ...r, carbon: byStart.get(r.start) ?? null }));
   const nowMix = carbon[0]?.generationmix ?? null;
@@ -128,6 +133,7 @@ export async function ukTide(place: string, letterHint?: string): Promise<Tide> 
   return {
     region,
     slots,
+    history,
     mix: nowMix ? [...nowMix].sort((a, b) => b.perc - a.perc) : null,
     fetchedAt: Date.now(),
     sources: ["api.octopus.energy", "carbonintensity.org.uk"],
@@ -135,12 +141,17 @@ export async function ukTide(place: string, letterHint?: string): Promise<Tide> 
 }
 
 /** Next low water for every British region, for the tide table on the home page. */
-export async function ukTable(): Promise<{ letter: string; name: string; slots: Slot[] }[]> {
+export async function ukTable(): Promise<{ letter: string; name: string; slots: Slot[]; history: { start: number; end: number; price: number }[] }[]> {
   const from = Math.floor(Date.now() / HALF_HOUR) * HALF_HOUR;
   return Promise.all(
     Object.entries(UK_REGIONS).map(async ([letter, info]) => {
-      const rates = await agileRates(letter, from).catch(() => []);
-      return { letter, name: info.name, slots: rates.map((r) => ({ ...r, carbon: null })) };
+      const all = await agileRates(letter, from - DAY).catch(() => []);
+      return {
+        letter,
+        name: info.name,
+        slots: all.filter((r) => r.start >= from).map((r) => ({ ...r, carbon: null })),
+        history: all.filter((r) => r.start < from),
+      };
     }),
   );
 }

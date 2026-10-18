@@ -10,6 +10,8 @@ export interface ChartData {
   berths: { start: number; end: number; label: string; state: "best" | "now" | "planned" | "done" | "alt" }[];
   unit: "p" | "¢" | "ct";
   timeZone: string;
+  /** The last 24 hours' published prices, drawn faded where the next 24 hours aren't published yet. */
+  past?: { s: number; e: number; p: number; c: null }[];
 }
 import { offsetMs, zonedToUtc } from "./grid/time";
 
@@ -76,6 +78,8 @@ export interface SceneData {
   currency: Tide["region"]["currency"];
   now: number;
   slots: { s: number; e: number; p: number; c: number | null }[];
+  /** The last 24 hours' published prices (Britain), drawn faded where tomorrow isn't published yet. */
+  past: { s: number; e: number; p: number; c: null }[];
   runs: SceneRun[];
 }
 
@@ -121,8 +125,14 @@ export function sceneOf(tide: Tide): SceneData {
     currency: tide.region.currency,
     now,
     slots: tide.slots.filter((s) => s.end > now - 3600_000 && s.start < horizon + 3600_000).map((s) => ({ s: s.start, e: s.end, p: s.price, c: s.carbon })),
+    past: pastOf(tide.history, now),
     runs,
   };
+}
+
+/** The published half hours of the last 24 hours, for the faded fins. */
+export function pastOf(h: { start: number; end: number; price: number }[] | undefined, now: number) {
+  return (h ?? []).filter((x) => x.start >= now - 24 * 3600_000 && x.end <= now + 1800_000).map((x) => ({ s: x.start, e: x.end, p: x.price, c: null as null }));
 }
 
 /** The next local hh:mm at or after `from`. */
@@ -186,7 +196,7 @@ export async function tableData(): Promise<TableRow[]> {
       high,
       now: day.find((s) => s.start <= now && now < s.end)?.price ?? null,
       chart: day.length
-        ? { slots: day.map((s) => ({ s: s.start, e: s.end, p: s.price, c: null })), now, marks: { low, high }, berths: [], unit: "p", timeZone: "Europe/London" }
+        ? { slots: day.map((s) => ({ s: s.start, e: s.end, p: s.price, c: null })), now, marks: { low, high }, berths: [], unit: "p", timeZone: "Europe/London", past: pastOf(r.history, now) }
         : null,
     };
   });

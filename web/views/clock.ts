@@ -23,13 +23,15 @@ export interface ClockData {
   unit: "p" | "¢" | "ct";
   timeZone: string;
   centre?: { time: number; above: string; below: string } | null;
+  /** The last 24 hours' prices: drawn faded at the positions the next 24 hours haven't published yet. */
+  past?: ClockSlot[];
 }
 
 const NS = "http://www.w3.org/2000/svg";
 
 const THEMES = {
-  light: { cheap: "#2340ff", mid: "#a9afb8", dear: "#16181b", ring: "#d5d9de", text: "#16181b", muted: "#5d636b", pin: "#16181b", face: "#f6f7f9" },
-  dark: { cheap: "#5b73ff", mid: "#7d848e", dear: "#e9ebee", ring: "#2c3036", text: "#f6f7f9", muted: "#9aa1ab", pin: "#ffffff", face: "#1d2024" },
+  light: { cheap: "#2340ff", mid: "#a9afb8", dear: "#16181b", ring: "#d5d9de", text: "#16181b", muted: "#5d636b", pin: "#16181b", face: "#f6f7f9", past: "#cfd4db" },
+  dark: { cheap: "#5b73ff", mid: "#7d848e", dear: "#e9ebee", ring: "#2c3036", text: "#f6f7f9", muted: "#9aa1ab", pin: "#ffffff", face: "#1d2024", past: "#353a42" },
 };
 export type ClockTheme = keyof typeof THEMES;
 
@@ -79,7 +81,9 @@ export function drawClock(
   const first = Math.floor(now / 1800_000) * 1800_000;
   const horizon = first + 24 * 3600_000;
   const slots = d.slots.filter((s) => s.e > first && s.s < horizon);
-  const prices = slots.map((s) => s.p);
+  const past = (d.past ?? []).filter((s) => s.s >= first - 24 * 3600_000 && s.s < first);
+  // The faded fins share the scale, so a faded fin and a live one of the same height cost the same.
+  const prices = [...slots, ...past].map((s) => s.p);
   const lo = Math.min(...prices);
   const hi = Math.max(...prices);
   const span = Math.max(0.01, hi - lo);
@@ -118,12 +122,16 @@ export function drawClock(
   const finW = Math.max(2, ((2 * Math.PI * ((r0 + R) / 2)) / 48) * 0.55);
   for (let i = 0; i < 48; i++) {
     const start = first + i * 1800_000;
-    const slot = slots.find((x) => x.s <= start + 900_000 && start + 900_000 < x.e);
+    const live = slots.find((x) => x.s <= start + 900_000 && start + 900_000 < x.e);
+    // Not published yet: the same time of day earlier today, faded.
+    const earlier = live ? undefined : past.find((x) => x.s <= start - 24 * 3600_000 + 900_000 && start - 24 * 3600_000 + 900_000 < x.e);
+    const slot = live ?? earlier;
     const a = angleOf(minuteOfDay(start, tz) + 15);
     const k = slot ? (slot.p - lo) / span : 0;
     const r = slot ? r0 + S * 0.02 + k * (R - r0 - S * 0.02) : r0 + S * 0.012;
     let colour = T.mid;
     if (!slot) colour = T.ring;
+    else if (earlier) colour = T.past;
     else if (highlight) colour = start + 900_000 >= highlight.start && start + 900_000 < highlight.end ? T.cheap : slot.p >= q3 ? T.dear : T.mid;
     else colour = slot.p <= q1 ? T.cheap : slot.p >= q3 ? T.dear : T.mid;
     const [x0, y0] = pt(cx, cy, r0, a);
@@ -131,7 +139,7 @@ export function drawClock(
     const line = el("line", { x1: x0, y1: y0, x2: x1, y2: y1, stroke: colour, "stroke-width": finW, "stroke-linecap": "round" }, fins);
     if (slot) {
       const tt = el("title", {}, line);
-      tt.textContent = `${hhmm(start, tz)}: ${slot.p.toFixed(1)}${d.unit === "ct" ? " ct" : d.unit}/kWh`;
+      tt.textContent = `${hhmm(start, tz)}: ${slot.p.toFixed(1)}${d.unit === "ct" ? " ct" : d.unit}/kWh${earlier ? " earlier today (tomorrow's isn't published yet)" : ""}`;
     }
     shapes.push({ line, a, r, delay: (i / 48) * 0.6 });
   }

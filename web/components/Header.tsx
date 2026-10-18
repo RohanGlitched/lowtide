@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Nav from "./Nav";
 import s from "./chrome.module.css";
 
 export default function Header() {
@@ -9,27 +10,15 @@ export default function Header() {
           <Mark />
           <span>Lowtide</span>
         </Link>
-        <nav className={s.nav} aria-label="Main">
-          <Link href="/echo" prefetch={false}>
-            <span className={s.long}>Try it on Echo</span>
-            <span className={s.short}>Echo</span>
-          </Link>
-          <Link href="/tables" prefetch={false}>
-            <span className={s.long}>Today&apos;s tides</span>
-            <span className={s.short}>Tides</span>
-          </Link>
-          <Link href="/connect" prefetch={false}>
-            <span className={s.long}>Add to Claude or ChatGPT</span>
-            <span className={s.short}>Connect</span>
-          </Link>
-        </nav>
+        <Nav />
       </div>
     </header>
   );
 }
 
 /** The object seen from above: a ring of fins, the cheapest few in cobalt. */
-export function Mark({ size = 26 }: { size?: number }) {
+export function Mark({ size = 26, dark = false }: { size?: number; dark?: boolean }) {
+  const ink = dark ? "#e9ebee" : "#16181b";
   const fins = Array.from({ length: 24 }, (_, i) => {
     const a = (i / 24) * Math.PI * 2;
     const k = (Math.cos(a - 2.4) + 1) / 2;
@@ -42,7 +31,7 @@ export function Mark({ size = 26 }: { size?: number }) {
         y1={16 - r0 * Math.cos(a)}
         x2={16 + r1 * Math.sin(a)}
         y2={16 - r1 * Math.cos(a)}
-        stroke={k < 0.22 ? "#2340ff" : "#16181b"}
+        stroke={k < 0.22 ? (dark ? "#5b73ff" : "#2340ff") : ink}
         strokeWidth="1.9"
         strokeLinecap="round"
       />
@@ -51,7 +40,7 @@ export function Mark({ size = 26 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden>
       {fins}
-      <circle cx="16" cy="16" r="2.4" fill="#16181b" />
+      <circle cx="16" cy="16" r="2.4" fill={ink} />
     </svg>
   );
 }

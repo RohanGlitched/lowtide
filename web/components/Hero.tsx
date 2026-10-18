@@ -1,16 +1,11 @@
 "use client";
-import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { SceneData } from "@/lib/live";
 import { money } from "@/lib/format";
 import { dayPart } from "@/lib/grid/time";
+import TideDial from "./TideDial";
 import s from "./hero.module.css";
-
-const DayObject = dynamic(() => import("./object/DayObject"), {
-  ssr: false,
-  loading: () => <div className={s.objectWait} aria-hidden />,
-});
 
 function hhmm(t: number, tz: string) {
   return new Intl.DateTimeFormat("en-GB", { timeZone: tz, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date(t));
@@ -31,8 +26,9 @@ function marks(sc: SceneData) {
     if (!low || x.p < low.p) low = { start: x.s, p: x.p, isNow };
     if (!high || x.p > high.p) high = { start: x.s, p: x.p, isNow };
   }
+  const cur = day.find((x) => x.s <= sc.now && sc.now < x.e) ?? null;
   const last = day.length ? day[day.length - 1].e : sc.now;
-  return { low, high, last };
+  return { low, high, cur, last };
 }
 
 export default function Hero({ places }: { places: { key: string; label: string; scene: SceneData }[] }) {
@@ -40,9 +36,10 @@ export default function Hero({ places }: { places: { key: string; label: string;
   const place = places.find((p) => p.key === key) ?? places[0];
   const sc = place.scene;
   const tz = sc.timeZone;
-  const { low, high, last } = useMemo(() => marks(sc), [sc]);
-  // Before tomorrow's prices are out (Agile: about 4 p.m. UK), the ring only reaches the end of today.
+  const { low, high, cur, last } = useMemo(() => marks(sc), [sc]);
+  // Before tomorrow's prices are out (Agile: about 4 p.m. UK), the next 24 hours stop at the end of today.
   const partial = last - sc.now < 20 * 3600_000;
+  const hasPast = partial && sc.past.length > 0;
   const reach = partial ? `to ${hhmm(last, tz)}` : "next 24 hours";
   const u = sc.unit === "ct" ? " ct" : sc.unit;
   const dish = sc.runs.find((r) => r.id === "dishwasher");
@@ -52,84 +49,128 @@ export default function Hero({ places }: { places: { key: string; label: string;
   // "tomorrow afternoon" reads long in a headline: keep the day, drop the part of it.
   const when = low ? dayPart(low.start, sc.now, tz).replace(/^tomorrow .*/, "tomorrow").replace(/^early this morning$/, "tonight").replace(/^this (afternoon|evening|morning)$/, "today") : "";
   const dishWhen = dish ? dayPart(dish.start, sc.now, tz).replace(/^tomorrow .*/, "tomorrow") : "";
+  const rest = low
+    ? low.isNow
+      ? { above: "Cheapest", big: "Now", below: `${low.p.toFixed(1)}${u} per kWh` }
+      : { above: "Cheapest at", big: hhmm(low.start, tz), below: `${low.p.toFixed(1)}${u} per kWh` }
+    : { above: "Prices", big: "—", below: "not published yet" };
+  const label = `${partial ? `Electricity prices in ${place.label} up to ${hhmm(last, tz)}${hasPast ? ", with earlier today's prices frosted where tomorrow's aren't out yet" : ""}` : `The next 24 hours of electricity prices in ${place.label}`} as a dial of fins, one per half hour; longer is dearer. Cheapest ${low ? (low.isNow ? "now" : `at ${hhmm(low.start, tz)}`) : "unknown"}.`;
 
   return (
     <section className={s.hero} aria-labelledby="hero-title">
       <div className={`shell ${s.grid}`}>
         <div className={s.copy}>
+          <p className={s.live}>
+            <span className={s.pulse} aria-hidden />
+            Live {sc.tariff} prices for {place.label}, read at {hhmm(sc.now, tz)}
+          </p>
           <h1 id="hero-title" className={`display ${s.title}`} aria-live="polite">
             {low ? (
-              <>
-                {low.isNow ? <>In {place.label}, power is cheapest right now.</> : <>In {place.label}, power is cheapest at {hhmm(low.start, tz)} {when}.</>}
-              </>
+              low.isNow ? (
+                <>In {place.label}, power is cheapest right now.</>
+              ) : (
+                <>
+                  In {place.label}, power is cheapest at {hhmm(low.start, tz)} {when}.
+                </>
+              )
             ) : (
               <>Run it when power is cheapest.</>
             )}
           </h1>
           <p className={s.lede}>
-            Lowtide reads every half-hourly electricity price and the grid&apos;s carbon forecast, and tells Alexa when to run the
-            dishwasher, the washing, the hot water and the car.
+            Ask Alexa when to run the dishwasher. Lowtide reads every half-hourly electricity price and the grid&apos;s carbon
+            forecast, and answers with the cheapest time that still finishes when you need it.
           </p>
           <div className={s.ctas}>
             <Link href="/echo" prefetch={false} className="btn btn-primary">
               Ask Alexa on the Echo
             </Link>
             <Link href="/connect" prefetch={false} className="btn btn-quiet">
-              Add to Claude or ChatGPT
+              Add to your assistant
             </Link>
           </div>
         </div>
-        <div className={s.object}>
-          <DayObject
-            slots={sc.slots}
-            now={sc.now}
-            timeZone={tz}
-            unit={sc.unit}
-            label={`${partial ? `Electricity prices in ${place.label} up to ${hhmm(last, tz)}` : `The next 24 hours of electricity prices in ${place.label}`} as a ring of fins, one per half hour; taller is dearer. Cheapest ${low ? (low.isNow ? "now" : `at ${hhmm(low.start, tz)}`) : "—"}.`}
-          />
+
+        <div className={s.stage}>
+          <div className={s.object}>
+            <TideDial
+              key={key}
+              slots={sc.slots}
+              past={sc.past}
+              now={sc.now}
+              timeZone={tz}
+              unit={sc.unit}
+              run={dish ? { start: dish.start, end: dish.end, label: "dishwasher" } : null}
+              label={label}
+              rest={rest}
+            />
+          </div>
+          <ul className={s.legend} aria-label="How to read the ring">
+            <li>
+              <i className={s.kCheap} /> Cheapest quarter
+            </li>
+            <li>
+              <i className={s.kDear} /> Dearest quarter
+            </li>
+            {hasPast && (
+              <li>
+                <i className={s.kPast} /> Earlier today, until tomorrow&apos;s prices are out
+              </li>
+            )}
+            {dish && (
+              <li>
+                <i className={s.kRun} /> The dishwasher&apos;s cheapest run
+              </li>
+            )}
+            <li className={s.drag}>Point at a half hour for its price</li>
+          </ul>
         </div>
       </div>
 
-      <div className={`shell ${s.below}`}>
-        <div className={s.switch} role="group" aria-label="Choose a place">
-          {places.map((p) => (
-            <button key={p.key} type="button" aria-pressed={p.key === key} onClick={() => setKey(p.key)}>
-              {p.label}
-            </button>
-          ))}
+      <div className={`shell ${s.plateWrap}`}>
+        <div className={s.plate}>
+          <div className={s.plateTop}>
+            <div className={s.switch} role="group" aria-label="Choose a place">
+              {places.map((p) => (
+                <button key={p.key} type="button" aria-pressed={p.key === key} onClick={() => setKey(p.key)}>
+                  {p.label}
+                </button>
+              ))}
+            </div>
+            <p className={s.caption}>
+              {partial ? `${place.label}, now ${reach}` : `${place.label}, the next 24 hours`}. One fin per half hour, cut from the
+              published {sc.tariff} prices; longer costs more.
+              {partial && sc.currency === "GBP" && " Tomorrow's prices come out at about 4 p.m. UK time."}
+            </p>
+          </div>
+          <dl className={s.spec}>
+            <div>
+              <dt>Price now</dt>
+              <dd>{cur ? `${cur.p.toFixed(1)}${u}` : "—"}</dd>
+              <span>per kWh, this half hour</span>
+            </div>
+            <div>
+              <dt>Cheapest half hour</dt>
+              <dd className={s.cobalt}>{low ? (low.isNow ? "Now" : hhmm(low.start, tz)) : "—"}</dd>
+              <span>{low ? `${low.p.toFixed(1)}${u}/kWh` : ""}</span>
+            </div>
+            <div>
+              <dt>Dearest half hour</dt>
+              <dd>{high ? hhmm(high.start, tz) : "—"}</dd>
+              <span>{high ? `${high.p.toFixed(1)}${u}/kWh` : ""}</span>
+            </div>
+            <div>
+              <dt>Dishwasher {dishWhen}</dt>
+              <dd className={s.cobalt}>{dish ? hhmm(dish.start, tz) : "—"}</dd>
+              <span>{dish ? (dish.costTypical > dish.cost ? `${money(dish.cost, sc)}, not ${money(dish.costTypical, sc)} at a typical time` : `${money(dish.cost, sc)}, as cheap as it gets`) : ""}</span>
+            </div>
+            <div>
+              <dt>Tonight&apos;s {sc.runs.length} loads, planned</dt>
+              <dd>{sc.runs.length ? money(all, sc) : "—"}</dd>
+              <span>{sc.runs.length ? `${money(allTypical, sc)} at a typical time of day` : ""}</span>
+            </div>
+          </dl>
         </div>
-        <p className={s.caption}>
-          {partial ? `${place.label} from now ${reach}` : `The next 24 hours in ${place.label}`}, one fin per half hour, machined from
-          the live {sc.tariff} prices. Taller costs more. Cobalt is the cheapest quarter, graphite the dearest; the pin is now. Drag
-          to turn it.
-          {partial &&
-            (sc.currency === "GBP"
-              ? ` Tomorrow's prices come out at about 4 p.m. UK time; until then the ring holds the rest of today, so it isn't full yet.`
-              : ` Tomorrow's prices aren't published yet, so the ring holds the rest of today.`)}{" "}
-          Savings below compare with a typical start: the average of every published start time, not the evening peak.
-        </p>
-        <dl className={s.spec}>
-          <div>
-            <dt>Cheapest half hour</dt>
-            <dd>{low ? (low.isNow ? "Now" : hhmm(low.start, tz)) : "—"}</dd>
-            <span>{low ? `${low.p.toFixed(1)}${u}/kWh` : ""}</span>
-          </div>
-          <div>
-            <dt>Dearest half hour</dt>
-            <dd>{high ? `${hhmm(high.start, tz)}` : "—"}</dd>
-            <span>{high ? `${high.p.toFixed(1)}${u}/kWh` : ""}</span>
-          </div>
-          <div>
-            <dt>Dishwasher {dishWhen}</dt>
-            <dd>{dish ? hhmm(dish.start, tz) : "—"}</dd>
-            <span>{dish ? (dish.costTypical > dish.cost ? `${money(dish.cost, sc)} instead of ${money(dish.costTypical, sc)} at a typical time` : `${money(dish.cost, sc)}, as cheap as it gets`) : ""}</span>
-          </div>
-          <div>
-            <dt>Everything, {reach}</dt>
-            <dd>{sc.runs.length ? money(all, sc) : "—"}</dd>
-            <span>{sc.runs.length ? `${money(allTypical, sc)} at a typical time of day` : ""}</span>
-          </div>
-        </dl>
       </div>
     </section>
   );

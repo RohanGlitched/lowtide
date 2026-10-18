@@ -29,6 +29,8 @@ export interface FuelShare {
 export interface Tide {
   region: Region;
   slots: Slot[]; // from the current slot onwards, sorted, contiguous where published
+  /** The published half hours of the last 24 hours, before the current one (display only: the ring's faded fins). */
+  history?: { start: number; end: number; price: number }[];
   mix: FuelShare[] | null; // current generation mix, when published
   fetchedAt: number;
   sources: string[];

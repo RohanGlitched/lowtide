@@ -7,6 +7,11 @@
   --rule: #d5d9de;
   --cobalt: #2340ff;
   --cobalt-ink: #1a2fd1;
+  --cobalt-soft: #5b73ff;
+  --night: #0e1013;
+  --night-2: #16191d;
+  --night-rule: #23272d;
+  --frost: #dde1e7;
   --gutter: clamp(18px, 4vw, 64px);
   --max: 1320px;
   color-scheme: light;
@@ -113,4 +118,49 @@ a {
   font-family: var(--font-display), sans-serif;
   font-weight: 500;
   letter-spacing: -0.03em;
+}
+
+/* Sections: one rhythm for every page. */
+.section {
+  margin-top: clamp(104px, 11vw, 168px);
+}
+.sectionHead {
+  display: grid;
+  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  gap: 18px 64px;
+  align-items: end;
+  margin-bottom: clamp(36px, 4vw, 56px);
+}
+.sectionHead h2 {
+  margin: 0;
+  font-size: clamp(40px, 4.6vw, 72px);
+  text-wrap: balance;
+}
+.sectionHead p {
+  margin: 0;
+  max-width: 32em;
+  font-size: 19px;
+  color: var(--steel);
+}
+@media (max-width: 900px) {
+  .sectionHead {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* A full-width night band (the kitchen at night): sections that sit in the dark. */
+.band {
+  margin-top: clamp(104px, 11vw, 168px);
+  padding: clamp(80px, 9vw, 136px) 0;
+  background: var(--night);
+  color: #e9ebee;
+}
+.band .sectionHead p {
+  color: #9aa1ab;
+}
+.band + .band {
+  margin-top: 0;
+}
+.band .sectionHead h2 {
+  color: #fff;
 }

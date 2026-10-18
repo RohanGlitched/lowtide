@@ -60,3 +60,19 @@
 .spill {
   display: none;
 }
+
+/* On a night band */
+.onDark .bezel {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    0 0 0 1px #2c3036,
+    0 50px 90px -40px rgba(35, 64, 255, 0.45);
+}
+.onDark .body {
+  background:
+    repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.06) 0 1.5px, transparent 1.5px 3px),
+    linear-gradient(180deg, #2b2f36, #1a1d22);
+}
+.onDark .counter {
+  background: radial-gradient(50% 50% at 50% 50%, rgba(91, 115, 255, 0.22), rgba(91, 115, 255, 0.06) 55%, transparent 72%);
+}

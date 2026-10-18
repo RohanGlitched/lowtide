@@ -8,7 +8,9 @@ export default function CopyField({ value, label }: { value: string; label: stri
     <div className={s.field}>
       <span className={s.label}>{label}</span>
       <div className={s.row}>
-        <code className={s.value}>{value}</code>
+        <code className={s.value} title={value}>
+          <bdi>{value}</bdi>
+        </code>
         <button
           type="button"
           onClick={() =>
