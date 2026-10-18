@@ -43,7 +43,7 @@
   margin: 0;
   max-width: 15em;
   font-family: var(--font-serif), sans-serif;
-  font-size: clamp(38px, 5vw, 72px);
+  font-size: clamp(32px, 3.4vw, 46px);
   font-weight: 500;
   line-height: 1;
   letter-spacing: -0.035em;

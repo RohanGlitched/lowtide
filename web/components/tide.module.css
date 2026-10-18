@@ -3,11 +3,19 @@
   margin: 0;
   width: 100%;
 }
+.tide:focus-visible {
+  outline: 2px solid var(--moonlight);
+  outline-offset: 6px;
+  border-radius: 8px;
+}
 .svg {
   display: block;
   width: 100%;
   height: 280px;
   overflow: visible;
+  /* A sideways drag reads prices; an up-and-down swipe still scrolls the page. */
+  touch-action: pan-y;
+  cursor: crosshair;
 }
 .compact .svg {
   height: 120px;
@@ -49,40 +57,29 @@
   pointer-events: none;
   font-variant-numeric: tabular-nums;
 }
-.tip b {
-  color: var(--moonlight);
-  font-weight: 600;
+.tip[data-edge="start"] {
+  transform: translate(-8px, calc(-100% - 12px));
 }
-.low {
+.tip[data-edge="end"] {
+  transform: translate(calc(-100% + 8px), calc(-100% - 12px));
+}
+/* The lit run, named under the water. */
+.runTag {
   position: absolute;
-  z-index: 1;
-  display: grid;
-  gap: 1px;
-  justify-items: center;
-  text-align: center;
-  transform: translate(-50%, calc(-100% - 64px));
-  white-space: nowrap;
+  bottom: 30px;
+  display: flex;
+  justify-content: center;
   pointer-events: none;
 }
-.low::after {
-  content: "";
-  position: absolute;
-  left: 50%;
-  top: calc(100% + 4px);
-  width: 1px;
-  height: 52px;
-  background: linear-gradient(180deg, var(--moonlight), rgba(143, 214, 255, 0.1));
-}
-.low span {
-  font-size: 12.5px;
+.runTag span {
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(5, 7, 14, 0.78);
+  box-shadow: inset 0 0 0 1px rgba(143, 214, 255, 0.35);
+  font-size: 12px;
+  white-space: nowrap;
   color: var(--moonlight);
-}
-.low b {
-  font-family: var(--font-serif), serif;
-  font-size: 24px;
-  font-weight: 400;
-  color: #fff;
-  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
 }
 .unpub {
   position: absolute;
@@ -129,6 +126,12 @@
   }
   .low b {
     font-size: 19px;
+  }
+  .axis .minor {
+    display: none;
+  }
+  .runTag {
+    bottom: 32px;
   }
   .unpub span {
     display: none;

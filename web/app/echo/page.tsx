@@ -33,7 +33,7 @@ const TURN: { title: string; body: string; detail: string }[] = [
 
 export default function EchoPage() {
   return (
-    <main>
+    <main id="main" tabIndex={-1}>
       <section className={s.kitchen} aria-labelledby="echo-title">
         <div className="shell">
           <div className={s.intro}>

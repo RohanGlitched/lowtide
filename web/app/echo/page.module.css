@@ -1,5 +1,5 @@
 .kitchen {
-  padding: clamp(48px, 6vw, 88px) 0 clamp(72px, 8vw, 112px);
+  padding: clamp(28px, 3vw, 44px) 0 clamp(72px, 8vw, 112px);
   background: radial-gradient(1100px 520px at 20% -10%, #18223f 0%, #0a1022 50%, var(--night) 100%);
   border-bottom: 1px solid var(--rule);
 }
@@ -8,7 +8,7 @@
   grid-template-columns: minmax(0, 6fr) minmax(0, 5fr);
   gap: 16px 64px;
   align-items: end;
-  margin-bottom: clamp(32px, 4vw, 52px);
+  margin-bottom: clamp(20px, 2.4vw, 32px);
 }
 .intro h1 {
   margin: 0;

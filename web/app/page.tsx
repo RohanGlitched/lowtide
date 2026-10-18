@@ -2,7 +2,7 @@ import Link from "next/link";
 import Hero from "@/components/Hero";
 import Clock from "@/components/Clock";
 import EchoDevice from "@/components/EchoDevice";
-import TonightPanels from "@/components/TonightPanels";
+import { PlaceProvider, TonightSection } from "@/components/place";
 import Architecture from "@/components/Architecture";
 import CopyField from "@/components/CopyField";
 import { scenes } from "@/lib/live";
@@ -74,10 +74,10 @@ export default async function Home() {
         }
       : null;
 
-  return (
-    <main>
+  const body = (
+    <>
       {places.length > 0 ? (
-        <Hero places={places} />
+        <Hero />
       ) : (
         <section className={`shell ${s.down}`}>
           <h1 className="serif">Run it when power is cheapest.</h1>
@@ -125,7 +125,7 @@ export default async function Home() {
                 <li data-who="you">Yes, save it.</li>
                 <li data-who="alexa">{remind}</li>
               </ol>
-              <p className={s.askFine}>Produced minutes ago by the live tools, for London. Not a script.</p>
+              <p className={s.askFine}>Produced minutes ago by the live tools, for a London home. Not a script.</p>
               <Link href="/echo" prefetch={false} className={`btn btn-primary ${s.askCta}`}>
                 Try it yourself on the Echo
               </Link>
@@ -134,20 +134,7 @@ export default async function Home() {
         </section>
       )}
 
-      {london && (
-        <section className="shell section" aria-labelledby="tonight-title">
-          <div className="sectionHead">
-            <h2 id="tonight-title" className="serif">
-              Tonight, already planned.
-            </h2>
-            <p>
-              Four everyday loads in a London home, each placed in the cheapest stretch that still finishes by morning. The nightly
-              schedule does this for every household before anyone asks.
-            </p>
-          </div>
-          <TonightPanels scene={london} place={places[0].label} />
-        </section>
-      )}
+      {london && <TonightSection />}
 
       <section className="band" id="how" aria-labelledby="how-title">
         <div className="shell">
@@ -326,6 +313,8 @@ export default async function Home() {
           </details>
         </div>
       </section>
-    </main>
+    </>
   );
+  return <main id="main" tabIndex={-1}>{places.length > 0 ? <PlaceProvider places={places}>{body}</PlaceProvider> : body}</main>;
 }
+

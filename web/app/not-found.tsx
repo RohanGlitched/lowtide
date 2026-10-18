@@ -7,7 +7,7 @@ export const metadata: Metadata = { title: "Not found" };
 
 export default function NotFound() {
   return (
-    <main className={`shell ${s.main}`}>
+    <main id="main" tabIndex={-1} className={`shell ${s.main}`}>
       <div className={s.copy}>
         <p className={s.code}>404</p>
         <h1 className="serif">Low tide: nothing at this address.</h1>

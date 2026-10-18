@@ -362,7 +362,8 @@
   color: var(--muted);
 }
 .paysLine {
-  max-width: 44em;
+  max-width: 34em;
+  text-wrap: balance;
   margin: 44px 0 0;
   font-family: var(--font-serif), Georgia, serif;
   font-size: clamp(21px, 1.9vw, 26px);

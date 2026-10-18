@@ -25,12 +25,10 @@
   font-size: 13.5px;
   font-weight: 500;
   color: var(--moonlight);
-  /* One line; the end of an address is what tells two apart, so it is the end that always shows. */
-  white-space: nowrap;
-  overflow: hidden;
-  direction: rtl;
-  text-align: left;
-  text-overflow: ellipsis;
+  /* The whole address, wrapping if it must: the host is what you're trusting, so none of it is hidden. */
+  padding-block: 10px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 .row button {
   flex: none;

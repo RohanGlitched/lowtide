@@ -14,7 +14,7 @@
   --moonlight: #8fd6ff;
   --text: #e9edf7;
   --muted: #9aa6bf;
-  --faint: #66728d;
+  --faint: #8692ac;
   --rule: rgba(160, 180, 220, 0.14);
   --rule-strong: rgba(160, 180, 220, 0.26);
   --surface: rgba(20, 28, 50, 0.55);
@@ -36,6 +36,8 @@
 html {
   -webkit-text-size-adjust: 100%;
   background: var(--night);
+  /* Anchors land below the sticky header. */
+  scroll-padding-top: 76px;
 }
 body {
   margin: 0;
@@ -88,6 +90,26 @@ a {
   clip: rect(0 0 0 0);
   white-space: nowrap;
 }
+/* Skip to content: hidden until a keyboard reaches it. */
+.skip {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  z-index: 100;
+  padding: 10px 16px;
+  border-radius: 10px;
+  background: var(--moon);
+  color: var(--night);
+  font-weight: 600;
+  text-decoration: none;
+  transform: translateY(-160%);
+}
+.skip:focus {
+  transform: none;
+}
+main:focus {
+  outline: none;
+}
 
 /* Buttons: moon white is the action; the quiet one is an outline in the night. */
 .btn {
@@ -135,6 +157,7 @@ a {
   align-items: end;
   margin-bottom: clamp(30px, 3.5vw, 48px);
 }
+.sectionHead h1,
 .sectionHead h2 {
   margin: 0;
   font-size: clamp(28px, 2.6vw, 38px);

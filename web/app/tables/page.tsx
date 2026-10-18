@@ -25,7 +25,7 @@ export default async function Tables() {
   const gbHi = gb.length ? gb[gb.length - 1].now! : 1;
 
   return (
-    <main>
+    <main id="main" tabIndex={-1}>
       <section className={`shell ${s.main}`} aria-labelledby="tides-title">
         <div className="sectionHead">
           <h1 id="tides-title" className={`serif ${s.title}`}>

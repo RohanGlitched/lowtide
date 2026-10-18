@@ -65,7 +65,7 @@ export default async function Connect() {
   const dish = london?.runs.find((r) => r.id === "dishwasher") ?? null;
 
   return (
-    <main>
+    <main id="main" tabIndex={-1}>
       <section className={`shell ${s.main}`} aria-labelledby="connect-title">
         <div className="sectionHead">
           <h1 id="connect-title" className={`serif ${s.title}`}>
@@ -75,6 +75,13 @@ export default async function Connect() {
             Lowtide is a remote MCP server, so any assistant that can add one can use it. Assistants that support MCP Apps also
             show the day&apos;s prices on a dial, right in the conversation.
           </p>
+        </div>
+        <div className={s.quick}>
+          <p>
+            <strong>Just trying it?</strong> Paste the guest endpoint into your assistant. No account, no household; ask about any
+            postcode.
+          </p>
+          <CopyField value={`${SITE_URL}/api/mcp`} label="Guest endpoint" />
         </div>
 
         <div className={s.grid}>

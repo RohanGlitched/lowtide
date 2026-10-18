@@ -1,22 +1,23 @@
 "use client";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { SceneData } from "@/lib/live";
 import { money } from "@/lib/format";
 import TideChart from "./TideChart";
+import { usePlace } from "./place";
 import { Lcd } from "./Lcd";
 import s from "./hero.module.css";
 
 function hhmm(t: number, tz: string) {
   return new Intl.DateTimeFormat("en-GB", { timeZone: tz, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date(t));
 }
-/** "2 a.m.", "1:30 a.m.", "midnight": how a person says a half hour (no trailing full stop). */
+/** "2 a.m.", "1:30 a.m.", "midnight": how a person says a half hour. */
 function spoken(t: number, tz: string) {
   const [h, m] = hhmm(t, tz).split(":").map(Number);
   if (h === 0 && m === 0) return "midnight";
   if (h === 12 && m === 0) return "noon";
   const h12 = h % 12 === 0 ? 12 : h % 12;
-  const ap = h < 12 ? "a.m" : "p.m";
+  const ap = h < 12 ? "a.m." : "p.m.";
   return m === 0 ? `${h12} ${ap}` : `${h12}:${String(m).padStart(2, "0")} ${ap}`;
 }
 
@@ -67,10 +68,10 @@ function marks(sc: SceneData) {
   return { low, high, cur, day };
 }
 
-export default function Hero({ places }: { places: { key: string; label: string; scene: SceneData }[] }) {
-  const [key, setKey] = useState(places[0].key);
+export default function Hero() {
+  const { places, place, setKey } = usePlace();
+  const key = place.key;
   const [mode, setMode] = useState<Mode>("cheapest");
-  const place = places.find((p) => p.key === key) ?? places[0];
   const sc = place.scene;
   const tz = sc.timeZone;
   const { low, high, cur, day } = useMemo(() => marks(sc), [sc]);
@@ -87,17 +88,36 @@ export default function Hero({ places }: { places: { key: string; label: string;
     const now = costAt(sc.slots, sc.now);
     return { cheapest, greenest: green, now };
   }, [dish, sc]);
-  const pick = runs ? (mode === "greenest" ? runs.greenest : mode === "now" ? runs.now : runs.cheapest) ?? runs.cheapest : null;
-  const label = mode === "greenest" ? "greenest" : mode === "now" ? "start now" : "cheapest by morning";
+  // A place with no carbon forecast (or no price for "now") falls back to the cheapest run, and says so.
+  const shown: Mode = runs && ((mode === "greenest" && runs.greenest) || (mode === "now" && runs.now)) ? mode : "cheapest";
+  useEffect(() => setMode((m) => (m === shown ? m : "cheapest")), [key, shown]);
+  const pick = runs ? (shown === "greenest" ? runs.greenest : shown === "now" ? runs.now : runs.cheapest) ?? runs.cheapest : null;
+  const label = shown === "greenest" ? "greenest" : shown === "now" ? "start now" : "cheapest by morning";
   const vs = dish ? dish.costTypical : 0;
+  const hourIn = (t: number) => Number(hhmm(t, tz).slice(0, 2));
   const when = (t: number) => {
-    const h = Number(hhmm(t, tz).slice(0, 2));
+    const h = hourIn(t);
     return h >= 18 || h < 6 ? " tonight" : "";
   };
+  const evening = hourIn(sc.now) >= 17 || hourIn(sc.now) < 5;
+  const dayOf = (t: number) => new Intl.DateTimeFormat("en-GB", { timeZone: tz, day: "numeric" }).format(new Date(t));
+  // The headline follows the pressed key, always with a day word, and never a doubled full stop.
+  const sentence = (t: number) => {
+    if (shown === "now" || t - sc.now < 15 * 60_000) return `In ${place.label}, run the dishwasher now.`;
+    const day = when(t) || (dayOf(t) === dayOf(sc.now) ? " today" : " tomorrow");
+    const verb = shown === "greenest" ? "the cleanest start for the dishwasher is" : "run the dishwasher at";
+    return `In ${place.label}, ${verb} ${spoken(t, tz)}${day}.`;
+  };
+  const hourly = /comed/i.test(sc.tariff);
+  const lowInRun = !!low && !!pick && low.start >= pick.start && low.start < pick.end;
+  const status = dish && pick ? `${place.label}: run the dishwasher at ${hhmm(pick.start, tz)}, ${money(pick.cost, sc)}. Cheapest half hour ${low ? hhmm(low.start, tz) : "unknown"}.` : "";
   const bars = day.slice(0, 48).map((x) => ({ p: x.p, on: !!pick && x.s >= pick.start - 900_000 && x.s < pick.end }));
 
   return (
     <section className={s.hero} aria-labelledby="hero-title">
+      <p className="srOnly" role="status">
+        {status}
+      </p>
       <div className={s.sky} aria-hidden>
         <span className={s.moon} />
       </div>
@@ -107,18 +127,13 @@ export default function Hero({ places }: { places: { key: string; label: string;
             <span className={s.pulse} aria-hidden />
             An Alexa+ add-on, on live {sc.tariff} prices for {place.label}
           </p>
-          <h1 id="hero-title" className={`serif ${s.title}`} aria-live="polite">
+          <h1 id="hero-title" className={`serif ${s.title}`}>
             Power is cheapest at <em>low tide</em>.{" "}
-            {dish ? (
-              <>
-                In {place.label}, run the dishwasher at {spoken(dish.start, tz)}
-                {when(dish.start)}.
-              </>
-            ) : null}
+            {pick ? sentence(pick.start) : null}
           </h1>
           <p className={s.lede}>
-            Ask Alexa when to run the dishwasher. Lowtide reads every half-hourly electricity price and the grid&apos;s carbon forecast,
-            and answers with the cheapest time that still finishes when you need it.
+            Ask Alexa when to run the dishwasher. Lowtide reads every {hourly ? "hourly" : "half-hourly"} electricity price and the grid&apos;s
+            carbon forecast, and answers with the cheapest time that still finishes when you need it.
           </p>
           <div className={s.ctas}>
             <Link href="/echo" prefetch={false} className="btn btn-primary">
@@ -149,17 +164,21 @@ export default function Hero({ places }: { places: { key: string; label: string;
               label={`The dishwasher in ${place.label}, ${label}: start at ${hhmm(pick.start, tz)}, ${money(pick.cost, sc)}`}
             />
             <div className={s.keys} role="group" aria-label="Plan the dishwasher for">
-              <button type="button" aria-pressed={mode === "cheapest"} onClick={() => setMode("cheapest")}>
+              <button type="button" aria-pressed={shown === "cheapest"} onClick={() => setMode("cheapest")}>
                 Cheapest<small>done by morning</small>
               </button>
-              <button type="button" aria-pressed={mode === "greenest"} onClick={() => setMode("greenest")} disabled={!runs?.greenest} title={runs?.greenest ? undefined : "No carbon forecast is published here"}>
+              <button type="button" aria-pressed={shown === "greenest"} onClick={() => setMode("greenest")} disabled={!runs?.greenest} title={runs?.greenest ? undefined : "No carbon forecast is published here"}>
                 Greenest<small>{runs?.greenest ? "lowest carbon" : "no forecast here"}</small>
               </button>
-              <button type="button" aria-pressed={mode === "now"} onClick={() => setMode("now")} disabled={!runs?.now}>
+              <button type="button" aria-pressed={shown === "now"} onClick={() => setMode("now")} disabled={!runs?.now}>
                 Start now<small>{cur ? `${cur.p.toFixed(1)}${u}/kWh` : "now"}</small>
               </button>
             </div>
-            <p className={s.panelNote}>Press a key: the plan, the bars and the tide below re-cut from the same live prices. A typical time is the average start.</p>
+            <p className={s.panelNote}>
+              A 3-hour eco run, {hhmm(pick.start, tz)} to {hhmm(pick.end, tz)}
+              {lowInRun && low ? `, around low tide at ${hhmm(low.start, tz)}` : ""}. {money(pick.cost, sc)}, against {money(vs, sc)} at a typical
+              time (the average start). Press a key to re-plan it.
+            </p>
           </div>
         )}
       </div>
@@ -172,7 +191,7 @@ export default function Hero({ places }: { places: { key: string; label: string;
           now={sc.now}
           timeZone={tz}
           unit={sc.unit}
-          run={pick ? { start: pick.start, end: pick.end, label: "dishwasher" } : null}
+          run={pick ? { start: pick.start, end: pick.end, label: `Dishwasher ${hhmm(pick.start, tz)}–${hhmm(pick.end, tz)}` } : null}
           label={`The next 24 hours of electricity prices in ${place.label} as a tide: high water is dear, low water is cheap. Cheapest half hour at ${low ? hhmm(low.start, tz) : "unknown"}.`}
         />
         <dl className={s.facts}>
@@ -181,15 +200,21 @@ export default function Hero({ places }: { places: { key: string; label: string;
             <dd className="num">{cur ? `${cur.p.toFixed(1)}${u}` : "—"}</dd>
           </div>
           <div>
-            <dt>Cheapest half hour</dt>
-            <dd className={`num ${s.cheap}`}>{low ? hhmm(low.start, tz) : "—"}</dd>
+            <dt>Cheapest {hourly ? "hour" : "half hour"}</dt>
+            <dd className={`num ${s.cheap}`}>
+              {low ? hhmm(low.start, tz) : "—"}
+              {low && <small> {low.p.toFixed(1)}{u}</small>}
+            </dd>
           </div>
           <div>
-            <dt>Dearest half hour</dt>
-            <dd className="num">{high ? hhmm(high.start, tz) : "—"}</dd>
+            <dt>Dearest {hourly ? "hour" : "half hour"}</dt>
+            <dd className="num">
+              {high ? hhmm(high.start, tz) : "—"}
+              {high && <small> {high.p.toFixed(1)}{u}</small>}
+            </dd>
           </div>
           <div>
-            <dt>Tonight&apos;s {sc.runs.length} loads, planned</dt>
+            <dt>{evening ? "Tonight\u2019s" : "Next"} {sc.runs.length} loads, planned</dt>
             <dd className="num">
               {sc.runs.length ? money(all, sc) : "—"}
               {sc.runs.length > 0 && <small> not {money(allTypical, sc)}</small>}

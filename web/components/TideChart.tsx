@@ -1,12 +1,13 @@
 "use client";
-import { useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 import s from "./tide.module.css";
 
 /**
  * Tonight as a tide: the next 24 hours of half-hourly prices drawn as a moonlit water surface. The water stands
  * high when power is dear and falls to low tide when it is cheap. Where tomorrow isn't published yet, earlier
  * today's price for the same half hour is drawn as a faint dotted line, never as water. Point anywhere to read
- * a half hour. SVG, rendered on the server.
+ * a half hour: by mouse, by finger (a tap stays put), or with the arrow keys once the tide has focus. SVG, rendered
+ * on the server.
  */
 export interface TideSlot {
   s: number;
@@ -78,18 +79,67 @@ export default function TideChart({ slots, past = [], now, timeZone: tz, unit, r
     cells.forEach((c, i) => {
       if (c.live != null && (lowI < 0 || c.live < cells[lowI].live!)) lowI = i;
     });
-    const ticks = cells.map((c, i) => ({ i, h: hourOf(c.start, tz), min: new Date(c.start).getUTCMinutes() })).filter((t) => t.min === 0 && t.h % (compact ? 6 : 4) === 0);
-    return { cells, x, y, line, area, ghost, lastLive, lowI, ticks, first };
+    // Every 2 hours on a wide tide (every 4 on phones, by CSS), every 6 on a compact one; none where "now" sits.
+    const ticks = cells
+      .map((c, i) => ({ i, h: hourOf(c.start, tz), min: new Date(c.start).getUTCMinutes() }))
+      .filter((t) => t.min === 0 && t.h % (compact ? 6 : 2) === 0 && x(t.i) / W > (compact ? 0.1 : 0.05) && t.i < 46)
+      .map((t) => ({ ...t, minor: !compact && t.h % 4 !== 0 }));
+    return { cells, x, y, line, area, ghost, lastLive, lowI, ticks, first, lo, hi };
   }, [slots, past, now, tz, H, TOP, BOT, compact]);
 
   const [hover, setHover] = useState<number | null>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => void (timer.current && clearTimeout(timer.current)), []);
+  const read = (e: PointerEvent<SVGSVGElement>) => {
+    const r = svgRef.current?.getBoundingClientRect();
+    if (!r || !r.width) return;
+    setHover(Math.max(0, Math.min(47, Math.round(((e.clientX - r.left) / r.width) * 47))));
+    if (timer.current) clearTimeout(timer.current);
+    // A tapped reading stays until the next tap, or for a few seconds.
+    if (e.pointerType === "touch") timer.current = setTimeout(() => setHover(null), 4000);
+  };
+  const step = (e: KeyboardEvent<HTMLElement>) => {
+    const cur = hover ?? Math.max(0, model.lowI);
+    const to: Record<string, number> = { ArrowLeft: cur - 1, ArrowRight: cur + 1, Home: 0, End: 47, PageUp: cur - 8, PageDown: cur + 8 };
+    if (e.key === "Escape") return setHover(null);
+    if (!(e.key in to)) return;
+    e.preventDefault();
+    setHover(Math.max(0, Math.min(47, to[e.key])));
+  };
   const runX = run && run.end > now ? [model.x(Math.max(0, (Math.max(run.start, now) - model.first) / 1800_000)), model.x(Math.min(47, (run.end - model.first) / 1800_000))] : null;
   const h = hover != null ? model.cells[hover] : null;
   const hp = h ? (h.live ?? h.before) : null;
+  const tipX = hover != null ? model.x(hover) / W : 0;
+  const reading = h && hp != null ? `${hhmm(h.start, tz)}, ${hp.toFixed(1)}${u} per kWh${h.live == null ? ", earlier today's price" : ""}` : "";
 
   return (
-    <figure className={`${s.tide} ${compact ? s.compact : ""}`} aria-label={label} role="group">
-      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className={s.svg} onPointerLeave={() => setHover(null)}>
+    <figure
+      className={`${s.tide} ${compact ? s.compact : ""}`}
+      aria-label={label}
+      aria-describedby={`k${uid}`}
+      role="group"
+      tabIndex={0}
+      onKeyDown={step}
+      onFocus={(e) => e.target === e.currentTarget && hover == null && setHover(Math.max(0, model.lowI))}
+      onBlur={() => setHover(null)}
+    >
+      <span id={`k${uid}`} className="srOnly">
+        Left and right arrows read each half hour; Home and End jump to the ends.
+      </span>
+      <p className="srOnly" aria-live="polite">
+        {reading}
+      </p>
+      <svg
+        ref={svgRef}
+        viewBox={`0 0 ${W} ${H}`}
+        preserveAspectRatio="none"
+        className={s.svg}
+        aria-hidden
+        onPointerDown={read}
+        onPointerMove={read}
+        onPointerLeave={(e) => e.pointerType !== "touch" && setHover(null)}
+      >
         <defs>
           <linearGradient id={`w${uid}`} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0" stopColor="#2f679a" stopOpacity="0.95" />
@@ -114,16 +164,12 @@ export default function TideChart({ slots, past = [], now, timeZone: tz, unit, r
         {runX && <line x1={runX[0]} x2={runX[1]} y1={BOT + 6} y2={BOT + 6} stroke={`url(#g${uid})`} strokeWidth="3" vectorEffect="non-scaling-stroke" />}
         {/* now */}
         <line x1={0} x2={0} y1={TOP - 14} y2={H} className={s.now} vectorEffect="non-scaling-stroke" />
-        {/* hit areas */}
-        {model.cells.map((c, i) => (
-          <rect key={i} x={model.x(i) - W / 96} y={0} width={W / 48} height={H} fill="transparent" onPointerEnter={() => setHover(i)} />
-        ))}
         {hover != null && hp != null && <line x1={model.x(hover)} x2={model.x(hover)} y1={0} y2={H} className={s.cursor} vectorEffect="non-scaling-stroke" />}
       </svg>
 
       {/* HTML overlays keep their proportions while the water stretches. */}
       {hover != null && hp != null && h && (
-        <div className={s.tip} style={{ left: `${(model.x(hover) / W) * 100}%`, top: `${(model.y(hp) / H) * 100}%` }}>
+        <div className={s.tip} data-edge={tipX < 0.1 ? "start" : tipX > 0.9 ? "end" : undefined} style={{ left: `${tipX * 100}%`, top: `${(model.y(hp) / H) * 100}%` }}>
           <b>{hhmm(h.start, tz)}</b> {hp.toFixed(1)}
           {u}/kWh{h.live == null ? " earlier today" : ""}
         </div>
@@ -137,6 +183,11 @@ export default function TideChart({ slots, past = [], now, timeZone: tz, unit, r
           </b>
         </div>
       )}
+      {!compact && runX && run && (
+        <div className={s.runTag} style={{ left: `${(runX[0] / W) * 100}%`, width: `${((runX[1] - runX[0]) / W) * 100}%` }}>
+          <span>{run.label}</span>
+        </div>
+      )}
       {model.lastLive < 47 && model.lastLive >= 0 && (
         <div className={s.unpub} style={{ left: `${(model.x(model.lastLive) / W) * 100}%` }}>
           <span>{compact ? "Earlier today" : "Tomorrow's prices aren't out yet: earlier today, dotted"}</span>
@@ -146,13 +197,11 @@ export default function TideChart({ slots, past = [], now, timeZone: tz, unit, r
         <span className={s.nowTag} style={{ left: 0 }}>
           now
         </span>
-        {model.ticks
-          .filter((t) => t.i > (compact ? 6 : 3) && t.i < 46)
-          .map((t) => (
-            <span key={t.i} style={{ left: `${(model.x(t.i) / W) * 100}%` }}>
-              {String(t.h).padStart(2, "0")}:00
-            </span>
-          ))}
+        {model.ticks.map((t) => (
+          <span key={t.i} className={t.minor ? s.minor : undefined} style={{ left: `${(model.x(t.i) / W) * 100}%` }}>
+            {String(t.h).padStart(2, "0")}:00
+          </span>
+        ))}
       </div>
     </figure>
   );

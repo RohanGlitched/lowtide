@@ -174,3 +174,9 @@
     transition: none;
   }
 }
+@media (max-width: 600px) {
+  .cols a {
+    display: inline-block;
+    padding-block: 6px;
+  }
+}

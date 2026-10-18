@@ -82,6 +82,7 @@ export default function Echo() {
   const [copied, setCopied] = useState(false);
   const [voice, setVoice] = useState<Spoken & { configured?: boolean }>({ used: "none" });
   const [tonight, setTonight] = useState<Tonight | null>(null);
+  const [tonightLoading, setTonightLoading] = useState(true);
   const [tonightHeard, setTonightHeard] = useState(false);
 
   const country = guessCountry(home?.region ?? "");
@@ -164,12 +165,14 @@ export default function Echo() {
         // The proactive card: tonight's plan, computed once a night after tomorrow's prices are out.
         setTonight(null);
         setTonightHeard(false);
+        setTonightLoading(true);
         fetchRetry(`/api/tonight?home=${encodeURIComponent(h.id)}`, undefined, { tries: 3 })
           .then((r) => (r.ok ? r.json() : null))
           .then((j) => {
             if (j?.card) setTonight(j.card as Tonight);
           })
-          .catch(() => {});
+          .catch(() => {})
+          .finally(() => setTonightLoading(false));
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
         // Messages written for people (a place it can't find, a busy site) pass through; anything technical doesn't.
@@ -330,14 +333,16 @@ export default function Echo() {
     }
   }, [ask, phase]);
 
-  // Space bar (outside text fields) is the push-to-talk button.
+  // Space bar is push-to-talk, but only after the Talk button has been used once, and never over a link, field or button.
+  const spaceTalks = useRef(false);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const tag = (e.target as HTMLElement)?.tagName;
-      if (e.code === "Space" && tag !== "INPUT" && tag !== "TEXTAREA" && tag !== "BUTTON" && mic) {
-        e.preventDefault();
-        talk();
-      }
+      const el = e.target as HTMLElement | null;
+      if (e.code !== "Space" || !mic || !spaceTalks.current || !el) return;
+      if (el.isContentEditable || /^(INPUT|TEXTAREA|BUTTON|A|SUMMARY|SELECT)$/.test(el.tagName)) return;
+      if (el !== document.body && !el.closest("[data-stage]")) return;
+      e.preventDefault();
+      talk();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -349,7 +354,7 @@ export default function Echo() {
   return (
     <div className={s.wrap}>
       <div className={s.top}>
-      <section className={s.stage} aria-label="Simulated Echo Show">
+      <section className={s.stage} aria-label="Simulated Echo Show" data-stage>
         <div className={s.device} data-phase={phase} data-notify={tonight && !tonightHeard ? "yes" : undefined}>
           <span className={s.camera} aria-hidden />
           <div className={s.screen}>
@@ -381,9 +386,12 @@ export default function Echo() {
             type="button"
             className={s.talk}
             data-active={phase === "listening"}
-            onClick={talk}
+            onClick={() => {
+              spaceTalks.current = true;
+              talk();
+            }}
             disabled={!mic || busy}
-            title={mic ? "Talk to Alexa (space bar)" : "Your browser can't listen; type below instead"}
+            title={mic ? "Talk to Alexa (then the space bar works too)" : "Your browser can't listen; type below instead"}
           >
             <MicIcon />
             {phase === "listening" ? "Listening… tap to stop" : phase === "thinking" ? "Thinking…" : phase === "speaking" ? "Speaking…" : "Talk to Alexa"}
@@ -476,6 +484,8 @@ export default function Echo() {
               </button>
               <p className={s.muted}>Planned once a night from tomorrow&apos;s published prices, for the appliances this household uses, and kept with the household.</p>
             </>
+          ) : tonightLoading && !setupError ? (
+            <p className={s.muted}>Planning tonight for this household…</p>
           ) : (
             <p className={s.muted}>Tomorrow&apos;s prices come out in the afternoon (Octopus Agile: about 4 p.m. UK time). After that, Lowtide plans tonight for this household and the Echo shows it here.</p>
           )}
@@ -536,9 +546,8 @@ export default function Echo() {
             </>
           ) : setupError && phase !== "connecting" ? (
             <>
-              <p className={s.error} role="alert">
-                {setupError}
-              </p>
+              {/* The same message is already announced on the device's screen. */}
+              <p className={s.error}>{setupError}</p>
               <button type="button" className={s.link} onClick={() => setup(lastPlace.current, false)}>
                 Retry
               </button>

@@ -2,10 +2,18 @@
   position: sticky;
   top: 0;
   z-index: 40;
+  box-shadow: 0 1px 0 var(--rule);
+}
+/* The frosted glass lives on a layer behind the bar: a blur on the header itself would make it the box
+   the fixed phone menu sizes against, and clip the menu to the header's height. */
+.header::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
   background: rgba(5, 7, 14, 0.72);
   backdrop-filter: saturate(1.3) blur(16px);
   -webkit-backdrop-filter: saturate(1.3) blur(16px);
-  box-shadow: 0 1px 0 var(--rule);
 }
 .bar {
   position: relative;
@@ -73,7 +81,7 @@
   font-family: var(--font-mono), monospace;
   font-size: 12px;
   font-weight: 700;
-  color: var(--signal-dim);
+  color: #d06a3c;
   text-decoration: none;
 }
 .chip b {
@@ -144,8 +152,9 @@
     position: fixed;
     left: 0;
     right: 0;
-    top: 60px;
+    top: 68px;
     bottom: 0;
+    height: calc(100dvh - 68px);
     z-index: 50;
     display: flex;
     flex-direction: column;
