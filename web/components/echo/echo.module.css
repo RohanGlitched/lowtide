@@ -80,7 +80,8 @@
 }
 @media (max-width: 640px) {
   .screen {
-    aspect-ratio: 1 / 1;
+    /* Taller than wide even under the notification bar, so the view keeps its stacked phone layout. */
+    aspect-ratio: 5 / 6;
   }
 }
 .view {
