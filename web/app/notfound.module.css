@@ -8,10 +8,10 @@
 }
 .code {
   margin: 0 0 12px;
-  font-family: var(--font-display), sans-serif;
+  font-family: var(--font-serif), sans-serif;
   font-size: 22px;
   font-weight: 500;
-  color: var(--cobalt);
+  color: var(--moonlight);
 }
 .copy h1 {
   margin: 0;
@@ -23,7 +23,7 @@
   margin: 24px 0 0;
   font-size: 19px;
   line-height: 1.55;
-  color: var(--steel);
+  color: var(--muted);
 }
 .ctas {
   display: flex;

@@ -2,7 +2,7 @@ import Link from "next/link";
 import Hero from "@/components/Hero";
 import Clock from "@/components/Clock";
 import EchoDevice from "@/components/EchoDevice";
-import TonightPlan from "@/components/TonightPlan";
+import TonightPanels from "@/components/TonightPanels";
 import Architecture from "@/components/Architecture";
 import CopyField from "@/components/CopyField";
 import { scenes } from "@/lib/live";
@@ -79,7 +79,7 @@ export default async function Home() {
         <Hero places={places} />
       ) : (
         <section className={`shell ${s.down}`}>
-          <h1 className="display">Run it when power is cheapest.</h1>
+          <h1 className="serif">Run it when power is cheapest.</h1>
           <p>The live price feeds didn&apos;t answer just now. Refresh in a minute.</p>
         </section>
       )}
@@ -112,7 +112,7 @@ export default async function Home() {
               </EchoDevice>
             </div>
             <div className={s.askText}>
-              <h2 id="ask-title" className="display">
+              <h2 id="ask-title" className="serif">
                 Ask, and it answers twice.
               </h2>
               <p className={s.askSub}>
@@ -136,7 +136,7 @@ export default async function Home() {
       {london && (
         <section className="shell section" aria-labelledby="tonight-title">
           <div className="sectionHead">
-            <h2 id="tonight-title" className="display">
+            <h2 id="tonight-title" className="serif">
               Tonight, already planned.
             </h2>
             <p>
@@ -144,14 +144,14 @@ export default async function Home() {
               schedule does this for every household before anyone asks.
             </p>
           </div>
-          <TonightPlan scene={london} place={places[0].label} />
+          <TonightPanels scene={london} place={places[0].label} />
         </section>
       )}
 
-      <section className="band" aria-labelledby="how-title">
+      <section className="band" id="how" aria-labelledby="how-title">
         <div className="shell">
           <div className="sectionHead">
-            <h2 id="how-title" className="display">
+            <h2 id="how-title" className="serif">
               From the kitchen to the grid in seconds.
             </h2>
             <p>Lowtide is an MCP server, the open standard Alexa+ uses to work with services. Four steps, every number read live.</p>
@@ -195,7 +195,7 @@ export default async function Home() {
 
       <section className="shell section" aria-labelledby="measured-title">
         <div className="sectionHead">
-          <h2 id="measured-title" className="display">
+          <h2 id="measured-title" className="serif">
             Measured, not promised.
           </h2>
           <p>
@@ -216,7 +216,7 @@ export default async function Home() {
 
       <section className="shell section" aria-labelledby="connect-title">
         <div className="sectionHead">
-          <h2 id="connect-title" className="display">
+          <h2 id="connect-title" className="serif">
             Works in any assistant that speaks MCP.
           </h2>
           <p>
@@ -247,7 +247,7 @@ export default async function Home() {
 
       <section className="shell section" aria-labelledby="pays-title">
         <div className="sectionHead">
-          <h2 id="pays-title" className="display">
+          <h2 id="pays-title" className="serif">
             Who pays for it.
           </h2>
           <p>
@@ -280,7 +280,7 @@ export default async function Home() {
       </section>
 
       <section className="shell section" aria-labelledby="faq-title">
-        <h2 id="faq-title" className={`display ${s.faqTitle}`}>
+        <h2 id="faq-title" className={`serif ${s.faqTitle}`}>
           Questions
         </h2>
         <div className={s.faq}>

@@ -10,7 +10,7 @@ export default function NotFound() {
     <main className={`shell ${s.main}`}>
       <div className={s.copy}>
         <p className={s.code}>404</p>
-        <h1 className="display">Low tide: nothing at this address.</h1>
+        <h1 className="serif">Low tide: nothing at this address.</h1>
         <p className={s.lede}>
           The page you followed isn&apos;t here. The live things are the Echo simulator, today&apos;s prices in every region, and the MCP
           server you can add to your own assistant.

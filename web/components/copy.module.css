@@ -5,26 +5,27 @@
   min-width: 0;
 }
 .label {
-  font-size: 14px;
-  color: var(--steel);
+  font-size: 13.5px;
+  color: var(--faint);
 }
 .row {
   display: flex;
   align-items: center;
   min-width: 0;
-  min-height: 52px;
-  border-radius: 14px;
-  background: #fff;
-  box-shadow: inset 0 0 0 1.5px var(--rule);
+  min-height: 50px;
+  border-radius: 12px;
+  background: var(--lcd);
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.6), inset 0 0 0 1px var(--rule);
 }
 .value {
   flex: 1;
   min-width: 0;
-  padding: 0 16px;
-  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
-  font-size: 14.5px;
+  padding: 0 14px;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 13.5px;
   font-weight: 500;
-  /* One line; the start of an address matters least, so it is the end that always shows. */
+  color: var(--moonlight);
+  /* One line; the end of an address is what tells two apart, so it is the end that always shows. */
   white-space: nowrap;
   overflow: hidden;
   direction: rtl;
@@ -34,21 +35,21 @@
 .row button {
   flex: none;
   align-self: stretch;
-  min-width: 84px;
+  min-width: 78px;
   margin: 5px;
-  padding: 0 16px;
+  padding: 0 14px;
   border: 0;
-  border-radius: 10px;
-  background: var(--graphite);
-  color: #fff;
+  border-radius: 9px;
+  background: var(--moon);
+  color: var(--ink);
   font: inherit;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
   transition: background-color 140ms ease;
 }
 .row button:hover {
-  background: var(--cobalt);
+  background: #fff;
 }
 @media (prefers-reduced-motion: reduce) {
   .row button {

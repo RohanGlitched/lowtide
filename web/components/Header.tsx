@@ -1,8 +1,23 @@
 import Link from "next/link";
 import Nav from "./Nav";
+import { getTide } from "@/lib/grid";
 import s from "./chrome.module.css";
 
-export default function Header() {
+/** London's price this half hour, for the header's live chip; nothing if the feed is slow or down. */
+async function priceNow(): Promise<string | null> {
+  try {
+    const tide = await Promise.race([getTide("SE1 7PB"), new Promise<null>((r) => setTimeout(() => r(null), 1500))]);
+    if (!tide) return null;
+    const now = Date.now();
+    const cur = tide.slots.find((x) => x.start <= now && now < x.end);
+    return cur ? `${cur.price.toFixed(1)}p` : null;
+  } catch {
+    return null;
+  }
+}
+
+export default async function Header() {
+  const now = await priceNow();
   return (
     <header className={s.header}>
       <div className={`shell ${s.bar}`}>
@@ -10,37 +25,20 @@ export default function Header() {
           <Mark />
           <span>Lowtide</span>
         </Link>
-        <Nav />
+        <Nav price={now} />
       </div>
     </header>
   );
 }
 
-/** The object seen from above: a ring of fins, the cheapest few in cobalt. */
-export function Mark({ size = 26, dark = false }: { size?: number; dark?: boolean }) {
-  const ink = dark ? "#e9ebee" : "#16181b";
-  const fins = Array.from({ length: 24 }, (_, i) => {
-    const a = (i / 24) * Math.PI * 2;
-    const k = (Math.cos(a - 2.4) + 1) / 2;
-    const r0 = 6.2;
-    const r1 = 8.6 + k * 5.4;
-    return (
-      <line
-        key={i}
-        x1={16 + r0 * Math.sin(a)}
-        y1={16 - r0 * Math.cos(a)}
-        x2={16 + r1 * Math.sin(a)}
-        y2={16 - r1 * Math.cos(a)}
-        stroke={k < 0.22 ? (dark ? "#5b73ff" : "#2340ff") : ink}
-        strokeWidth="1.9"
-        strokeLinecap="round"
-      />
-    );
-  });
+/** A moon over a wave: low tide under a night sky. */
+export function Mark({ size = 28 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden>
-      {fins}
-      <circle cx="16" cy="16" r="2.4" fill={ink} />
+      <circle cx="16" cy="11.5" r="6.5" fill="#f3f1e6" />
+      <circle cx="19.2" cy="9.4" r="5.6" fill="#05070e" />
+      <path d="M2 23.5c3.5 0 3.5-3 7-3s3.5 3 7 3 3.5-3 7-3 3.5 3 7 3" fill="none" stroke="#8fd6ff" strokeWidth="2.2" strokeLinecap="round" />
+      <path d="M6 28c2.5 0 2.5-2 5-2s2.5 2 5 2 2.5-2 5-2 2.5 2 5 2" fill="none" stroke="#8fd6ff" strokeOpacity="0.45" strokeWidth="1.8" strokeLinecap="round" />
     </svg>
   );
 }

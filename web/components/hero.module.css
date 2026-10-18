@@ -1,70 +1,69 @@
 .hero {
   position: relative;
-  padding-top: clamp(20px, 3vw, 44px);
-  /* The studio's light falls from the upper right, behind the object. */
-  background: radial-gradient(1100px 700px at 74% 30%, #f7f8fa 0%, rgba(247, 248, 250, 0) 70%);
+  padding-top: clamp(48px, 6vw, 96px);
+  background: radial-gradient(1200px 640px at 78% -10%, #1b2645 0%, #0b1123 48%, var(--night) 100%);
+  overflow: hidden;
+}
+.sky {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 520px;
+  pointer-events: none;
+  background-image:
+    radial-gradient(1px 1px at 8% 18%, #ffffff80, transparent),
+    radial-gradient(1px 1px at 22% 8%, #ffffff60, transparent),
+    radial-gradient(1.4px 1.4px at 41% 26%, #ffffff70, transparent),
+    radial-gradient(1px 1px at 54% 12%, #ffffff55, transparent),
+    radial-gradient(1px 1px at 63% 36%, #ffffff45, transparent),
+    radial-gradient(1.4px 1.4px at 86% 44%, #ffffff60, transparent),
+    radial-gradient(1px 1px at 93% 14%, #ffffff70, transparent),
+    radial-gradient(1px 1px at 31% 40%, #ffffff40, transparent);
+}
+.moon {
+  position: absolute;
+  right: clamp(24px, 9vw, 160px);
+  top: 36px;
+  width: 74px;
+  height: 74px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 38%, #fffdf1, #dedfcf 70%);
+  box-shadow: 0 0 70px 18px rgba(255, 250, 220, 0.1);
 }
 .grid {
+  position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
-  gap: 24px 40px;
+  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  gap: 40px 64px;
   align-items: center;
 }
-.copy {
-  position: relative;
-  z-index: 1;
-}
-.live {
+.kicker {
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  margin: 0 0 22px;
-  padding: 6px 14px 6px 12px;
-  border-radius: 999px;
-  background: var(--paper);
-  box-shadow: inset 0 0 0 1px var(--rule);
+  margin: 0 0 20px;
   font-size: 14px;
-  font-weight: 500;
-  color: var(--steel);
+  color: var(--muted);
 }
 .pulse {
-  position: relative;
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
-  background: var(--cobalt);
-}
-.pulse::after {
-  content: "";
-  position: absolute;
-  inset: -4px;
-  border-radius: 50%;
-  border: 1.5px solid var(--cobalt);
-  opacity: 0;
-  animation: pulse 2.4s ease-out infinite;
-}
-@keyframes pulse {
-  0% {
-    transform: scale(0.5);
-    opacity: 0.7;
-  }
-  100% {
-    transform: scale(1.6);
-    opacity: 0;
-  }
+  background: var(--moonlight);
+  box-shadow: 0 0 10px var(--moonlight);
 }
 .title {
   margin: 0;
-  font-size: clamp(36px, 3.7vw, 58px);
-  line-height: 1.02;
+  font-size: clamp(38px, 4.3vw, 64px);
+  line-height: 1.04;
   text-wrap: balance;
+  color: #fff;
 }
 .lede {
-  max-width: 30em;
+  max-width: 32em;
   margin: 22px 0 0;
   font-size: 17px;
-  line-height: 1.55;
-  color: var(--steel);
+  line-height: 1.65;
+  color: var(--muted);
 }
 .ctas {
   display: flex;
@@ -72,205 +71,155 @@
   gap: 12px;
   margin-top: 30px;
 }
-
-/* The stage: the dial, and the legend at its foot. */
-.stage {
-  position: relative;
-  display: grid;
-  justify-items: center;
-  gap: 22px;
-}
-.object {
-  width: min(100%, 560px);
-}
-.legend {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 6px 20px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  font-size: 13.5px;
-  font-weight: 500;
-  color: var(--steel);
-}
-.legend li {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-.legend i {
-  width: 10px;
-  height: 14px;
-  border-radius: 2px;
-}
-.kCheap {
-  background: var(--cobalt);
-}
-.kDear {
-  background: var(--graphite);
-}
-.kPast {
-  background: #d3d8de;
-  box-shadow: inset 0 0 0 1px #c3c9d1;
-}
-.kRun {
-  width: 18px !important;
-  height: 5px !important;
-  border-radius: 3px !important;
-  background: var(--cobalt);
-}
-.drag {
-  color: #8a9099;
-}
-
-/* The plate: a machined strip under the object with the place switch and the day's numbers. */
-.plateWrap {
-  margin-top: clamp(28px, 3vw, 44px);
-}
-.plate {
-  border-radius: 22px;
-  background: linear-gradient(180deg, #f8f9fb 0%, #f1f3f6 100%);
-  box-shadow:
-    inset 0 1px 0 #fff,
-    0 1px 0 rgba(22, 24, 27, 0.06),
-    0 18px 40px -24px rgba(22, 24, 27, 0.22);
-}
-.plateTop {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px 28px;
-  padding: 18px 22px;
-  border-bottom: 1px solid var(--rule);
-}
 .switch {
   display: flex;
-  max-width: 100%;
-  gap: 2px;
-  padding: 4px;
-  border-radius: 999px;
-  background: var(--studio);
-  box-shadow: inset 0 1px 2px rgba(22, 24, 27, 0.08);
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-.switch::-webkit-scrollbar {
-  display: none;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 30px;
 }
 .switch button {
-  flex: none;
-  min-height: 38px;
-  padding: 0 16px;
+  min-height: 34px;
+  padding: 0 14px;
   border: 0;
   border-radius: 999px;
   background: transparent;
-  color: var(--graphite);
+  color: var(--muted);
   font: inherit;
-  font-size: 15px;
-  font-weight: 600;
-  white-space: nowrap;
+  font-size: 13.5px;
+  font-weight: 500;
+  box-shadow: inset 0 0 0 1px var(--rule);
   cursor: pointer;
-  transition: background-color 140ms ease, color 140ms ease;
+  transition: color 140ms ease, box-shadow 140ms ease, background-color 140ms ease;
 }
 .switch button:hover {
-  background: rgba(255, 255, 255, 0.7);
+  color: #fff;
+  box-shadow: inset 0 0 0 1px var(--rule-strong);
 }
 .switch button[aria-pressed="true"] {
-  background: var(--graphite);
+  background: rgba(143, 214, 255, 0.12);
   color: #fff;
-  box-shadow: 0 2px 6px rgba(22, 24, 27, 0.25);
-}
-.caption {
-  flex: 1 1 340px;
-  max-width: 44em;
-  margin: 0;
-  font-size: 14.5px;
-  line-height: 1.5;
-  color: var(--steel);
-}
-.spec {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  margin: 0;
-}
-.spec > div {
-  padding: 22px 22px 24px;
-  min-width: 0;
-}
-.spec > div + div {
-  border-left: 1px solid var(--rule);
-}
-.spec dt {
-  font-size: 14px;
-  color: var(--steel);
-}
-.spec dd {
-  margin: 6px 0 4px;
-  font-family: var(--font-display), sans-serif;
-  font-size: clamp(26px, 2.3vw, 36px);
-  font-weight: 500;
-  letter-spacing: -0.035em;
-  line-height: 1;
-}
-.spec dd.cobalt {
-  color: var(--cobalt);
-}
-.spec span {
-  display: block;
-  font-size: 13.5px;
-  line-height: 1.4;
-  color: var(--steel);
+  box-shadow: inset 0 0 0 1px rgba(143, 214, 255, 0.55);
 }
 
-@media (max-width: 1100px) {
-  .spec {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-  .spec > div:nth-child(4) {
-    border-left: 0;
-  }
-  .spec > div:nth-child(n + 4) {
-    border-top: 1px solid var(--rule);
-  }
+/* The appliance panel: an enamelled graphite fascia around the LCD, three keys under it. */
+.panel {
+  position: relative;
+  padding: 22px;
+  border-radius: 26px;
+  background: linear-gradient(180deg, #20242f 0%, #151821 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.35),
+    0 40px 80px -40px rgba(0, 0, 0, 0.8),
+    0 0 0 1px rgba(255, 255, 255, 0.04);
 }
-@media (max-width: 900px) {
+.keys {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 16px;
+}
+.keys span {
+  display: grid;
+  gap: 2px;
+  padding: 12px 10px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #2a2f3c, #20242f);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    0 6px 12px -8px rgba(0, 0, 0, 0.8);
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+  color: #d4d9e4;
+}
+.keys small {
+  font-family: var(--font-mono), monospace;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--faint);
+}
+.keys .on {
+  background: linear-gradient(180deg, #ff7a45, #f05a22);
+  color: #fff;
+  box-shadow: 0 8px 18px -8px rgba(255, 106, 51, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+.keys .on small {
+  color: #ffe1d4;
+}
+.panelNote {
+  margin: 14px 2px 0;
+  font-size: 12.5px;
+  color: var(--faint);
+}
+
+/* The water. */
+.water {
+  position: relative;
+  margin-top: clamp(40px, 5vw, 72px);
+}
+.facts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 22px 0 0;
+  padding: 18px 0 clamp(40px, 5vw, 64px);
+  border-top: 1px solid var(--rule);
+}
+.facts > div + div {
+  padding-left: 22px;
+  border-left: 1px solid var(--rule);
+}
+.facts dt {
+  font-size: 13px;
+  color: var(--faint);
+}
+.facts dd {
+  margin: 4px 0 0;
+  font-family: var(--font-serif), Georgia, serif;
+  font-size: clamp(24px, 2.2vw, 32px);
+  line-height: 1.1;
+  color: #fff;
+}
+.facts dd small {
+  font-family: var(--font-sans), sans-serif;
+  font-size: 13px;
+  color: var(--faint);
+}
+.facts .cheap {
+  color: var(--moonlight);
+}
+.facts .dear {
+  color: var(--dear);
+}
+@media (max-width: 980px) {
   .grid {
     grid-template-columns: minmax(0, 1fr);
   }
+  .moon {
+    width: 52px;
+    height: 52px;
+    top: 18px;
+  }
 }
 @media (max-width: 640px) {
-  .spec {
+  .facts {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px 0;
   }
-  .spec > div:nth-child(n) {
-    border-left: 0;
-    border-top: 1px solid var(--rule);
-  }
-  .spec > div:nth-child(1),
-  .spec > div:nth-child(2) {
-    border-top: 0;
-  }
-  .spec > div:nth-child(even) {
-    border-left: 1px solid var(--rule);
-  }
-  .spec > div:last-child {
-    grid-column: 1 / -1;
+  .facts > div:nth-child(3) {
+    padding-left: 0;
     border-left: 0;
   }
-  .spec > div {
-    padding: 18px 16px 20px;
+  .keys span {
+    padding: 10px 6px;
+    font-size: 12px;
   }
-  .plateTop {
+  .panel {
     padding: 14px;
+    border-radius: 20px;
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .pulse::after {
-    animation: none;
-  }
   .switch button {
     transition: none;
   }

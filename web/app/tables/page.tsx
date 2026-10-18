@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import TideDial from "@/components/TideDial";
+import TideChart from "@/components/TideChart";
 import { tableData } from "@/lib/live";
 import { clock } from "@/lib/grid/time";
 import { rate } from "@/lib/format";
@@ -28,12 +28,12 @@ export default async function Tables() {
     <main>
       <section className={`shell ${s.main}`} aria-labelledby="tides-title">
         <div className="sectionHead">
-          <h1 id="tides-title" className={`display ${s.title}`}>
+          <h1 id="tides-title" className={`serif ${s.title}`}>
             Today, region by region.
           </h1>
           <p>
-            Every region gets a different day. Each dial is its next 24 hours, one fin per half hour: longer costs more, cobalt is
-            the cheapest quarter. Point at a fin for its price. Read from the published feeds at {clock(generated, "Europe/London")}{" "}
+            Every region gets a different night. Each tide is its next 24 hours of half-hourly prices: high water is dear, low
+            water is cheap. Point anywhere on a tide for its price. Read from the published feeds at {clock(generated, "Europe/London")}{" "}
             London time.
           </p>
         </div>
@@ -66,8 +66,8 @@ export default async function Tables() {
 
         {partial && (
           <p className={s.partial}>
-            Tomorrow&apos;s Agile prices come out at about 4 p.m. UK time. Until then the British dials are published to {partialEnd}, and
-            the rest of each dial shows earlier today&apos;s price for that half hour, frosted.
+            Tomorrow&apos;s Agile prices come out at about 4 p.m. UK time. Until then the British tides are published to {partialEnd}, and
+            the rest of each is earlier today&apos;s price for that half hour, dotted.
           </p>
         )}
       </section>
@@ -81,36 +81,39 @@ export default async function Tables() {
               const u = r.unit === "ct" ? " ct" : r.unit;
               return (
                 <li key={r.key} className={s.item}>
+                  <div className={s.meta}>
+                    <h2>{r.name}</h2>
+                    <p className={s.tariff}>{r.tariff}</p>
+                  </div>
                   {r.chart && (
-                    <TideDial
-                      size="card"
+                    <TideChart
+                      compact
+                      height={120}
                       slots={r.chart.slots}
                       past={r.chart.past}
                       now={r.chart.now}
                       timeZone={r.timeZone}
                       unit={r.unit}
                       label={`${r.name}: cheapest ${r.low ? (r.low.isNow ? "now" : `at ${clock(r.low.start, r.timeZone)}`) : "unknown"}`}
-                      rest={
-                        r.low
-                          ? { above: r.low.isNow ? "Cheapest" : "Cheapest at", big: r.low.isNow ? "Now" : clock(r.low.start, r.timeZone), below: `${r.low.avgPrice.toFixed(1)}${u} per kWh` }
-                          : { above: "Prices", big: "—", below: "not published yet" }
-                      }
                     />
                   )}
-                  <div className={s.meta}>
-                    <h2>{r.name}</h2>
-                    <p className={s.tariff}>{r.tariff}</p>
-                    <dl className={s.marks}>
-                      <div>
-                        <dt>Now</dt>
-                        <dd>{r.now != null ? rate(r.now, { unit: r.unit }) : "—"}</dd>
-                      </div>
-                      <div>
-                        <dt>Dearest</dt>
-                        <dd>{r.high ? `${clock(r.high.start, r.timeZone)}, ${rate(r.high.avgPrice, { unit: r.unit })}` : "—"}</dd>
-                      </div>
-                    </dl>
-                  </div>
+                  <dl className={s.marks}>
+                    <div>
+                      <dt>Low tide</dt>
+                      <dd className={s.low}>{r.low ? (r.low.isNow ? "now" : clock(r.low.start, r.timeZone)) : "—"}</dd>
+                      <span>{r.low ? `${r.low.avgPrice.toFixed(1)}${u}` : ""}</span>
+                    </div>
+                    <div>
+                      <dt>Now</dt>
+                      <dd>{r.now != null ? `${r.now.toFixed(1)}${u}` : "—"}</dd>
+                      <span>per kWh</span>
+                    </div>
+                    <div>
+                      <dt>High tide</dt>
+                      <dd className={s.high}>{r.high ? clock(r.high.start, r.timeZone) : "—"}</dd>
+                      <span>{r.high ? `${r.high.avgPrice.toFixed(1)}${u}` : ""}</span>
+                    </div>
+                  </dl>
                 </li>
               );
             })}

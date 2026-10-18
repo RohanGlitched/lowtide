@@ -12,21 +12,20 @@
   gap: 14px;
   padding: 24px;
   border-radius: 20px;
-  background: var(--night-2);
+  background: var(--panel);
   color: #c9ced6;
 }
 .side h3,
 .cloudHead h3 {
   margin: 0;
-  font-family: var(--font-display), sans-serif;
-  font-size: 20px;
-  font-weight: 500;
-  letter-spacing: -0.02em;
+  font-family: var(--font-serif), Georgia, serif;
+  font-size: 22px;
+  font-weight: 400;
   color: #fff;
 }
 .quote {
   margin: 0;
-  font-family: var(--font-display), sans-serif;
+  font-family: var(--font-serif), Georgia, serif;
   font-size: 17px;
   line-height: 1.35;
   color: #fff;
@@ -50,7 +49,7 @@
 .feeds li {
   padding: 8px 12px;
   border-radius: 10px;
-  background: #1f2328;
+  background: var(--panel-hi);
 }
 /* Arrows across the gaps: kitchen to cloud, feeds to cloud. */
 .arrow {
@@ -59,7 +58,7 @@
   right: -28px;
   width: 28px;
   height: 2px;
-  background: var(--cobalt-soft);
+  background: var(--moonlight);
 }
 .arrow::after {
   content: "";
@@ -67,7 +66,7 @@
   right: -1px;
   top: -4px;
   border: 5px solid transparent;
-  border-left: 7px solid var(--cobalt-soft);
+  border-left: 7px solid var(--moonlight);
   border-right: 0;
 }
 .arrowIn {
@@ -78,8 +77,8 @@
 .cloud {
   padding: 24px;
   border-radius: 24px;
-  background: linear-gradient(180deg, #16191d 0%, #121418 100%);
-  box-shadow: inset 0 0 0 1px var(--night-rule);
+  background: linear-gradient(180deg, #121a2e 0%, #0c1222 100%);
+  box-shadow: inset 0 0 0 1px var(--rule);
 }
 .cloudHead {
   display: flex;
@@ -107,8 +106,8 @@
   gap: 4px;
   padding: 16px;
   border-radius: 14px;
-  background: #1c2025;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  background: var(--panel);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 .tiles strong {
   font-size: 15px;
@@ -118,7 +117,7 @@
   font-style: normal;
   font-size: 13.5px;
   font-weight: 600;
-  color: var(--cobalt-soft);
+  color: var(--moonlight);
 }
 .tiles p {
   margin: 4px 0 0;
@@ -128,13 +127,14 @@
 }
 .tiles .accent {
   grid-column: 1 / -1;
-  background: linear-gradient(135deg, #2340ff 0%, #1a2fd1 100%);
+  background: linear-gradient(135deg, #1d3a5f 0%, #142a47 100%);
+  box-shadow: inset 0 0 0 1px rgba(143, 214, 255, 0.35), 0 0 40px -20px rgba(143, 214, 255, 0.6);
 }
 .tiles .accent em {
-  color: #dfe4ff;
+  color: var(--moonlight);
 }
 .tiles .accent p {
-  color: #e6e9ff;
+  color: #c9dcf0;
 }
 @media (max-width: 1100px) {
   .arch {
@@ -152,7 +152,7 @@
     top: auto;
     bottom: -1px;
     border: 5px solid transparent;
-    border-top: 7px solid var(--cobalt-soft);
+    border-top: 7px solid var(--moonlight);
     border-bottom: 0;
   }
   .arrowIn {

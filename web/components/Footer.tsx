@@ -50,7 +50,7 @@ export default function Footer() {
       <div className={`shell ${s.top}`}>
         <div className={s.brand}>
           <Link href="/" prefetch={false} className={s.logo} aria-label="Lowtide home">
-            <Mark size={40} dark />
+            <Mark size={36} />
             <span>Lowtide</span>
           </Link>
           <p className={s.line}>Run it when power is cheapest.</p>
@@ -62,7 +62,7 @@ export default function Footer() {
             <Link href="/echo" prefetch={false} className="btn btn-primary">
               Ask Alexa on the Echo
             </Link>
-            <Link href="/connect" prefetch={false} className={`btn ${s.ghost}`}>
+            <Link href="/connect" prefetch={false} className="btn btn-quiet">
               Add to your assistant
             </Link>
           </div>
@@ -111,9 +111,9 @@ export default function Footer() {
         </ol>
       </div>
 
-      <div className={s.word} aria-hidden>
-        <span>Lowtide</span>
-      </div>
+      <svg className={s.wave} viewBox="0 0 1200 40" preserveAspectRatio="none" aria-hidden>
+        <path d="M0 24 C100 24 100 10 200 10 S300 30 400 30 S500 14 600 14 S700 32 800 32 S900 12 1000 12 S1100 24 1200 24" />
+      </svg>
 
       <div className={`shell ${s.legal}`}>
         <p>Built by Rohan Borade for Amazon&apos;s Build, Ship, Shape hackathon, Alexa+ track, 2026. MIT licensed.</p>

@@ -68,7 +68,7 @@ export default async function Connect() {
     <main>
       <section className={`shell ${s.main}`} aria-labelledby="connect-title">
         <div className="sectionHead">
-          <h1 id="connect-title" className={`display ${s.title}`}>
+          <h1 id="connect-title" className={`serif ${s.title}`}>
             Add Lowtide to your assistant.
           </h1>
           <p>
@@ -144,7 +144,7 @@ export default async function Connect() {
 
       <section className="shell section" aria-labelledby="other-title">
         <div className="sectionHead">
-          <h2 id="other-title" className="display">
+          <h2 id="other-title" className="serif">
             Other ways in.
           </h2>
           <p>No household needed to try it, a proper sign-in when your assistant supports one, and a skill for agents.</p>

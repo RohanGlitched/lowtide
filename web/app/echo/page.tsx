@@ -37,7 +37,7 @@ export default function EchoPage() {
       <section className={s.kitchen} aria-labelledby="echo-title">
         <div className="shell">
           <div className={s.intro}>
-            <h1 id="echo-title" className="display">
+            <h1 id="echo-title" className="serif">
               Ask Alexa when to run it.
             </h1>
             <p>
@@ -51,7 +51,7 @@ export default function EchoPage() {
 
       <section className="shell section" aria-labelledby="turn-title">
         <div className="sectionHead">
-          <h2 id="turn-title" className="display">
+          <h2 id="turn-title" className="serif">
             What happens on each turn.
           </h2>
           <p>Four steps between your question and Alexa&apos;s answer, every one of them live. The conversation panel above shows each tool call as it happens.</p>

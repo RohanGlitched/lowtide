@@ -1,20 +1,33 @@
+/*
+ * Lowtide: night tide + delay start.
+ * The site is the night sky over the water (prices as a tide, low tide is cheap); the machinery that answers
+ * (the Echo, the plan, the tools) is an appliance panel with an orange LCD. Moonlight cyan means cheap,
+ * signal orange only lives inside LCDs, and moon white is the action.
+ */
 :root {
-  --studio: #e9ebee;
-  --paper: #f6f7f9;
-  --graphite: #16181b;
-  --steel: #5d636b;
-  --alu: #c9ced6;
-  --rule: #d5d9de;
-  --cobalt: #2340ff;
-  --cobalt-ink: #1a2fd1;
-  --cobalt-soft: #5b73ff;
-  --night: #0e1013;
-  --night-2: #16191d;
-  --night-rule: #23272d;
-  --frost: #dde1e7;
-  --gutter: clamp(18px, 4vw, 64px);
-  --max: 1320px;
-  color-scheme: light;
+  --night: #05070e;
+  --ink: #0a0f1e;
+  --deep: #111a33;
+  --water: #2b5f8f;
+  --water-deep: #071224;
+  --moon: #f3f1e6;
+  --moonlight: #8fd6ff;
+  --text: #e9edf7;
+  --muted: #9aa6bf;
+  --faint: #66728d;
+  --rule: rgba(160, 180, 220, 0.14);
+  --rule-strong: rgba(160, 180, 220, 0.26);
+  --surface: rgba(20, 28, 50, 0.55);
+  --surface-solid: #0e1528;
+  --panel: #171b24;
+  --panel-hi: #232836;
+  --lcd: #0d0f0c;
+  --signal: #ff6a33;
+  --signal-dim: #8b4a2d;
+  --dear: #f2a37f;
+  --gutter: clamp(18px, 4.5vw, 72px);
+  --max: 1296px;
+  color-scheme: dark;
 }
 
 * {
@@ -22,28 +35,27 @@
 }
 html {
   -webkit-text-size-adjust: 100%;
-  background: var(--studio);
+  background: var(--night);
 }
 body {
   margin: 0;
   min-height: 100vh;
-  background: var(--studio);
-  color: var(--graphite);
-  font-family: var(--font-text), system-ui, sans-serif;
-  font-size: 17px;
-  line-height: 1.55;
-  font-variant-numeric: tabular-nums;
+  background: var(--night);
+  color: var(--text);
+  font-family: var(--font-sans), system-ui, sans-serif;
+  font-size: 16.5px;
+  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
 }
 a {
   color: inherit;
 }
 :focus-visible {
-  outline: 2px solid var(--cobalt);
+  outline: 2px solid var(--moonlight);
   outline-offset: 3px;
 }
 ::selection {
-  background: rgba(35, 64, 255, 0.18);
+  background: rgba(143, 214, 255, 0.28);
 }
 .shell {
   width: 100%;
@@ -51,11 +63,22 @@ a {
   margin: 0 auto;
   padding: 0 var(--gutter);
 }
-.display {
-  font-family: var(--font-display), sans-serif;
-  font-weight: 500;
-  letter-spacing: -0.035em;
-  line-height: 0.98;
+.serif {
+  font-family: var(--font-serif), Georgia, serif;
+  font-weight: 400;
+  letter-spacing: -0.015em;
+  line-height: 1.05;
+}
+.serif em,
+.serif i {
+  font-style: italic;
+  color: var(--moonlight);
+}
+.num {
+  font-variant-numeric: tabular-nums;
+}
+.mono {
+  font-family: var(--font-mono), ui-monospace, monospace;
 }
 .srOnly {
   position: absolute;
@@ -66,83 +89,67 @@ a {
   white-space: nowrap;
 }
 
+/* Buttons: moon white is the action; the quiet one is an outline in the night. */
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 10px;
-  min-height: 48px;
+  min-height: 46px;
   padding: 0 22px;
   border: 0;
   border-radius: 999px;
   font: inherit;
-  font-size: 15.5px;
+  font-size: 15px;
   font-weight: 600;
   text-decoration: none;
   cursor: pointer;
-  transition: background-color 160ms ease, color 160ms ease;
+  transition: background-color 160ms ease, color 160ms ease, box-shadow 160ms ease;
 }
 .btn-primary {
-  background: var(--cobalt);
-  color: #fff;
+  background: var(--moon);
+  color: var(--ink);
 }
 .btn-primary:hover {
-  background: var(--cobalt-ink);
+  background: #fff;
+  box-shadow: 0 0 28px rgba(243, 241, 230, 0.25);
 }
 .btn-quiet {
   background: transparent;
-  color: var(--graphite);
-  box-shadow: inset 0 0 0 1.5px var(--graphite);
+  color: var(--text);
+  box-shadow: inset 0 0 0 1px var(--rule-strong);
 }
 .btn-quiet:hover {
-  background: var(--graphite);
+  box-shadow: inset 0 0 0 1px var(--moonlight);
   color: #fff;
-}
-@media (prefers-reduced-motion: reduce) {
-  .btn {
-    transition: none;
-  }
-}
-
-/* Flat dial text (views/clock.ts) */
-.lt-clock {
-  display: block;
-  overflow: visible;
-}
-.lt-hour,
-.lt-cap {
-  font-family: var(--font-text), sans-serif;
-  font-weight: 600;
-}
-.lt-time {
-  font-family: var(--font-display), sans-serif;
-  font-weight: 500;
-  letter-spacing: -0.03em;
 }
 
 /* Sections: one rhythm for every page. */
 .section {
-  margin-top: clamp(88px, 9vw, 136px);
+  margin-top: clamp(96px, 10vw, 152px);
 }
 .sectionHead {
   display: grid;
-  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
-  gap: 18px 64px;
+  grid-template-columns: minmax(0, 6fr) minmax(0, 5fr);
+  gap: 16px 64px;
   align-items: end;
-  margin-bottom: clamp(28px, 3vw, 44px);
+  margin-bottom: clamp(30px, 3.5vw, 48px);
 }
 .sectionHead h2 {
   margin: 0;
-  font-size: clamp(30px, 3vw, 44px);
-  line-height: 1.04;
+  font-size: clamp(32px, 3.3vw, 48px);
   text-wrap: balance;
 }
 .sectionHead p {
   margin: 0;
   max-width: 34em;
-  font-size: 17px;
-  line-height: 1.6;
-  color: var(--steel);
+  color: var(--muted);
+}
+.kicker {
+  display: block;
+  margin-bottom: 14px;
+  font-size: 14px;
+  color: var(--moonlight);
 }
 @media (max-width: 900px) {
   .sectionHead {
@@ -150,19 +157,43 @@ a {
   }
 }
 
-/* A full-width night band (the kitchen at night): sections that sit in the dark. */
+/* A band: the sections that sit a little lower, closer to the water. */
 .band {
-  margin-top: clamp(88px, 9vw, 136px);
-  padding: clamp(72px, 7.5vw, 112px) 0;
-  background: var(--night);
-  color: #e9ebee;
+  margin-top: clamp(96px, 10vw, 152px);
+  padding: clamp(72px, 8vw, 120px) 0;
+  background: linear-gradient(180deg, rgba(17, 26, 51, 0.55) 0%, rgba(7, 11, 23, 0.4) 100%);
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
 }
-.band .sectionHead p {
-  color: #9aa1ab;
+.band + .section {
+  margin-top: clamp(96px, 10vw, 152px);
 }
-.band + .band {
-  margin-top: 0;
+
+/* A surface on the night: a card with a faint rule. */
+.card {
+  border-radius: 20px;
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--rule);
 }
-.band .sectionHead h2 {
-  color: #fff;
+
+@media (prefers-reduced-motion: reduce) {
+  .btn {
+    transition: none;
+  }
+}
+
+/* Flat dial text (views/clock.ts, still used by the Echo's MCP App view) */
+.lt-clock {
+  display: block;
+  overflow: visible;
+}
+.lt-hour,
+.lt-cap {
+  font-family: var(--font-sans), sans-serif;
+  font-weight: 600;
+}
+.lt-time {
+  font-family: var(--font-sans), sans-serif;
+  font-weight: 600;
+  letter-spacing: -0.03em;
 }

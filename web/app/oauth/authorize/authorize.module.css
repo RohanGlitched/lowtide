@@ -16,33 +16,33 @@
   width: 64px;
   height: 64px;
   border-radius: 18px;
-  background: linear-gradient(160deg, #fbfcfd 0%, var(--paper) 46%, #dfe3e8 100%);
+  background: linear-gradient(160deg, #2a2f3c 0%, #1d212c 60%, #151821 100%);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), inset 0 -1px 0 rgba(22, 24, 27, 0.08), 0 1px 2px rgba(22, 24, 27, 0.1), 0 10px 24px -12px rgba(22, 24, 27, 0.35);
-  font-family: var(--font-display), sans-serif;
+  font-family: var(--font-serif), sans-serif;
   font-size: 30px;
   font-weight: 600;
   letter-spacing: -0.03em;
-  color: var(--graphite);
+  color: var(--text);
 }
 .mark {
-  color: var(--graphite);
+  color: var(--text);
 }
 .link {
   width: clamp(36px, 6vw, 72px);
   height: 2px;
-  background: repeating-linear-gradient(90deg, var(--cobalt) 0 6px, transparent 6px 11px);
+  background: repeating-linear-gradient(90deg, var(--moonlight) 0 6px, transparent 6px 11px);
 }
 
 .eyebrow {
   margin: 0 0 10px;
   font-size: 15px;
   font-weight: 600;
-  color: var(--steel);
+  color: var(--muted);
 }
 .title {
   margin: 0;
   max-width: 15em;
-  font-family: var(--font-display), sans-serif;
+  font-family: var(--font-serif), sans-serif;
   font-size: clamp(38px, 5vw, 72px);
   font-weight: 500;
   line-height: 1;
@@ -50,16 +50,16 @@
   overflow-wrap: anywhere;
 }
 .client {
-  color: var(--cobalt);
+  color: var(--moonlight);
 }
 .lede {
   max-width: 38em;
   margin: 18px 0 0;
   font-size: clamp(18px, 1.8vw, 21px);
-  color: var(--steel);
+  color: var(--muted);
 }
 .lede strong {
-  color: var(--graphite);
+  color: var(--text);
   font-weight: 600;
   overflow-wrap: anywhere;
 }
@@ -77,7 +77,7 @@
 
 .scope h2 {
   margin: 0 0 12px;
-  font-family: var(--font-display), sans-serif;
+  font-family: var(--font-serif), sans-serif;
   font-size: clamp(22px, 2.2vw, 28px);
   font-weight: 500;
   letter-spacing: -0.02em;
@@ -91,7 +91,7 @@
   position: relative;
   padding: 12px 0 12px 34px;
   border-top: 1px solid var(--rule);
-  color: var(--graphite);
+  color: var(--text);
 }
 .scope li::before {
   content: "";
@@ -100,34 +100,34 @@
   top: 21px;
   width: 14px;
   height: 8px;
-  border-left: 2px solid var(--cobalt);
-  border-bottom: 2px solid var(--cobalt);
+  border-left: 2px solid var(--moonlight);
+  border-bottom: 2px solid var(--moonlight);
   transform: rotate(-45deg);
 }
 .cannot li {
-  color: var(--steel);
+  color: var(--muted);
 }
 .cannot li::before {
   top: 24px;
   width: 14px;
   height: 0;
   border-left: 0;
-  border-bottom: 2px solid var(--steel);
+  border-bottom: 2px solid var(--muted);
   transform: none;
 }
 .note {
   margin: 0;
   padding: 14px 16px;
   border-radius: 14px;
-  background: var(--paper);
+  background: var(--surface-solid);
   font-size: 16px;
-  color: var(--steel);
+  color: var(--muted);
 }
 
 .panel {
   padding: clamp(20px, 3vw, 32px);
   border-radius: 26px;
-  background: var(--paper);
+  background: var(--surface-solid);
   box-shadow: inset 0 1px 0 #fff, 0 1px 2px rgba(22, 24, 27, 0.08), 0 24px 48px -28px rgba(22, 24, 27, 0.35);
 }
 .choices {
@@ -140,7 +140,7 @@
 .choices legend {
   margin-bottom: 14px;
   padding: 0;
-  font-family: var(--font-display), sans-serif;
+  font-family: var(--font-serif), sans-serif;
   font-size: clamp(22px, 2.2vw, 28px);
   font-weight: 500;
   letter-spacing: -0.02em;
@@ -152,19 +152,19 @@
   gap: 4px 12px;
   padding: 16px 18px;
   border-radius: 18px;
-  background: var(--studio);
+  background: var(--ink);
   box-shadow: inset 0 0 0 1.5px transparent;
   transition: box-shadow 160ms ease, background-color 160ms ease;
 }
 .option:has(> input:checked) {
   background: #fff;
-  box-shadow: inset 0 0 0 1.5px var(--cobalt);
+  box-shadow: inset 0 0 0 1.5px var(--moonlight);
 }
 .option > input {
   width: 20px;
   height: 20px;
   margin: 3px 0 0;
-  accent-color: var(--cobalt);
+  accent-color: var(--moonlight);
 }
 .option > label {
   cursor: pointer;
@@ -177,7 +177,7 @@
 .optSub {
   display: block;
   font-size: 15px;
-  color: var(--steel);
+  color: var(--muted);
 }
 .fields {
   grid-column: 2;
@@ -192,7 +192,7 @@
   display: block;
   margin-bottom: 6px;
   font-size: 15px;
-  color: var(--steel);
+  color: var(--muted);
 }
 .field input {
   width: 100%;
@@ -200,14 +200,14 @@
   padding: 0 18px;
   border: 0;
   border-radius: 999px;
-  box-shadow: inset 0 0 0 1.5px var(--graphite);
-  background: var(--paper);
-  color: var(--graphite);
+  box-shadow: inset 0 0 0 1.5px var(--text);
+  background: var(--surface-solid);
+  color: var(--text);
   font: inherit;
   font-size: 17px;
 }
 .field input:focus-visible {
-  outline: 2px solid var(--cobalt);
+  outline: 2px solid var(--moonlight);
   outline-offset: 2px;
 }
 .check {
@@ -215,7 +215,7 @@
   gap: 10px;
   align-items: flex-start;
   font-size: 15px;
-  color: var(--steel);
+  color: var(--muted);
   cursor: pointer;
 }
 .check input {
@@ -223,14 +223,14 @@
   height: 18px;
   margin: 2px 0 0;
   flex: none;
-  accent-color: var(--cobalt);
+  accent-color: var(--moonlight);
 }
 .error {
   margin: 16px 0 0;
   padding: 12px 16px;
   border-radius: 14px;
   background: rgba(35, 64, 255, 0.08);
-  color: var(--cobalt-ink);
+  color: #ffffff;
   font-weight: 600;
 }
 .buttons {
@@ -245,7 +245,7 @@
 .fine {
   margin: 16px 0 0;
   font-size: 14px;
-  color: var(--steel);
+  color: var(--muted);
 }
 
 @media (max-width: 860px) {
