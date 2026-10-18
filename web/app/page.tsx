@@ -31,12 +31,12 @@ const TOOLS: [string, string][] = [
 
 const GH = "https://github.com/RohanGlitched/lowtide";
 const MEASURED: { value: string; label: string; note: string; href: string; link: string }[] = [
-  { value: "141", label: "automated tests", note: "Real days of British, Illinois and German prices, deadlines, both clock changes and sign-in.", href: `${GH}/actions`, link: "See them pass" },
-  { value: "1.0–1.3 s", label: "per answer from the model", note: "Amazon Nova Micro on Bedrock, timed on the live site from India to Sydney.", href: `${GH}#proof`, link: "How it was timed" },
+  { value: "146", label: "automated tests", note: "Real days of British, Illinois and German prices, deadlines, both clock changes and sign-in.", href: `${GH}/actions`, link: "See them pass" },
+  { value: "1.0–1.3 s", label: "per model turn", note: "Amazon Nova Micro on Bedrock, timed on the live site from India to Sydney.", href: `${GH}#proof`, link: "How it was timed" },
   { value: "16", label: "price regions, live", note: "All 14 British Agile regions, northern Illinois and Germany.", href: "/tables", link: "See every region" },
   { value: "0", label: "passwords or keys stored", note: "Every AWS call signs in with its own role; the old keys were deleted.", href: `${GH}#runs-on-aws`, link: "How it runs" },
   { value: "Tested", label: "sign-in, end to end", note: "Any MCP client can sign in with OAuth 2.1; checked on the live site with the official client.", href: "/connect#account", link: "Try signing in" },
-  { value: "14", label: "lessons written down", note: "Every snag hit building on Alexa+, MCP and AWS, logged for the next builder.", href: `${GH}/blob/main/FRICTION.md`, link: "Read the log" },
+  { value: "16", label: "lessons written down", note: "Every snag hit building on Alexa+, MCP and AWS, logged for the next builder.", href: `${GH}/blob/main/FRICTION.md`, link: "Read the log" },
 ];
 
 export default async function Home() {
@@ -265,7 +265,7 @@ export default async function Home() {
           </li>
         </ul>
         <p className={s.paysLine}>
-          Alexa+ integrations are open to brands, so the route to market is a supplier-branded Lowtide: the supplier&apos;s tariff, the
+          Alexa+ integrations are in preview for brands, so the route to market is a supplier-branded Lowtide: the supplier&apos;s tariff, the
           supplier&apos;s name on the Echo, and the evening peak a little lower.
         </p>
       </section>

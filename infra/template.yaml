@@ -493,7 +493,7 @@ Resources:
         Origins:
           - Id: app
             DomainName: !Select [2, !Split ["/", !GetAtt FnUrl.FunctionUrl]]
-            CustomOriginConfig: { OriginProtocolPolicy: https-only, OriginSSLProtocols: [TLSv1.2], OriginReadTimeout: 30, OriginKeepaliveTimeout: 5 }
+            CustomOriginConfig: { OriginProtocolPolicy: https-only, OriginSSLProtocols: [TLSv1.2], OriginReadTimeout: 30, OriginKeepaliveTimeout: 60 }
             # proves a request came through CloudFront (web/middleware.ts refuses the Function URL without it)
             OriginCustomHeaders:
               - { HeaderName: x-lowtide-origin, HeaderValue: !Ref OriginSecret }

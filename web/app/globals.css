@@ -84,6 +84,10 @@ a {
 .mono {
   font-family: var(--font-mono), ui-monospace, monospace;
 }
+p,
+li {
+  text-wrap: pretty;
+}
 .srOnly {
   position: absolute;
   width: 1px;

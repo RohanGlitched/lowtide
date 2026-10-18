@@ -179,7 +179,7 @@ export default function Echo() {
         setSetupError(
           /fetch|network/i.test(msg)
             ? "Lowtide didn't answer. Check the connection and try again."
-            : /couldn't place|covers Britain|busy|try again|postcode/i.test(msg)
+            : /couldn't place|covers Great Britain|Northern Ireland|isn't in yet|busy|try again|postcode/i.test(msg)
               ? msg
               : "Lowtide couldn't open the household just now. Try again in a moment.",
         );

@@ -59,6 +59,10 @@
   font-size: clamp(38px, 4.3vw, 64px);
   line-height: 1.04;
   min-height: calc(4 * 1.04em);
+  /* A shorter headline sits at the bottom of its reserved box, next to the lede, not above a gap. */
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
   text-wrap: balance;
   color: #fff;
 }

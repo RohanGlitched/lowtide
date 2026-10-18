@@ -107,7 +107,8 @@ export function drawClock(
     el("line", { x1: x0, y1: y0, x2: x1, y2: y1, stroke: major ? T.muted : T.ring, "stroke-width": major ? 1.5 : 1 }, ticks);
     // No label where the now hand points: the hand's dot says the time instead.
     const nearNow = Math.min(Math.abs(nowMin - h * 60), 1440 - Math.abs(nowMin - h * 60)) < 28;
-    if (labels && major && !nearNow) {
+    const side = h === 6 || h === 18;
+    if (labels && major && !nearNow && !(side && S < 230)) {
       // Labels sit clear of the ticks whatever the size: the font has a floor, so the radius grows with it.
       const fs = Math.max(10, S * 0.03);
       // At 06:00 and 18:00 the label runs sideways from the tick ring, so it is anchored at its near end.

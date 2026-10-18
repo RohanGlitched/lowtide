@@ -31,6 +31,8 @@ const TURN: { title: string; body: string; detail: string }[] = [
   },
 ];
 
+export const revalidate = 300;
+
 export default function EchoPage() {
   return (
     <main id="main" tabIndex={-1}>

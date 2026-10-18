@@ -106,10 +106,11 @@ export default function Hero() {
   const sentence = (t: number) => {
     if (shown === "now" || t - sc.now < 5 * 60_000) return `In ${place.label}, run the dishwasher now.`;
     const day = when(t) || (dayOf(t) === dayOf(sc.now) ? " today" : " tomorrow");
-    const verb = shown === "greenest" ? "the cleanest start for the dishwasher is" : "run the dishwasher at";
+    const verb = shown === "greenest" ? "the cleanest start is" : "run the dishwasher at";
     return `In ${place.label}, ${verb} ${spoken(t, tz)}${day}.`;
   };
-  const hourly = /comed/i.test(sc.tariff);
+  // ComEd and the EPEX day-ahead feed price whole hours; Agile prices half hours.
+  const hourly = sc.slots.length > 1 ? sc.slots[0].e - sc.slots[0].s >= 3_600_000 : /comed|epex/i.test(sc.tariff);
   const lowInRun = !!low && !!pick && low.start >= pick.start && low.start < pick.end;
   const status = dish && pick ? `${place.label}: run the dishwasher at ${hhmm(pick.start, tz)}, ${money(pick.cost, sc)}. Cheapest ${hourly ? "hour" : "half hour"} ${low ? hhmm(low.start, tz) : "unknown"}.` : "";
   const bars = day.slice(0, 48).map((x) => ({ p: x.p, on: !!pick && x.s >= pick.start - 900_000 && x.s < pick.end }));
@@ -127,8 +128,10 @@ export default function Hero() {
             An Alexa+ add-on, on live {sc.tariff} prices for {place.label}
           </p>
           <h1 id="hero-title" className={`serif ${s.title}`}>
-            Power is cheapest at <em>low tide</em>.{" "}
-            {pick ? sentence(pick.start) : null}
+            <span>
+              Power is cheapest at <em>low tide</em>.{" "}
+              {pick ? sentence(pick.start) : null}
+            </span>
           </h1>
           <p className={s.lede}>
             Ask Alexa when to run the dishwasher. Lowtide reads every {hourly ? "hourly" : "half-hourly"} electricity price and the grid&apos;s

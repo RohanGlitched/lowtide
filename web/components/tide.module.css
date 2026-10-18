@@ -193,3 +193,21 @@
     display: none;
   }
 }
+/* Low tide near either end of the night: the label hangs inward, never off the chart. */
+.low[data-edge="start"] {
+  transform: translate(-8px, calc(-100% - 64px));
+  justify-items: start;
+  text-align: left;
+}
+.low[data-edge="start"]::after {
+  left: 8px;
+}
+.low[data-edge="end"] {
+  transform: translate(calc(-100% + 8px), calc(-100% - 64px));
+  justify-items: end;
+  text-align: right;
+}
+.low[data-edge="end"]::after {
+  left: auto;
+  right: 8px;
+}

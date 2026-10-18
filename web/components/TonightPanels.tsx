@@ -8,7 +8,7 @@ import s from "./tonightpanels.module.css";
  * stretch that still finishes by morning, its delay-start knob turned to the hours until it starts.
  */
 const PER_WEEK: Record<string, number> = { dishwasher: 7, "washing-machine": 4, "hot-water": 7, ev: 2 };
-const PROGRAMME: Record<string, string> = { dishwasher: "eco 3 h", "washing-machine": "40 eco, 2.5 h", "hot-water": "immersion, 2 h", ev: "7.4 kW, 3 h" };
+const PROGRAMME: Record<string, string> = { dishwasher: "eco 3 h", "washing-machine": "40°, 2.5 h", "hot-water": "immersion, 2 h", ev: "7.4 kW, 3 h" };
 
 function hhmm(t: number, tz: string) {
   return new Intl.DateTimeFormat("en-GB", { timeZone: tz, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date(t));

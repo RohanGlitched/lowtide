@@ -11,8 +11,24 @@ const LINKS = [
 ];
 
 /** The header's links, a live price chip, the main action, and a sheet on phones. */
-export default function Nav({ price }: { price: string | null }) {
+export default function Nav({ price: initial }: { price: string | null }) {
   const path = usePathname();
+  // Pages are cached for minutes; the chip asks for this half hour's price itself, on load and every five minutes.
+  const [price, setPrice] = useState(initial);
+  useEffect(() => {
+    let live = true;
+    const pull = () =>
+      fetch("/api/now")
+        .then((r) => (r.ok ? r.json() : null))
+        .then((j) => live && j?.price && setPrice(j.price))
+        .catch(() => {});
+    pull();
+    const id = setInterval(pull, 5 * 60_000);
+    return () => {
+      live = false;
+      clearInterval(id);
+    };
+  }, []);
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLButtonElement>(null);
   const wasOpen = useRef(false);

@@ -5,6 +5,8 @@ import s from "./notfound.module.css";
 
 export const metadata: Metadata = { title: "Not found" };
 
+export const revalidate = 300;
+
 export default function NotFound() {
   return (
     <main id="main" tabIndex={-1} className={`shell ${s.main}`}>

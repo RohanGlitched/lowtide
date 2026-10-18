@@ -35,12 +35,12 @@ But nobody reads a price table while plugging in the car or loading the dishwash
 
 <img src="docs/screens/echo-scheduled.png" alt="Simulated Echo Show: Alexa has saved the dishwasher for 00:00, done by 03:00, 25p, and shows the day's prices on a dial" width="100%">
 
-> **You:** Alexa, when should I run the dishwasher? It needs to be done by seven.
-> **Alexa:** Run the dishwasher tonight at 1 a.m., done by 4 a.m., in time for 7 a.m. tomorrow morning. It costs about 23 pence, 7 pence less than starting now. Would you like to save it?
-> **You:** Yes please.
-> **Alexa:** Saved. Run the dishwasher tonight at 1 a.m. That saves 7 pence.
+> **You:** Alexa, when should I run the dishwasher? It needs to be done by seven.<br>
+> **Alexa:** Run the dishwasher tonight at midnight, done by 3 a.m., in time for 7 a.m. tomorrow morning. It costs about 25 pence, 6 pence less than starting now. Would you like to save it?<br>
+> **You:** Yes please.<br>
+> **Alexa:** The dishwasher is saved for midnight tonight. That saves 6 pence.
 
-Asked on an evening in London (15 October 2026's prices): Amazon Nova Micro on Amazon Bedrock, calling Lowtide's MCP tools, with the live Agile rates. Every answer is priced from that day's published prices, so the hour and the pence change daily. "Seven" with no a.m. or p.m. means the next seven the run can still make: asked at 2 p.m., the same question plans for 7 p.m. today, and says so. Before about 4 p.m. UK time Octopus hasn't published tomorrow's prices, so an overnight deadline is planned from what is published and Alexa says tomorrow's prices aren't out yet. The answer comes back twice: **a sentence to speak**, and **an MCP App view for the Echo Show screen**, the next 24 hours on a dial with the run marked on the rim.
+Asked on an evening in London (18 October 2026's prices, the exchange in the screenshot above): Amazon Nova Micro on Amazon Bedrock, calling Lowtide's MCP tools, with the live Agile rates. Every answer is priced from that day's published prices, so the hour and the pence change daily. "Seven" with no a.m. or p.m. means the next seven the run can still make: asked at 2 p.m., the same question plans for 7 p.m. today, and says so. Before about 4 p.m. UK time Octopus hasn't published tomorrow's prices, so an overnight deadline is planned from what is published and Alexa says tomorrow's prices aren't out yet. The answer comes back twice: **a sentence to speak**, and **an MCP App view for the Echo Show screen**, the next 24 hours on a dial with the run marked on the rim.
 
 - **Plans any shiftable load** (dishwasher, washing machine, tumble dryer, EV, immersion heater, home battery), with a deadline ("done by seven"), an earliest start ("not before ten"), and a goal: cheapest, greenest, or both.
 - **Remembers the household:** saved runs and money saved, behind a private household link (no account; a name is optional and never required).
@@ -191,7 +191,7 @@ python infra/deploy.py               # create or update the stack, upload assets
 - **Storage:** one JSON object per household in a private Amazon S3 bucket in Sydney, the same region as Bedrock, with all public access blocked. Every update is a read-modify-write guarded by S3's `If-Match` on the object's ETag, so two quick saves from two devices can't silently overwrite each other; a conflict re-reads and retries with backoff, and one that still conflicts says "try again" rather than overwriting. The store sits behind a small interface (`web/lib/storage.ts`) with Google Cloud Storage and Vercel Blob as alternatives; Lowtide started on Blob and moved to S3 when the Hobby account's shared monthly Blob allowance ran out during the submission period and took every household with it. On S3 the whole thing costs cents: small JSON objects and a few thousand requests a month.
 - **Households are capability links, and also OAuth grants.** A household is `/api/mcp/h/<id>`, ten random base-32 characters (about 50 bits), and holds only a place and its planned runs: no name required, no address, no payment details. A link works in every MCP host today, so it stays. Next to it, the same server is an OAuth 2.1 protected resource with its own authorization server ([Sign in with OAuth](#sign-in-with-oauth-alexa-account-linking)): a client signs in at `/api/mcp/account`, the person picks or makes a household on a consent page, and the token is bound to that household. In production the energy supplier would be the identity provider, so a household signs in once with the account it already has.
 - **Savings are quoted against a typical start.** Every saving on the website compares the cheapest start with the average of every start time in the next 24 hours (`typicalCost` in `web/lib/plan.ts`), not with the evening peak, and the page says so. The voice tools compare with starting now, and say that too.
-- **Tonight's plan on a schedule:** EventBridge Scheduler targets the Lambda function directly with a fixed JSON Input; the Lambda Web Adapter passes any non-HTTP event to `POST /events` (`AWS_LWA_PASS_THROUGH_PATH`). That route accepts only an event carrying a random token that `deploy.py` generates on every deploy and that lives in just two places, the function's environment (`SCHEDULE_TOKEN`) and the schedules' Input, compared in constant time. A header check can't do this job: Next.js adds `x-forwarded-*` headers to every request it serves, the adapter's loopback call included, so the first version refused the real scheduled call (friction log 14). CloudFront returns 404 for `/events`, and the Function URL refuses every request without CloudFront's origin secret except `/events` itself, which the adapter calls on loopback and which still needs the token. Verified on 15 October 2026: invoked with the schedule's own Input, the function answered `{"ok":true,"night":null,…}` (at 13:03 BST tomorrow's prices weren't out yet, so the job waits for the next run) and CloudWatch logged `{"evt":"schedule","job":"tonight","ok":true,…}`. Every step is idempotent and guarded by If-Match, so the two runs, a retry and a visitor's lazy step never plan a household twice.
+- **Tonight's plan on a schedule:** EventBridge Scheduler targets the Lambda function directly with a fixed JSON Input; the Lambda Web Adapter passes any non-HTTP event to `POST /events` (`AWS_LWA_PASS_THROUGH_PATH`). That route accepts only an event carrying a random token that `deploy.py` generates on every deploy and that lives in just two places, the function's environment (`SCHEDULE_TOKEN`) and the schedules' Input, compared in constant time. A header check can't do this job: Next.js adds `x-forwarded-*` headers to every request it serves, the adapter's loopback call included, so the first version refused the real scheduled call (friction log 14). CloudFront returns 404 for `/events`, and the Function URL refuses every request without CloudFront's origin secret except `/events` itself, which the adapter calls on loopback and which still needs the token. Verified on the live stack: on 18 October 2026 the 16:45 London run planned about 70 households, and the CloudWatch dashboard above shows each run with the households it planned (`{"evt":"schedule","job":"tonight","ok":true,…}` in the logs). Every step is idempotent and guarded by If-Match, so the two runs, a retry and a visitor's lazy step never plan a household twice.
 - **Performance:** the tides, LCDs and knobs are SVG and HTML rendered on the server, so every page paints complete with no client-side 3D: the three.js object was removed on 18 Oct after it took 5 to 11 seconds to appear on ordinary laptops.
 
 ## Sign in with OAuth (Alexa+ account linking)
@@ -253,7 +253,7 @@ sequenceDiagram
 | Metadata with issuer, endpoints, `response_types_supported: ["code"]`, grants, `code_challenge_methods_supported: ["S256"]`, scopes | ✓ `/.well-known/oauth-authorization-server` |
 | Errors in RFC 6749 §5.2 form: `invalid_client` 401, `invalid_scope` and `invalid_request` 400, `access_denied` 403 | ✓ same codes and statuses (`invalid_client` 401 with a Basic challenge), `Cache-Control: no-store`; `access_denied` goes back on the redirect when the person says no |
 | Pre-registered client (Alexa+ doesn't use dynamic registration) | ✓ register once with the call below and enter the id and secret in the Alexa developer console |
-| Alexa+ doesn't need `WWW-Authenticate` on 401 | Sent anyway: the MCP spec needs it for Claude, ChatGPT and SDK clients, and a client that doesn't use it ignores it |
+| Alexa+ doesn't need `WWW-Authenticate` on 401 | The server sends it for Claude, ChatGPT and SDK clients, but on AWS a Lambda Function URL passes it on as `x-amzn-Remapped-www-authenticate` ([friction log 15](FRICTION.md)), so clients discover sign-in through the well-known documents, which Lowtide serves at the root and the path |
 
 Registering the Alexa+ service client (the secret is shown once and stored only as a hash):
 
@@ -290,11 +290,13 @@ curl -s https://d1soo7510nfzf4.cloudfront.net/api/oauth/register -H 'content-typ
 
 ## Run it
 
+Requires Node.js 22.
+
 ```bash
 cd web
 npm install
 npm run dev          # builds the MCP App view, then starts Next.js
-npm test             # 141 tests: planner, deadlines, clocks, places, the phrase router, the tool handlers, the routes, SigV4, Polly, tonight's plan, retries, the origin check, the MCP protocol revisions, OAuth
+npm test             # 146 tests: planner, deadlines, clocks, places, the phrase router, the tool handlers, the routes, SigV4, Polly, tonight's plan, retries, the origin check, the MCP protocol revisions, OAuth
 node scripts/mcp-smoke.mjs http://localhost:3000
 PLAYWRIGHT=/path/to/node_modules/playwright node scripts/oauth-e2e.mjs http://localhost:3000   # OAuth end to end
 ```
@@ -334,6 +336,6 @@ The friction we hit while building is logged in [`FRICTION.md`](FRICTION.md).
 
 ---
 
-Built for the [Amazon Build, Ship, Shape hackathon](https://amazonappdev2026.devpost.com) (Alexa+ track, AWS Builder mini challenge), October 2026. Prices: Octopus Energy, ComEd, aWATTar; carbon: National Energy System Operator. Not affiliated with Amazon, Octopus Energy or ComEd.
+Built for the [Amazon Build, Ship, Shape hackathon](https://amazonappdev2026.devpost.com) ([Devpost entry](https://devpost.com/software/lowtide)): Alexa+ track, AWS Builder mini challenge, and the Open Source mini challenge with [Countertop](https://github.com/RohanGlitched/countertop) and the upstream fix [vercel-labs/mcp-handler#200](https://github.com/vercel-labs/mcp-handler/pull/200). October 2026. Prices: Octopus Energy, ComEd, aWATTar; carbon: National Energy System Operator. Not affiliated with Amazon, Octopus Energy or ComEd.
 
 MIT licensed.

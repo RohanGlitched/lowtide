@@ -89,7 +89,7 @@ Kept while building Lowtide (October 2026). Each entry: task attempted, steps ta
 - **Expected:** An OIDC provider and a role whose trust policy names this one Vercel project, so no access key exists anywhere.
 - **Actual:** The organisation's service control policy denies creating IAM OIDC providers, so the keyless path can't be set up in this account. The refusal is an explicit deny from the organisation, which a member account can't change.
 - **Severity:** Medium (forced a static access key onto a third-party host).
-- **Workaround used:** An IAM user, `lowtide-store`, with one inline policy (get, put and delete objects in one bucket, and list that bucket), its key stored as a sensitive Vercel variable, and a note to rotate it after judging. The keyless code path stays in the repo for accounts that allow it.
+- **Workaround used:** An IAM user, `lowtide-store`, with one inline policy (get, put and delete objects in one bucket, and list that bucket), its key stored as a sensitive Vercel variable, and a note to rotate it after judging. The keyless code path stays in the repo for accounts that allow it. Once Lowtide moved to AWS Lambda, where the function signs with its own role, the Vercel copy became a redirect and both IAM users' access keys were deleted (18 October 2026).
 - **Actionable suggestion:** In the IAM console, show when an SCP blocks identity-provider creation before the form is filled in, and suggest an allowed alternative (for example, IAM Roles Anywhere or a request to the organisation's administrator) in the error.
 
 ## 11. S3 conditional writes: two different answers for "someone else wrote first"
@@ -127,3 +127,22 @@ Kept while building Lowtide (October 2026). Each entry: task attempted, steps ta
 - **Severity:** Medium (the guard failed closed, so nothing was exposed, but the schedule would have done nothing every night, and only a test invocation on the live function showed it).
 - **Workaround used:** A random token per deploy: `infra/deploy.py` generates it, and it lives in only two places, the function's environment (`SCHEDULE_TOKEN`, a NoEcho stack parameter) and the schedules' event Input. `/events` compares it in constant time and refuses anything without it (`web/lib/scheduled.ts`); CloudFront returns 404 for `/events`, so from outside only a direct Function URL request could reach the route, and that has no token. The same test invocation then returned `{"ok":true,…}` and CloudWatch logged the scheduled run.
 - **Actionable suggestion:** In the Lambda Web Adapter docs for `AWS_LWA_PASS_THROUGH_PATH`, say that a pass-through request can't be told from an HTTP request by its headers once a framework has handled it, and either recommend a secret in the event payload or have the adapter add a marker the Function URL strips from incoming requests, so an app can trust it. A Next.js example with a scheduled event would show both.
+
+## 15. Lambda Function URLs rename the OAuth challenge header
+- **Task attempted:** Make `/api/mcp/account` a spec-compliant protected MCP resource: a request without a token gets `401` with `WWW-Authenticate: Bearer resource_metadata="…"`, which is how MCP clients (Claude, ChatGPT, the MCP SDK) discover where to sign in.
+- **Steps taken:** The Next.js route returns that header; the function runs behind a Lambda Function URL (response streaming) and CloudFront. Tested with `curl -i` through CloudFront and directly against the Function URL.
+- **Expected:** The `WWW-Authenticate` header to reach the client unchanged, as it does from any other HTTP server.
+- **Actual:** Lambda Function URLs pass a function's `WWW-Authenticate` header on as `x-amzn-Remapped-www-authenticate`, so the client sees a 401 without the challenge the MCP authorization spec says the server MUST send. Nothing in the Function URL documentation mentions the rename.
+- **Severity:** Medium (sign-in discovery breaks silently for clients that rely on the header; it took a header dump to find).
+- **Workaround used:** MCP clients also try the well-known locations (`/.well-known/oauth-protected-resource/api/mcp/account` and the root), which Lowtide serves, so discovery still works through the fallback; the README says so.
+- **Actionable suggestion:** Document the remapped headers in the Function URL response reference, and add an opt-out (or pass `WWW-Authenticate` through on 401s), since it is a standard HTTP authentication header rather than one Lambda needs for itself.
+
+## 16. Fixing a response header at the edge: CloudFront Functions skip error responses, and Lambda@Edge lives in us-east-1
+- **Task attempted:** Put the renamed `WWW-Authenticate` header back on the 401 at the edge, with a CloudFront viewer-response function.
+- **Steps taken:** Wrote a viewer-response CloudFront Function that copies `x-amzn-remapped-www-authenticate` back to `www-authenticate`, attached it to the `/api/mcp/account*` behaviour, and tested the 401.
+- **Expected:** The function to run on every response it is attached to; failing that, Lambda@Edge as the heavier option.
+- **Actual:** CloudFront doesn't run viewer-response functions when the origin returns a status of 400 or higher, which is exactly the response that needed the header. Lambda@Edge functions have to be created in us-east-1, and the organisation's service control policy allows only ap-southeast-2 (Sydney), so that route was closed too.
+- **Severity:** Low (the well-known fallback covers discovery), but two hours went into options that could not work.
+- **Workaround used:** None at the edge; rely on the well-known discovery documents, and disclose the rename in the README's Alexa+ fit table.
+- **Actionable suggestion:** Say on the CloudFront Functions event-type page, near the top, that viewer-response doesn't fire for 4xx/5xx origin responses, and point to response headers policies (which do apply) for static headers. For Lambda@Edge, let a regional-only organisation deploy from its own region, or say up front that the function is created in us-east-1.
+

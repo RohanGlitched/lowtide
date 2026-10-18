@@ -53,7 +53,7 @@ test("places resolve to the right tariff region", () => {
   assert.equal(resolveCountry("Chicago"), "US");
   assert.equal(resolveCountry("60614"), "US");
   assert.equal(resolveCountry("Berlin"), "DE");
-  assert.throws(() => resolveCountry("Paris"), /covers Britain/);
+  assert.throws(() => resolveCountry("Paris"), /covers Great Britain/);
 });
 
 test("appliances are found by everyday names", () => {

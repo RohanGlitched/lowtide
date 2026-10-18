@@ -539,7 +539,7 @@
 @media (max-width: 640px) {
   /* Along the bottom of the screen on a phone, clear of the dial. */
   .noticeKicker {
-    display: none;
+    font-size: 11px;
   }
 }
 @media (prefers-reduced-motion: reduce) {

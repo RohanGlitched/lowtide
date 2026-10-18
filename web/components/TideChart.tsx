@@ -82,7 +82,7 @@ export default function TideChart({ slots, past = [], now, timeZone: tz, unit, r
     // Every 2 hours on a wide tide (every 4 on phones, by CSS), every 6 on a compact one; none where "now" sits.
     const ticks = cells
       .map((c, i) => ({ i, h: hourOf(c.start, tz), min: new Date(c.start).getUTCMinutes() }))
-      .filter((t) => t.min === 0 && t.h % (compact ? 6 : 2) === 0 && x(t.i) / W > (compact ? 0.1 : 0.07) && t.i < 46)
+      .filter((t) => t.min === 0 && t.h % (compact ? 6 : 2) === 0 && x(t.i) / W > (compact ? 0.18 : 0.07) && t.i < 46)
       .map((t) => ({ ...t, minor: !compact && (t.h % 4 !== 0 || x(t.i) / W < 0.14) }));
     return { cells, x, y, line, area, ghost, lastLive, lowI, ticks, first, lo, hi };
   }, [slots, past, now, tz, H, TOP, BOT, compact]);
@@ -177,7 +177,10 @@ export default function TideChart({ slots, past = [], now, timeZone: tz, unit, r
         </div>
       )}
       {!compact && model.lowI >= 0 && hover == null && (
-        <div className={s.low} style={{ left: `${(model.x(model.lowI) / W) * 100}%`, top: `calc(var(--h) * ${model.y(model.cells[model.lowI].live!) / H})` }}>
+        <div
+          className={s.low}
+          data-edge={model.x(model.lowI) / W < 0.12 ? "start" : model.x(model.lowI) / W > 0.88 ? "end" : undefined}
+          style={{ left: `${(model.x(model.lowI) / W) * 100}%`, top: `calc(var(--h) * ${model.y(model.cells[model.lowI].live!) / H})` }}>
           <span>Low tide</span>
           <b className="num">
             {hhmm(model.cells[model.lowI].start, tz)}, {model.cells[model.lowI].live!.toFixed(1)}

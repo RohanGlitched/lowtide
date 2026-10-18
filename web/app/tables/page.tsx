@@ -43,7 +43,7 @@ export default async function Tables() {
             <div className={s.rankHead}>
               <h2>Right now, cheapest first</h2>
               <p>
-                This half hour&apos;s Agile price in each British region. The same tariff costs {rate(gbHi - gbLo, { unit: "p" })} more in{" "}
+                This half hour&apos;s Agile price in each British region. The same tariff costs {rate(Math.round(gbHi * 10) / 10 - Math.round(gbLo * 10) / 10, { unit: "p" })} more in{" "}
                 {gb[gb.length - 1].name} than in {gb[0].name}.
               </p>
             </div>

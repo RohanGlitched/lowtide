@@ -42,6 +42,13 @@ const RELATIVE_WORDS: Record<string, number> = {
 };
 const MINUTE_WORDS: Record<string, number> ={ "": 0, "o'clock": 0, oclock: 0, fifteen: 15, thirty: 30, "forty five": 45, "forty-five": 45 };
 
+/** Parts of the day said as words: [hour as a deadline, hour as a start]. */
+const PARTS: Record<string, [number, number]> = {
+  morning: [7, 6], "first thing": [7, 6], "first thing morning": [7, 6], "i wake up": [7, 6], "we wake up": [7, 6], "wake up": [7, 6],
+  "i get up": [7, 6], breakfast: [7, 6], overnight: [7, 22], tonight: [22, 18], "this evening": [22, 18], evening: [22, 18],
+  night: [23, 22], bedtime: [22, 22], "this afternoon": [17, 12], afternoon: [17, 12], lunchtime: [12, 12], lunch: [12, 12],
+};
+
 export interface Deadline {
   /** the moment, unix ms */
   at: number;
@@ -61,7 +68,7 @@ export interface Deadline {
  *  - "tomorrow" anywhere ("7am tomorrow", "tomorrow at seven") moves it to tomorrow.
  * Returns null when it can't read it.
  */
-export function resolveDeadline(input: string, timeZone: string, now = Date.now(), minutes = 0): Deadline | null {
+export function resolveDeadline(input: string, timeZone: string, now = Date.now(), minutes = 0, role: "deadline" | "start" = "deadline"): Deadline | null {
   let s = input.trim().toLowerCase().replace(/\s+/g, " ");
   // "in ten minutes", "within 2 hours", "ten minutes from now", "in 20 minutes' time", "90 mins"
   const rel =
@@ -76,6 +83,21 @@ export function resolveDeadline(input: string, timeZone: string, now = Date.now(
     return { at: now + Math.round(n * unit), ambiguous: false, relative: true };
   }
   if (/^in half an hour$/.test(s)) return { at: now + 30 * 60_000, ambiguous: false, relative: true };
+
+  // "after 10pm", "from ten", "not before 22:00", "no earlier than seven": the time itself.
+  s = s.replace(/^(?:after|from|not before|no earlier than|once it'?s|past|starting(?: at| from)?)\s+/, "");
+  // A time of day said as words: "by tomorrow morning", "before I wake up", "first thing", "tonight", "this
+  // afternoon". As a deadline the end of that part of the day; as a start its beginning.
+  const part = s.replace(/\b(?:by|done|finished|before|until|at|the|in|for)\b/g, " ").replace(/\btomorrow\b/g, " ").replace(/\s+/g, " ").trim();
+  // "done by tomorrow" on its own means by the morning.
+  const hours = PARTS[part] ?? (part === "" && /tomorrow/.test(s) ? ([7, 6] as [number, number]) : undefined);
+  if (hours) {
+    let at = nextClockTime(`${role === "start" ? hours[1] : hours[0]}:00`, timeZone, now)!;
+    // Asked for "tonight" at 7 p.m.: that part of the day has already begun, so a start means now.
+    if (role === "start" && at > nextClockTime(`${hours[0]}:00`, timeZone, now)!) at = now;
+    if (/\btomorrow\b/.test(s) && !isTomorrow(at, now, timeZone)) at += 86_400_000;
+    return { at, ambiguous: false, relative: false };
+  }
 
   const tomorrow = /\btomorrow\b/.test(s);
   s = s.replace(/\btomorrow\b/g, "").replace(/\b(at|by|before|until|done|finished)\b/g, "").replace(/\b(morning|in the morning)\b/g, "am").replace(/\b(evening|tonight|in the evening|night|afternoon|in the afternoon)\b/g, "pm").replace(/o'?clock/g, "").replace(/\s+/g, " ").trim();

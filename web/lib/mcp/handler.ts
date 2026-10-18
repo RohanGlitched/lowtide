@@ -7,7 +7,7 @@ const SERVER_INFO = { name: "Lowtide", version: "1.0.0" };
 export const CORS: Record<string, string> = {
   "access-control-allow-origin": "*",
   "access-control-allow-methods": "GET, POST, DELETE, OPTIONS",
-  "access-control-allow-headers": "content-type, accept, authorization, mcp-session-id, mcp-protocol-version, last-event-id",
+  "access-control-allow-headers": "content-type, accept, authorization, mcp-session-id, mcp-protocol-version, mcp-method, mcp-name, last-event-id",
   "access-control-expose-headers": "mcp-session-id, mcp-protocol-version",
   "access-control-max-age": "86400",
 };
