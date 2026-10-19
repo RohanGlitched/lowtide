@@ -1,4 +1,8 @@
-Copyright 2024 The Funnel Project Authors (https://github.com/Dicotype/Funnel)
+Newsreader: Copyright 2020 The Newsreader Project Authors (https://github.com/productiontype/Newsreader)
+Inter: Copyright 2020 The Inter Project Authors (https://github.com/rsms/inter)
+JetBrains Mono: Copyright 2020 The JetBrains Mono Project Authors (https://github.com/JetBrains/JetBrainsMono)
+
+The Latin subsets of these variable fonts, as Google Fonts serves them, are kept here so the build needs no network access.
 
 This Font Software is licensed under the SIL Open Font License, Version 1.1.
 This license is copied below, and is also available with a FAQ at:
